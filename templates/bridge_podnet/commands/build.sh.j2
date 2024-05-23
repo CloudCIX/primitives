@@ -1,0 +1,6 @@
+{
+sudo ip link add br-{{ identifier }} type bridge
+sudo ip addr add {{ address_range }} dev br-{{ identifier }}
+sudo ip link set dev br-{{ identifier }} up
+echo "{{ messages['000'] }}"
+}

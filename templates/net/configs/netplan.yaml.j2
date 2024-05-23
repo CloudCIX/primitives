@@ -1,0 +1,27 @@
+
+    # {{ name }} Interface
+    {{ identifier }}:
+      dhcp4: false
+      dhcp6: false
+      accept-ra: no
+{%- if ips != None and ips|length > 0 %}
+\n      addresses:
+{%- for ip in ips %}
+\n        - {{ ip }}
+{%- endfor %}
+{%- endif %}
+{%- if routes != None and routes|length > 0 %}
+\n      routes:
+{%- for route in routes %}
+\n        - to: {{ route['to'] }}
+          via: {{ route['via'] }}
+{%- endfor %}
+{%- endif %}
+{%- if mac != None %}
+\n      match:
+        macaddress: {{ mac }}
+{%- if name != None %}
+      set-name: {{ name }}
+{%- endif %}
+{%- endif %}
+\n

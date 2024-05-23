@@ -1,0 +1,23 @@
+{
+{% set firewall_file = '/tmp/' + namespace_identifier + '.conf' %}
+{# Create the temp nftables.conf file and validate it #}
+echo "{% include 'firewallns/configs/nftables.nft.j2' %}" > {{ firewall_file }}
+if ! [ -f {{ firewall_file }} ]; then
+    echo "{{ messages['300'] }}"
+    exit 1
+fi
+{# Verify the configuration file syntax #}
+if ! sudo ip netns exec {{ namespace_identifier }} nft --check --file {{ firewall_file }} ; then
+    echo "{{ messages['301'] }}"
+    exit 1
+fi
+echo "{{ messages['100'] }}"
+{# Apply the new firewall config #}
+if ! sudo ip netns exec {{ namespace_identifier }} nft --file {{ firewall_file }}; then
+    echo "{{ messages['302'] }}"
+    exit 1
+fi
+echo "{{ messages['000'] }}"
+{# Remove the firewall rule file from /tmp/ location #}
+sudo rm --force {{ firewall_file }}
+}

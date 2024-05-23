@@ -1,0 +1,34 @@
+{
+{# Define Revert function to undo changes #}
+revert() {
+    sudo mv {{ netplan_filepath }}.bak {{ netplan_filepath }}
+}
+{# First backup the netplan file #}
+if ! sudo cp {{ netplan_filepath }} {{ netplan_filepath }}.bak; then
+    echo "{{ messages['300'] }}"
+    exit 1
+fi
+{# load the interface config #}
+{% set content %}
+{% include "net/configs/netplan.yaml.j2" %}
+{% endset %}
+{# Append loaded config to output file #}
+if ! echo "{{ content }}" | sudo tee -a "{{ netplan_filepath }}"; then
+    echo "{{ messages['301'] }}"
+    revert
+    exit 1
+fi
+if ! sudo netplan generate; then
+    echo "{{ messages['302'] }}"
+    revert
+    exit 1
+fi
+if ! sudo netplan apply; then
+    echo "{{ messages['303'] }}"
+    revert
+    exit 1
+fi
+{# Remove the backup file #}
+sudo rm {{ netplan_filepath }}.bak
+echo "{{ messages['000'] }}"
+}

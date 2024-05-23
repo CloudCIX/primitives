@@ -1,0 +1,75 @@
+#!/usr/sbin/nft -f
+
+# Flush the exists rule set if any
+flush ruleset
+
+# Include config snippets
+include "/etc/nftables.d/*.conf"
+
+table inet firewall_podnet {
+{# ----------------------------------------------------------------------- #}
+    # cloudcix supported applications(a rule with one or more conditions)
+    # icmp v4 allow
+    chain icmp_accept {
+        icmp type { echo-reply, destination-unreachable, echo-request, time-exceeded } accept
+    }
+    # icmp v4 block
+    chain icmp_drop {
+        icmp type { echo-reply, destination-unreachable, echo-request, time-exceeded } drop
+    }
+    # icmp v6 allow
+    chain icmp6_accept {
+        icmpv6 type { echo-request, mld-listener-query, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
+    }
+    # icmp v6 block
+    chain icmp6_drop {
+        icmpv6 type { echo-request, mld-listener-query, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } drop
+    }
+    # dns allow
+    chain dns_accept {
+        meta l4proto {tcp, udp} th dport 53 accept
+    }
+    # dns block
+    chain dns_drop {
+        meta l4proto {tcp, udp} th dport 53 drop
+    }
+    # vpn allow
+    chain vpn_accept {
+        # IKE 500, 4500 ports and udp protocol
+        udp dport { 500, 4500 } accept
+        ip protocol esp accept
+    }
+    # vpn block
+    chain vpn_drop {
+        # IKE 500, 4500 ports and udp protocol
+        meta l4proto udp th dport { 500, 4500 } drop
+        # Allow IPSec esp protocol
+        ip protocol esp drop
+    }
+{# ----------------------------------------------------------------------- #}
+    # Traffic TO The PodNet
+    chain input {
+        type filter hook input priority filter; policy drop;
+{% for rule in inbound_rules %}
+        {{ rule }}
+{% endfor %}
+    }
+{# ---------------------------------------------------------------------- #}
+    # Traffic TO and FROM Hosts in the Management, Private
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        # Forward
+{% for rule in forward_rules %}
+        {{ rule }}
+{% endfor %}
+    }
+{# ---------------------------------------------------------------------- #}
+    # Traffic FROM PodNet
+    chain output {
+        type filter hook output priority 0; policy drop;
+{% for rule in outbound_rules %}
+        {{ rule }}
+{% endfor %}
+    }
+{# ---------------------------------------------------------------------- #}
+}
