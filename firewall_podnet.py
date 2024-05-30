@@ -184,8 +184,8 @@ def build(
     forward_rules = deque()
     for rule in sorted(firewall_rules, key=lambda fw: fw['order']):
         # sort traffic direction ie inbound, outbound and forward
-        iiface = rule['iiface'] if rule['iiface'] not in [None, '', 'none'] else None
-        oiface = rule['oiface'] if rule['oiface'] not in [None, '', 'none'] else None
+        iiface = rule['iiface'] if rule['iiface'] not in [None, '', 'none', 'any'] else None
+        oiface = rule['oiface'] if rule['oiface'] not in [None, '', 'none', 'any'] else None
         if iiface is not None and oiface is None:
             inbound_rules.append(complete_rule(rule, iiface, None, log_setup))
         elif iiface is None and oiface is not None:
