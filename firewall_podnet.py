@@ -23,10 +23,10 @@ def complete_rule(rule, iiface, oiface, log_setup):
     v = '' if rule['version'] == '4' else '6'
 
     # input interface line
-    iif = f'iifname "{iiface}"' if iiface is not None else ''
+    iif = f'iifname "{iiface}"' if iiface not in [None, 'any'] else ''
 
     # output interface line
-    oif = f'oifname "{oiface}"' if oiface is not None else ''
+    oif = f'oifname "{oiface}"' if oiface not in [None, 'any'] else ''
 
     # sort the `destination` rule format
     if rule['destination'] is None or 'any' in rule['destination']:
@@ -184,8 +184,8 @@ def build(
     forward_rules = deque()
     for rule in sorted(firewall_rules, key=lambda fw: fw['order']):
         # sort traffic direction ie inbound, outbound and forward
-        iiface = rule['iiface'] if rule['iiface'] not in [None, '', 'none', 'any'] else None
-        oiface = rule['oiface'] if rule['oiface'] not in [None, '', 'none', 'any'] else None
+        iiface = rule['iiface'] if rule['iiface'] not in [None, '', 'none'] else None
+        oiface = rule['oiface'] if rule['oiface'] not in [None, '', 'none'] else None
         if iiface is not None and oiface is None:
             inbound_rules.append(complete_rule(rule, iiface, None, log_setup))
         elif iiface is None and oiface is not None:

@@ -51,7 +51,7 @@ table inet firewall_podnet {
     chain input {
         type filter hook input priority filter; policy drop;
 
-        # Accept traffic related to established connections
+        # Accept traffic from established and related connections
         ct state established,related accept
 
         # All other Inbound rules
@@ -64,7 +64,7 @@ table inet firewall_podnet {
     chain forward {
         type filter hook forward priority filter; policy drop;
 
-        # Accept traffic related to established connections
+        # Accept traffic from established and related connections
         ct state established,related accept
 
         # All other Forward rules
