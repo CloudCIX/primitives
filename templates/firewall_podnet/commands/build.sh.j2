@@ -17,6 +17,11 @@ if ! nft --file {{ firewall_file }}; then
     echo "{{ messages['302'] }}"
     exit 1
 fi
+{# Replace the /etc/nftables.conf with new file #}
+if ! sudo mv /etc/nftables.conf {{ firewall_file }}; then
+    echo "{{ messages['303'] }}"
+    exit 1
+fi
 echo "{{ messages['000'] }}"
 {# Remove the firewall rule file from /tmp/ location #}
 sudo rm --force {{ firewall_file }}

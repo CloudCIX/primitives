@@ -160,10 +160,11 @@ def build(
     fail_start = f'Failed to apply Firewall config for PodNet.'
     messages = {
         '000': f'Successfully applied Firewall config for PodNet',
-        '100': f'Configuration file /tmp/nftables.nft is valid. Applying the Firewall',
+        '100': f'Configuration file /tmp/nftables.conf is valid. Applying the Firewall',
         '300': f'{fail_start} Configuration file /tmp/nftables.nft Not found.',
         '301': f'{fail_start} Configuration file /tmp/nftables.nft syntax is invalid. Exiting.',
         '302': f'{fail_start} Unexpected error occurred while applying the Firewall.',
+        '303': f'Failed to replace /etc/nftables.conf with /tmp/nftables.conf.',
     }
 
     # validate the rules
