@@ -7,18 +7,18 @@ if ! [ -f {{ firewall_file }} ]; then
     exit 1
 fi
 {# Verify the configuration file syntax #}
-if ! nft --check --file {{ firewall_file }} ; then
+if ! nft --check --file {{ firewall_file }} > /dev/null; then
     echo "{{ messages['301'] }}"
     exit 1
 fi
 echo "{{ messages['100'] }}"
 {# Apply the new firewall config #}
-if ! nft --file {{ firewall_file }}; then
+if ! nft --file {{ firewall_file }} > /dev/null; then
     echo "{{ messages['302'] }}"
     exit 1
 fi
 {# Replace the /etc/nftables.conf with new file #}
-if ! sudo mv {{ firewall_file }} /etc/nftables.conf; then
+if ! sudo mv {{ firewall_file }} /etc/nftables.conf > /dev/null; then
     echo "{{ messages['303'] }}"
     exit 1
 fi

@@ -18,12 +18,12 @@ if ! echo "{{ content }}" | sudo tee -a "{{ netplan_filepath }}"; then
     revert
     exit 1
 fi
-if ! sudo netplan generate; then
+if ! sudo netplan generate > /dev/null; then
     echo "{{ messages['302'] }}"
     revert
     exit 1
 fi
-if ! sudo netplan apply; then
+if ! sudo netplan apply > /dev/null; then
     echo "{{ messages['303'] }}"
     revert
     exit 1
