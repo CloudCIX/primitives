@@ -1,0 +1,22 @@
+
+  vlans:
+    {{ identifier }}.{{ vlan }}:
+      dhcp4: false
+      dhcp6: false
+      accept-ra: no
+      id: {{ vlan }}
+      link: {{ identifier }}
+{%- if ips != None and ips|length > 0 %}
+\n      addresses:
+{%- for ip in ips %}
+\n        - {{ ip }}
+{%- endfor %}
+{%- endif %}
+{%- if routes != None and routes|length > 0 %}
+\n      routes:
+{%- for route in routes %}
+\n        - to: {{ route['to'] }}
+          via: {{ route['via'] }}
+{%- endfor %}
+{%- endif %}
+\n
