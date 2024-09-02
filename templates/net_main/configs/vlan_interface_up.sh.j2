@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Create VLAN link
+ip link add link {{ ifname }} name {{ ifname }}{{ vlan }} type vlan id {{ vlan }}
+ip link set dev {{ ifname }}{{ vlan }} up
+
+{% if ips|length > 0 %}
+# Set the IP addresses
+{% for ip in ips %}
+ip addr add {{ ip }} dev {{ ifname }}{{ vlan }}
+{% endfor %}
+{% endif %}
+
+{% if routes|length > 0 %}
+# Add the Routes
+{% for route in routes %}
+ip route add {{ route['to'] }} via {{ route['via'] }} dev {{ ifname }}{{ vlan }}
+{% endfor %}
+{% endif %}

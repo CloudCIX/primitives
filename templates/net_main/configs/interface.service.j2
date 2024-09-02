@@ -1,0 +1,12 @@
+[Unit]
+Description=Configure {{ interface_name }} network interface
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/net_main-{{ interface_name }}-up.sh
+ExecStop=/usr/local/bin/net_main-{{ interface_name }}-down.sh
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target

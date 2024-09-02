@@ -1,0 +1,22 @@
+#!/bin/bash
+
+{% if mac != None %}
+# Rename the interface
+ip link set dev $(ip link | grep -B1 {{ mac }} | head -n1 | awk -F: '{print $2}' | xargs) down
+ip link set dev $(ip link | grep -B1 {{ mac }} | head -n1 | awk -F: '{print $2}' | xargs) name {{ ifname }}
+{% endif %}
+ip link set dev {{ ifname }} up
+
+{% if ips|length > 0 %}
+# Set the IP addresses
+{% for ip in ips %}
+ip addr add {{ ip }} dev {{ ifname }}
+{% endfor %}
+{% endif %}
+
+{% if routes|length > 0 %}
+# Add the Routes
+{% for route in routes %}
+ip route add {{ route['to'] }} via {{ route['via'] }} dev {{ ifname }}
+{% endfor %}
+{% endif %}
