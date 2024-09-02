@@ -2,25 +2,25 @@
 set -e
 
 {# Create `up` bash file                                         #}
-if ! sudo echo "{% include 'net_main/configs/up.sh.j2' %}" > /usr/local/bin/net_main-{{ ifname }}-up.sh; then
+if ! sudo echo "{% include 'netmain/configs/up.sh.j2' %}" > /usr/local/bin/netmain-{{ ifname }}-up.sh; then
     echo "{{ messages['300'] }}"
     exit 1
 fi
 
 {# Create `down` bash file                                       #}
-if ! sudo echo "{% include 'net_main/configs/down.sh.j2' %}" > /usr/local/bin/net_main-{{ ifname }}-down.sh; then
+if ! sudo echo "{% include 'netmain/configs/down.sh.j2' %}" > /usr/local/bin/netmain-{{ ifname }}-down.sh; then
     echo "{{ messages['301'] }}"
     exit 1
 fi
 
 {# Create `service` file                                         #}
-if ! sudo echo "{% include 'net_main/configs/service.j2' %}" > /etc/systemd/system/net_main-{{ ifname }}.service; then
+if ! sudo echo "{% include 'netmain/configs/service.j2' %}" > /etc/systemd/system/netmain-{{ ifname }}.service; then
     echo "{{ messages['302'] }}"
     exit 1
 fi
 
 {# Enable and Start the `service`                                #}
-if ! systemctl enable net_main-{{ ifname }}.service && systemctl start net_main-{{ ifname }}.service > /dev/null 2>&1; then
+if ! systemctl enable netmain-{{ ifname }}.service && systemctl start netmain-{{ ifname }}.service > /dev/null 2>&1; then
     echo "{{ messages['303'] }}"
     exit 1
 fi

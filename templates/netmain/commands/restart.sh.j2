@@ -1,0 +1,9 @@
+{
+set -e
+
+if ! systemctl enable netmain-{{ ifname }}.service && systemctl start netmain-{{ ifname }}.service > /dev/null 2>&1; then
+    echo "{{ messages['300'] }}"
+    exit 1
+fi
+echo "{{ messages['000'] }}"
+}

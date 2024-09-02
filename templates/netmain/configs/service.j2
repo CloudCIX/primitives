@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/net_main-{{ ifname }}-up.sh
-ExecStop=/usr/local/bin/net_main-{{ ifname }}-down.sh
+ExecStart=/usr/local/bin/netmain-{{ ifname }}-up.sh
+ExecStop=/usr/local/bin/netmain-{{ ifname }}-down.sh
 RemainAfterExit=true
 
 [Install]

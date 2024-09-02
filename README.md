@@ -1,6 +1,6 @@
 # Primitives
 
-## net_main
+## netmain
 Primtive for Building Interface System Service on PodNet.
 
 Supported verbs:

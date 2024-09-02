@@ -14,10 +14,10 @@ __all__ = [
     'build',
 ]
 
-BUILD_TEMPLATE = 'net_main/commands/build.sh.j2'
-QUIESCE_TEMPLATE = 'net_main/commands/quiesce.sh.j2'
-RESTART_TEMPLATE = 'net_main/commands/restart.sh.j2'
-LOGGER = 'primitives.net_main'
+BUILD_TEMPLATE = 'netmain/commands/build.sh.j2'
+QUIESCE_TEMPLATE = 'netmain/commands/quiesce.sh.j2'
+RESTART_TEMPLATE = 'netmain/commands/restart.sh.j2'
+LOGGER = 'primitives.netmain'
 
 
 def build(
@@ -34,11 +34,11 @@ def build(
         It setups either an ethernet interface with or without VLAN tagged interfaces on Linux server as system service
          that persists against reboots.
         1. Creates UP bash script file
-           - /usr/local/bin/net_main-{{ ifname }}-up.sh
+           - /usr/local/bin/netmain-{{ ifname }}-up.sh
         2. Creates DOWN bash script file
-           - /usr/local/bin/net_main-{{ ifname }}-down.sh
+           - /usr/local/bin/netmain-{{ ifname }}-down.sh
         3. Creates system service script file
-           - /etc/systemd/system/net_main-{{ ifname }}.service
+           - /etc/systemd/system/netmain-{{ ifname }}.service
         4. Enables and Starts the service
 
     parameters:
@@ -112,7 +112,7 @@ def build(
 
     # Access the logging level from the main program
     logger = logging.getLogger(f'{LOGGER}.build')
-    logger.debug('Compiling data for net_main.build')
+    logger.debug('Compiling data for netmain.build')
 
     # hardware data
     if config_filepath is None:
@@ -224,7 +224,7 @@ def quiesce(
 
     # Access the logging level from the main program
     logger = logging.getLogger(f'{LOGGER}.quiesce')
-    logger.debug('Compiling data for net_main.quiesce')
+    logger.debug('Compiling data for netmain.quiesce')
 
     # hardware data
     if config_filepath is None:
@@ -237,7 +237,7 @@ def quiesce(
     }
 
     template_data = {
-        'interface_name': ifname,
+        'ifname': ifname,
         'messages': messages,
     }
 
@@ -321,7 +321,7 @@ def restart(
 
     # Access the logging level from the main program
     logger = logging.getLogger(f'{LOGGER}.restart')
-    logger.debug('Compiling data for net_main.restart')
+    logger.debug('Compiling data for netmain.restart')
 
     # hardware data
     if config_filepath is None:
