@@ -1,0 +1,38 @@
+#!/bin/bash
+
+{% if mac != None %}
+# Rename the interface
+ip link set dev $(ip link | grep -B1 {{ mac }} | head -n1 | awk -F: '{print $2}' | xargs) down
+ip link set dev $(ip link | grep -B1 {{ mac }} | head -n1 | awk -F: '{print $2}' | xargs) name {{ ifname }}
+{% endif %}
+ip link set dev {{ ifname }} up
+
+# Add the IP addresses for {{ ifname }}
+{% for ip in ips %}
+ip addr add {{ ip }} dev {{ ifname }}
+{% endfor %}
+
+# Add the Routes for {{ ifname }}
+{% for route in routes %}
+ip route add {{ route['to'] }} via {{ route['via'] }} dev {{ ifname }}
+{% endfor %}
+
+
+{% for vlan in vlans %}
+
+# Create link for VLAN {{ vlan['vlan'] }}
+ip link add link {{ ifname }} name {{ ifname }}{{ vlan['vlan'] }} type vlan id {{ vlan['vlan'] }}
+ip link set dev {{ ifname }}{{ vlan['vlan'] }} up
+
+# Set the IP addresses for VLAN {{ vlan['vlan'] }}
+{% for ip in vlan['ips'] %}
+ip addr add {{ ip }} dev {{ ifname }}{{ vlan['vlan'] }}
+{% endfor %}
+{% endif %}
+
+# Add the Routes for VLAN {{ vlan['vlan'] }}
+{% for route in vlan['routes'] %}
+ip route add {{ route['to'] }} via {{ route['via'] }} dev {{ ifname }}{{ vlan['vlan'] }}
+{% endfor %}
+
+{% endfor %}

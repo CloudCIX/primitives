@@ -1,29 +1,26 @@
 {
 set -e
 
-{% set template = 'ethernet' if vlan is None else 'vlan' %}
-{% set interface_name = ifname if vlan is None else f'{ifname}{vlan}' %}
-
 {# Create `up` bash file                                         #}
-if ! sudo echo "{% include 'net_main/configs/{{ template }}_interface_up.sh.j2' %}" > /usr/local/bin/net_main-{{ interface_name }}-up.sh; then
+if ! sudo echo "{% include 'net_main/configs/up.sh.j2' %}" > /usr/local/bin/net_main-{{ ifname }}-up.sh; then
     echo "{{ messages['300'] }}"
     exit 1
 fi
 
 {# Create `down` bash file                                       #}
-if ! sudo echo "{% include 'net_main/configs/{{ template }}_interface_down.sh.j2' %}" > /usr/local/bin/net_main-{{ interface_name }}-down.sh; then
+if ! sudo echo "{% include 'net_main/configs/down.sh.j2' %}" > /usr/local/bin/net_main-{{ ifname }}-down.sh; then
     echo "{{ messages['301'] }}"
     exit 1
 fi
 
 {# Create `service` file                                         #}
-if ! sudo echo "{% include 'net_main/configs/interface.service.j2' %}" > /etc/systemd/system/net_main-{{ interface_name }}.service; then
+if ! sudo echo "{% include 'net_main/configs/service.j2' %}" > /etc/systemd/system/net_main-{{ ifname }}.service; then
     echo "{{ messages['302'] }}"
     exit 1
 fi
 
 {# Enable and Start the `service`                                #}
-if ! systemctl enable net_main-{{ interface_name }}.service && systemctl start net_main-{{ interface_name }}.service > /dev/null 2>&1; then
+if ! systemctl enable net_main-{{ ifname }}.service && systemctl start net_main-{{ ifname }}.service > /dev/null 2>&1; then
     echo "{{ messages['303'] }}"
     exit 1
 fi

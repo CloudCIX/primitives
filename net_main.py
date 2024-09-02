@@ -15,6 +15,8 @@ __all__ = [
 ]
 
 BUILD_TEMPLATE = 'net_main/commands/build.sh.j2'
+QUIESCE_TEMPLATE = 'net_main/commands/quiesce.sh.j2'
+RESTART_TEMPLATE = 'net_main/commands/restart.sh.j2'
 LOGGER = 'primitives.net_main'
 
 
@@ -25,21 +27,18 @@ def build(
         ips=None,
         mac=None,
         routes=None,
-        vlan=None,
+        vlans=None,
 ) -> Tuple[bool, str]:
     """
     description:
-        It setups either an ethernet interface or a VLAN interface on Linux server as system service that
-        persists against reboots.
+        It setups either an ethernet interface with or without VLAN tagged interfaces on Linux server as system service
+         that persists against reboots.
         1. Creates UP bash script file
-           - /usr/local/bin/net_main-{{ ifname }}-up.sh for ethernet interface
-           - /usr/local/bin/net_main-{{ ifname }}{{ vlan }}-up.sh for vlan interface
+           - /usr/local/bin/net_main-{{ ifname }}-up.sh
         2. Creates DOWN bash script file
-           - /usr/local/bin/net_main-{{ ifname }}-down.sh for ethernet interface
-           - /usr/local/bin/net_main-{{ ifname }}{{ vlan }}-down.sh for vlan interface
+           - /usr/local/bin/net_main-{{ ifname }}-down.sh
         3. Creates system service script file
-           - /etc/systemd/system/net_main-{{ ifname }}.service for ethernet interface
-           - /etc/systemd/system/net_main-{{ ifname }}{{ vlan }}.service for vlan interface
+           - /etc/systemd/system/net_main-{{ ifname }}.service
         4. Enables and Starts the service
 
     parameters:
@@ -54,26 +53,55 @@ def build(
         config_filepath:
             description: |
                 Location of the json file with hardware settings. If one is not provided, the default path will be used
-            type: string
+            type: string or None
+            required: False
         ips:
             description: List of IP addresses defined on ethernet/vlan interface, in string format as `ip/mask`
-            type: list
+            type: list or None
+            required: False
         mac:
             description: MAC address of the interface
-            type: string
+            type: string or None
+            required: False
         routes:
             description: List of route objects defined on ethernet interface
-            type: list
+            type: list or None
+            required: False
             properties:
                 to:
                     description: IP addresses to which the traffic is destined
                     type: string
+                    required: True
                 via:
                     description: IP addresses from which the traffic is directed
                     type: string
-        vlan:
-            description: The number used to tag the VLAN interface from ifname interface.
-            type: int
+                    required: True
+        vlans:
+            description: List of vlan interface objects
+            type: list
+            required: False
+            properties:
+                vlan:
+                    description: The number used to tag the ifname interface.
+                    type: int
+                    required: True
+                ips:
+                    description: List of IP addresses defined on vlan interface
+                    type: list of strings
+                    required: False
+                routes:
+                    description: List of route objects defined on vlan interface
+                    type: list of strings
+                    required: False
+                    properties:
+                        to:
+                            description: IP addresses to which the traffic is destined
+                            type: string
+                            required: True
+                        via:
+                            description: IP addresses from which the traffic is directed
+                            type: string
+                            required: True
 
     return:
         description: |
@@ -90,14 +118,20 @@ def build(
     if config_filepath is None:
         config_filepath = '/etc/cloudcix/pod/configs/config.json'
 
+    if routes is None:
+        routes = []
+    if ips is None:
+        ips = []
+    if vlans is None:
+        vlans = []
+
     # messages
-    interface_name = f'{ifname}{vlan}'
     messages = {
-        '000': f'Successfully built interface #{interface_name} in the network',
-        '300': f'Failed to create UP bash script file /usr/local/bin/net_main-{interface_name}-up.sh',
-        '301': f'Failed to create DOWN bash script file /usr/local/bin/net_main-{interface_name}-down.sh',
-        '302': f'Failed to create System Service file /etc/systemd/system/net_main-{interface_name}.service',
-        '303': f'Failed to enable and start the net_main-{interface_name}.service.',
+        '000': f'Successfully built interface #{ifname} in the network',
+        '300': f'Failed to create UP bash script file /usr/local/bin/net_main-{ifname}-up.sh',
+        '301': f'Failed to create DOWN bash script file /usr/local/bin/net_main-{ifname}-down.sh',
+        '302': f'Failed to create System Service file /etc/systemd/system/net_main-{ifname}.service',
+        '303': f'Failed to enable and start the net_main-{ifname}.service.',
     }
 
     template_data = {
@@ -106,19 +140,19 @@ def build(
         'mac': mac,
         'messages': messages,
         'routes': routes,
-        'vlan': vlan,
+        'vlans': vlans,
     }
 
     # ensure all the required keys are collected and no key has None value for template_data
     template = JINJA_ENV.get_template(BUILD_TEMPLATE)
     template_verified, template_error = check_template_data(template_data, template)
     if not template_verified:
-        logger.debug(f'Failed to generate build bash script for Interface #{interface_name}.\n{template_error}')
+        logger.debug(f'Failed to generate build bash script for Interface #{ifname}.\n{template_error}')
         return False, template_error
 
     # Prepare build config
     bash_script = template.render(**template_data)
-    logger.debug(f'Generated build bash script for Interface #{interface_name}\n{bash_script}')
+    logger.debug(f'Generated build bash script for Interface #{ifname}\n{bash_script}')
 
     success, output = False, ''
     # Deploy the bash script to the Host
@@ -138,7 +172,7 @@ def build(
 
     if stdout:
         logger.debug(
-            f'Interface #{interface_name} on #{host} build commands generated stdout.'
+            f'Interface #{ifname} on #{host} build commands generated stdout.'
             f'\n{stdout}',
         )
         for code, message in messages.items():
@@ -149,7 +183,7 @@ def build(
 
     if stderr:
         logger.error(
-            f'Interface #{interface_name} on #{host} build commands generated stderr.'
+            f'Interface #{ifname} on #{host} build commands generated stderr.'
             f'\n{stderr}',
         )
         output += stderr
@@ -161,7 +195,6 @@ def quiesce(
         host: str,
         ifname: str,
         config_filepath=None,
-        vlan=None,
 ) -> Tuple[bool, str]:
     """
     description:
@@ -174,15 +207,13 @@ def quiesce(
             required: True
         ifname:
             description: Name of the interface
-            type: str
+            type: string
             required: True
         config_filepath:
             description: |
                 Location of the json file with hardware settings. If one is not provided, the default path will be used
             type: string
-        vlan:
-            description: The number used to tag the vlan interface from ifname interface.
-            type: int
+            required: False
 
     return:
         description: |
@@ -200,28 +231,26 @@ def quiesce(
         config_filepath = '/etc/cloudcix/pod/configs/config.json'
 
     # messages
-    interface_name = f'{ifname}{vlan}'
     messages = {
-        '000': f'Successfully quiesced interface #{interface_name} in the network',
-        '300': f'Failed to disable the net_main-{interface_name}.service.',
-        '301': f'Failed to stop the net_main-{interface_name}.service.',
+        '000': f'Successfully quiesced interface #{ifname} in the network',
+        '300': f'Failed to disable and stop the net_main-{ifname}.service.',
     }
 
     template_data = {
-        'interface_name': interface_name,
+        'interface_name': ifname,
         'messages': messages,
     }
 
     # ensure all the required keys are collected and no key has None value for template_data
-    template = JINJA_ENV.get_template(BUILD_TEMPLATE)
+    template = JINJA_ENV.get_template(QUIESCE_TEMPLATE)
     template_verified, template_error = check_template_data(template_data, template)
     if not template_verified:
-        logger.debug(f'Failed to generate quiesce bash script for Interface #{interface_name}.\n{template_error}')
+        logger.debug(f'Failed to generate quiesce bash script for Interface #{ifname}.\n{template_error}')
         return False, template_error
 
     # Prepare build config
     bash_script = template.render(**template_data)
-    logger.debug(f'Generated quiesce bash script for Interface #{interface_name}\n{bash_script}')
+    logger.debug(f'Generated quiesce bash script for Interface #{ifname}\n{bash_script}')
 
     success, output = False, ''
     # Deploy the bash script to the Host
@@ -241,7 +270,7 @@ def quiesce(
 
     if stdout:
         logger.debug(
-            f'Interface #{interface_name} on #{host} quiesce commands generated stdout.'
+            f'Interface #{ifname} on #{host} quiesce commands generated stdout.'
             f'\n{stdout}',
         )
         for code, message in messages.items():
@@ -252,7 +281,7 @@ def quiesce(
 
     if stderr:
         logger.error(
-            f'Interface #{interface_name} on #{host} quiesce commands generated stderr.'
+            f'Interface #{ifname} on #{host} quiesce commands generated stderr.'
             f'\n{stderr}',
         )
         output += stderr
@@ -264,7 +293,6 @@ def restart(
         host: str,
         ifname: str,
         config_filepath=None,
-        vlan=None,
 ) -> Tuple[bool, str]:
     """
     description:
@@ -283,9 +311,6 @@ def restart(
             description: |
                 Location of the json file with hardware settings. If one is not provided, the default path will be used
             type: string
-        vlan:
-            description: The number used to tag the vlan interface from ifname interface.
-            type: int
 
     return:
         description: |
@@ -303,28 +328,26 @@ def restart(
         config_filepath = '/etc/cloudcix/pod/configs/config.json'
 
     # messages
-    interface_name = f'{ifname}{vlan}'
     messages = {
-        '000': f'Successfully restarted interface #{interface_name} in the network',
-        '300': f'Failed to enable the net_main-{interface_name}.service.',
-        '301': f'Failed to start the net_main-{interface_name}.service.',
+        '000': f'Successfully restarted interface #{ifname} in the network',
+        '300': f'Failed to enable and start the net_main-{ifname}.service.',
     }
 
     template_data = {
-        'interface_name': interface_name,
+        'ifname': ifname,
         'messages': messages,
     }
 
     # ensure all the required keys are collected and no key has None value for template_data
-    template = JINJA_ENV.get_template(BUILD_TEMPLATE)
+    template = JINJA_ENV.get_template(RESTART_TEMPLATE)
     template_verified, template_error = check_template_data(template_data, template)
     if not template_verified:
-        logger.debug(f'Failed to generate restart bash script for Interface #{interface_name}.\n{template_error}')
+        logger.debug(f'Failed to generate restart bash script for Interface #{ifname}.\n{template_error}')
         return False, template_error
 
     # Prepare build config
     bash_script = template.render(**template_data)
-    logger.debug(f'Generated restart bash script for Interface #{interface_name}\n{bash_script}')
+    logger.debug(f'Generated restart bash script for Interface #{ifname}\n{bash_script}')
 
     success, output = False, ''
     # Deploy the bash script to the Host
@@ -344,7 +367,7 @@ def restart(
 
     if stdout:
         logger.debug(
-            f'Interface #{interface_name} on #{host} restart commands generated stdout.'
+            f'Interface #{ifname} on #{host} restart commands generated stdout.'
             f'\n{stdout}',
         )
         for code, message in messages.items():
@@ -355,7 +378,7 @@ def restart(
 
     if stderr:
         logger.error(
-            f'Interface #{interface_name} on #{host} restart commands generated stderr.'
+            f'Interface #{ifname} on #{host} restart commands generated stderr.'
             f'\n{stderr}',
         )
         output += stderr

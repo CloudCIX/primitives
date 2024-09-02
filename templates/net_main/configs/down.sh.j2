@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Delete the IP addresses for {{ ifname }}
+{% for ip in ips %}
+ip addr del {{ ip }} dev {{ ifname }}
+{% endfor %}
+
+# Delete the Routes for {{ ifname }}
+{% for route in routes %}
+ip route del {{ route['to'] }} via {{ route['via'] }} dev {{ ifname }}
+{% endfor %}
+
+ip link set dev {{ ifname }} down
+
+{% for vlan in vlans %}
+
+# Delete the IP addresses for VLAN {{ vlan['vlan'] }}
+{% for ip in vlan['ips'] %}
+ip addr del {{ ip }} dev {{ ifname }}{{ vlan['vlan'] }}
+{% endfor %}
+
+# Delete the Routes for VLAN {{ vlan['vlan'] }}
+{% for route in vlan['routes'] %}
+ip route del {{ route['to'] }} via {{ route['via'] }} dev {{ ifname }}{{ vlan['vlan'] }}
+{% endfor %}
+
+ip link set dev {{ ifname }}{{ vlan['vlan'] }} down
+
+{% endfor %}

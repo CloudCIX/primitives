@@ -11,18 +11,23 @@ Supported verbs:
   - config_filepath: optional str
   - ips: optional list of str
   - mac: optional str
-  - routes: optional list of str
-  - vlan: optional int
+  - routes: optional list of objects
+    - to: str
+    - via: str
+  - vlans: optional list of str
+    - vlan: int
+    - ips: optional list of str
+    - routes: optional list of str
+      - to: str
+      - via: str
 
 - quiesce
   - host: str
   - ifname: str
   - config_filepath: optional str 
-  - vlan: optional int
  
 - restart 
   - host: str
   - ifname: str
   - config_filepath: optional str 
-  - vlan: optional int
  

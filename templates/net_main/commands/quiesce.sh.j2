@@ -1,14 +1,8 @@
 {
 set -e
 
-{% if down_required is True %}
-if ! systemctl disable net_main-{{ interface_name }}.service > /dev/null 2>&1; then
+if ! systemctl disable net_main-{{ ifname }}.service && systemctl stop net_main-{{ ifname }}.service > /dev/null 2>&1; then
     echo "{{ messages['300'] }}"
-    exit 1
-fi
-{% endif %}
-if ! systemctl stop net_main-{{ interface_name }}.service > /dev/null 2>&1; then
-    echo "{{ messages['301'] }}"
     exit 1
 fi
 echo "{{ messages['000'] }}"
