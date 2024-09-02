@@ -29,7 +29,7 @@ def build(
 ) -> Tuple[bool, str]:
     """
     description:
-        It setups either an ethernet interface or a vlan interface on Linux server as system service that
+        It setups either an ethernet interface or a VLAN interface on Linux server as system service that
         persists against reboots.
         1. Creates UP bash script file
            - /usr/local/bin/net_main-{{ ifname }}-up.sh for ethernet interface
@@ -44,22 +44,22 @@ def build(
 
     parameters:
         host:
-            description: IP or dns name of the host where the interface is created on.
+            description: IP or DNS name of the host where the interface is created on.
             type: string
             required: True
         ifname:
             description: Name of the interface
-            type: str
+            type: string
             required: True
         config_filepath:
             description: |
                 Location of the json file with hardware settings. If one is not provided, the default path will be used
             type: string
         ips:
-            description: List of IPaddresses defined on ethernet/vlan interface, in string format as `ip/mask`
+            description: List of IP addresses defined on ethernet/vlan interface, in string format as `ip/mask`
             type: list
         mac:
-            description: macaddress of the interface
+            description: MAC address of the interface
             type: string
         routes:
             description: List of route objects defined on ethernet interface
@@ -70,8 +70,9 @@ def build(
                     type: string
                 via:
                     description: IP addresses from which the traffic is directed
+                    type: string
         vlan:
-            description: The number used to tag the vlan interface from ifname interface.
+            description: The number used to tag the VLAN interface from ifname interface.
             type: int
 
     return:
