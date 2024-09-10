@@ -8,3 +8,11 @@ supported verbs:
 - build:
     - path: str
     - config_file=None
+
+- read:
+    - path: str
+    - config_file=None
+    
+- scrub:
+    - path: str
+    - config_file=None
