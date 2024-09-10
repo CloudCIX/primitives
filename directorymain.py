@@ -73,18 +73,18 @@ def build(
         config = json.load(file)
 
     # Get the ipv6_subnet from config_file
-    ipv6_sunbet = config.get('ipv6_subnet', None)
-    if ipv6_sunbet is None:
+    ipv6_subnet = config.get('ipv6_subnet', None)
+    if ipv6_subnet is None:
         return False, messages[3012]
     # Verify the ipv6_subnet value
     try:
-        ipaddress.ip_network(ipv6_sunbet)
+        ipaddress.ip_network(ipv6_subnet)
     except ValueError:
         return False, messages[3013]
 
     # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_sunbet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_sunbet.split("/")[0]}10:0:3'
+    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
+    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
 
     # Get `podnet_a_enabled` and `podnet_b_enabled`
     podnet_a_enabled = config.get('podnet_a_enabled', None)
