@@ -50,3 +50,27 @@ supported verbs:
             - public: str
               private: str
               oiface: str            
+
+## storage_kvm
+Primitive for Storage drives (QEMU images) on KVM hosts
+    - host: str
+    - domain_path: str
+    - storage: str
+    - size: int
+
+- read:
+    - host: str
+    - domain_path: str
+    - storage: str
+    
+- scrub:
+    - host: str
+    - domain_path: str
+    - storage: str
+
+- update:
+    - host: str
+    - domain_path: str
+    - storage: str
+    - size: int
+

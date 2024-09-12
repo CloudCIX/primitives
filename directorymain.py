@@ -35,7 +35,7 @@ def build(
             type: string
             required: true
         config_file:
-            description: The path to the config.json file
+            description: The path to the config.json file. This will default to /opt/robot/config.json if not supplied.
             type: string
             required: false
     return:
@@ -68,7 +68,7 @@ def build(
     # Block 01: Get the PodNet IPs
     # Default config_file if it is None
     if config_file is None:
-        config_file = '/etc/cloudcix/pod/configs/config.json'
+        config_file = '/opt/robot/config.json'
 
     # Get load config from config_file
     if not Path(config_file).exists():
@@ -118,7 +118,7 @@ def build(
     # Block 02
     # call rcc comms_ssh on enabled PodNet
     try:
-        create_dir, stdout, stderr = comms_ssh(
+        exit_code, stdout, stderr = comms_ssh(
             host_ip=enabled,
             payload=payload,
             username='robot',
@@ -126,13 +126,13 @@ def build(
     except CouldNotConnectException:
         return False, messages[3021]
 
-    if create_dir.exit_code != SUCCESS_CODE:
-        return False, messages[3022]
+    if exit_code != SUCCESS_CODE:
+        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 03
     # call rcc comms_ssh on disabled PodNet
     try:
-        create_dir, stdout, stderr = comms_ssh(
+        exit_code, stdout, stderr = comms_ssh(
             host_ip=disabled,
             payload=payload,
             username='robot',
@@ -140,8 +140,8 @@ def build(
     except CouldNotConnectException:
         return False, messages[3031]
 
-    if create_dir.exit_code != SUCCESS_CODE:
-        return False, messages[3032]
+    if exit_code != SUCCESS_CODE:
+        return False, f'{messages[3032]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     return True, messages[1000]
 
@@ -192,7 +192,7 @@ def read(
     # Block 01
     # Default config_file if it is None
     if config_file is None:
-        config_file = '/etc/cloudcix/pod/configs/config.json'
+        config_file = '/opt/robot/config.json'
 
     # Get load config from config_file
     if not Path(config_file).exists():
@@ -242,7 +242,7 @@ def read(
     # Block 02
     # call rcc comms_ssh on enabled PodNet
     try:
-        read_dir, stdout, stderr = comms_ssh(
+        exit_code, enabled_stdout, enabled_stderr = comms_ssh(
             host_ip=enabled,
             payload=payload,
             username='robot',
@@ -250,13 +250,13 @@ def read(
     except CouldNotConnectException:
         return False, messages[3021]
 
-    if read_dir.exit_code != SUCCESS_CODE:
-        return False, messages[3022]
+    if exit_code != SUCCESS_CODE:
+        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
 
     # Block 03
     # call rcc comms_ssh on disabled PodNet
     try:
-        read_dir, stdout, stderr = comms_ssh(
+        exit_code, disabled_stdout, disabled_stderr = comms_ssh(
             host_ip=disabled,
             payload=payload,
             username='robot',
@@ -264,10 +264,11 @@ def read(
     except CouldNotConnectException:
         return False, messages[3031]
 
-    if read_dir.exit_code != SUCCESS_CODE:
-        return False, messages[3032]
+    if exit_code != SUCCESS_CODE:
+        return False, f'{messages[3032]} {exit_code}\nSTDOUT: {disabled_stdout}\nSTDERR: {disabled_stderr}'
 
-    return True, messages[1000]
+    return True, f'{messages[1000]}. \nSTDOUT from Enabled PodNet: {enabled_stdout}' \
+                 f'\nSTDOUT from Disabled PodNet: {disabled_stdout}'
 
 
 def scrub(
@@ -316,7 +317,7 @@ def scrub(
     # Block 01
     # Default config_file if it is None
     if config_file is None:
-        config_file = '/etc/cloudcix/pod/configs/config.json'
+        config_file = '/opt/robot/config.json'
 
     # Get load config from config_file
     if not Path(config_file).exists():
@@ -366,7 +367,7 @@ def scrub(
     # Block 02
     # call rcc comms_ssh on enabled PodNet
     try:
-        remove_dir, stdout, stderr = comms_ssh(
+        exit_code, enabled_stdout, enabled_stderr = comms_ssh(
             host_ip=enabled,
             payload=payload,
             username='robot',
@@ -374,13 +375,13 @@ def scrub(
     except CouldNotConnectException:
         return False, messages[3021]
 
-    if remove_dir.exit_code != SUCCESS_CODE:
-        return False, messages[3022]
+    if exit_code != SUCCESS_CODE:
+        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
 
     # Block 03
     # call rcc comms_ssh on disabled PodNet
     try:
-        remove_dir, stdout, stderr = comms_ssh(
+        exit_code, disabled_stdout, disabled_stderr = comms_ssh(
             host_ip=disabled,
             payload=payload,
             username='robot',
@@ -388,7 +389,7 @@ def scrub(
     except CouldNotConnectException:
         return False, messages[3031]
 
-    if remove_dir.exit_code != SUCCESS_CODE:
-        return False, messages[3032]
+    if exit_code != SUCCESS_CODE:
+        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {disabled_stdout}\nSTDERR: {disabled_stderr}'
 
     return True, messages[1000]
