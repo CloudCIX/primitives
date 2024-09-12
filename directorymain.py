@@ -124,7 +124,7 @@ def build(
         return False, messages[3021]
 
     if exit_code != SUCCESS_CODE:
-        return False, messages[3022]
+        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # call rcc comms_ssh on disabled PodNet
     try:
@@ -137,7 +137,7 @@ def build(
         return False, messages[3031]
 
     if exit_code != SUCCESS_CODE:
-        return False, messages[3032]
+        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     return True, messages[1000]
 
@@ -245,7 +245,7 @@ def read(
         return False, messages[3021]
 
     if exit_code != SUCCESS_CODE:
-        return False, messages[3022]
+        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # call rcc comms_ssh on disabled PodNet
     try:
@@ -258,7 +258,7 @@ def read(
         return False, messages[3031]
 
     if exit_code != SUCCESS_CODE:
-        return False, messages[3032]
+        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     return True, messages[1000]
 
@@ -366,7 +366,7 @@ def scrub(
         return False, messages[3021]
 
     if exit_code != SUCCESS_CODE:
-        return False, messages[3022]
+        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # call rcc comms_ssh on disabled PodNet
     try:
@@ -379,6 +379,6 @@ def scrub(
         return False, messages[3031]
 
     if exit_code != SUCCESS_CODE:
-        return False, messages[3032]
+        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     return True, messages[1000]
