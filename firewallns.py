@@ -772,7 +772,7 @@ def read(
 
     # Block 02: Read the table from Enabled PodNet
     try:
-        exit_code, stdout, stderr = comms_ssh(
+        exit_code, enabled_stdout, enabled_stderr = comms_ssh(
             host_ip=enabled,
             payload=payload_read_table,
             username='robot',
@@ -781,11 +781,11 @@ def read(
         return False, messages[3020]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3021]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3021]} {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
 
     # Block 03: Flush the table if exists already on Disabled PodNet
     try:
-        exit_code, stdout, stderr = comms_ssh(
+        exit_code, disabled_stdout, disabled_stderr = comms_ssh(
             host_ip=disabled,
             payload=payload_read_table,
             username='robot',
@@ -794,6 +794,7 @@ def read(
         return False, messages[3030]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3031]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3031]} {exit_code}\nSTDOUT: {disabled_stdout }\nSTDERR: {disabled_stderr}'
 
-    return True, messages[1000]
+    return True, f'{messages[1000]}. \nSTDOUT from Enabled PodNet: {enabled_stdout}' \
+                 f'\nSTDOUT from Disabled PodNet: {disabled_stdout}'
