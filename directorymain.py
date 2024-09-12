@@ -127,7 +127,7 @@ def build(
         return False, messages[3021]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 03
     # call rcc comms_ssh on disabled PodNet
@@ -141,7 +141,7 @@ def build(
         return False, messages[3031]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3032]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     return True, messages[1000]
 
@@ -251,7 +251,7 @@ def read(
         return False, messages[3021]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
+        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
 
     # Block 03
     # call rcc comms_ssh on disabled PodNet
@@ -265,7 +265,7 @@ def read(
         return False, messages[3031]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3032]} {exit_code}\nSTDOUT: {disabled_stdout}\nSTDERR: {disabled_stderr}'
+        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {disabled_stdout}\nSTDERR: {disabled_stderr}'
 
     return True, f'{messages[1000]}. \nSTDOUT from Enabled PodNet: {enabled_stdout}' \
                  f'\nSTDOUT from Disabled PodNet: {disabled_stdout}'
@@ -367,7 +367,7 @@ def scrub(
     # Block 02
     # call rcc comms_ssh on enabled PodNet
     try:
-        exit_code, enabled_stdout, enabled_stderr = comms_ssh(
+        exit_code, stdout, stderr = comms_ssh(
             host_ip=enabled,
             payload=payload,
             username='robot',
@@ -376,12 +376,12 @@ def scrub(
         return False, messages[3021]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
+        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 03
     # call rcc comms_ssh on disabled PodNet
     try:
-        exit_code, disabled_stdout, disabled_stderr = comms_ssh(
+        exit_code, stdout, stderr = comms_ssh(
             host_ip=disabled,
             payload=payload,
             username='robot',
@@ -390,6 +390,6 @@ def scrub(
         return False, messages[3031]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {disabled_stdout}\nSTDERR: {disabled_stderr}'
+        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     return True, messages[1000]

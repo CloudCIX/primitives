@@ -441,7 +441,7 @@ def build(
         return False, messages[3050]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3051]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3051]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 06: Validate temp nftables.conf file on Enabled PodNet
     try:
@@ -454,7 +454,7 @@ def build(
         return False, messages[3060]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3061]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3061]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 07: Flush the table if exists already on Enabled PodNet
     try:
@@ -467,7 +467,7 @@ def build(
         return False, messages[3070]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3071]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3071]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 08: Apply the nftables.conf file to the namespace on Enabled PodNet
     try:
@@ -480,7 +480,7 @@ def build(
         return False, messages[3080]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3081]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3081]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 09: Remove the temp nftables.conf file on Enabled PodNet
     try:
@@ -504,7 +504,7 @@ def build(
         return False, messages[3100]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3101]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3101]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 11: Validate temp nftables.conf file on Disabled PodNet
     try:
@@ -517,7 +517,7 @@ def build(
         return False, messages[3110]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3111]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3111]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 12: Flush the table if exists already on Disabled PodNet
     try:
@@ -530,7 +530,7 @@ def build(
         return False, messages[3120]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3121]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3121]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 13: Apply the nftables.conf file to the namespace on Disabled PodNet
     try:
@@ -543,7 +543,7 @@ def build(
         return False, messages[3130]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3131]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3131]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 14: Remove the temp nftables.conf file on Disabled PodNet
     try:
@@ -661,7 +661,7 @@ def scrub(
         return False, messages[3020]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3021]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3021]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 03: Flush the table if exists already on Disabled PodNet
     try:
@@ -674,7 +674,7 @@ def scrub(
         return False, messages[3030]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3031]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return False, f'{messages[3031]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     return True, messages[1000]
 
@@ -781,7 +781,7 @@ def read(
         return False, messages[3020]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3021]} {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
+        return False, f'{messages[3021]}\nExit Code: {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
 
     # Block 03: Flush the table if exists already on Disabled PodNet
     try:
@@ -794,7 +794,7 @@ def read(
         return False, messages[3030]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3031]} {exit_code}\nSTDOUT: {disabled_stdout }\nSTDERR: {disabled_stderr}'
+        return False, f'{messages[3031]}\nExit Code: {exit_code}\nSTDOUT: {disabled_stdout }\nSTDERR: {disabled_stderr}'
 
     return True, f'{messages[1000]}. \nSTDOUT from Enabled PodNet: {enabled_stdout}' \
                  f'\nSTDOUT from Disabled PodNet: {disabled_stdout}'
