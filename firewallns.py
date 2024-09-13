@@ -92,10 +92,11 @@ def build(
     """
     description: |
         1. Creates a /tmp/firewallns_<namespace>_<table>.conf file with nftable table config
-        2. Validates the nft file `sudo nft -c -f /tmp/firewallns_<namespace>_<table>.conf`
+        2. Validates the nft file
+           `ip netns exec <namespace> nft --check --file /tmp/firewallns_<namespace>_<table>.conf`
         3. Flushes already existing nftables table in namespace if any
-        4. Config is applied `sudo ip netns exec <namespace> --file /tmp/firewallns_<namespace>_<table>.conf`
-        5. Temp file is removed from /tmp/
+           `ip netns exec <namespace> nft flush table inet <table>`
+        4. Config is applied `ip netns exec <namespace> --file /tmp/firewallns_<namespace>_<table>.conf`
 
     parameters:
         namespace:
@@ -287,6 +288,8 @@ def build(
         3071: f'3071: Failed to flush table {table} on the enabled PodNet',
         3080: f'3080: Failed to connect to the enabled PodNet from the config file {config_file}',
         3081: f'3081: Failed to apply nftables file {nftables_file} on the enabled PodNet',
+        3090: f'3090: Failed to connect to the disabled PodNet from the config file {config_file}',
+        3091: f'3091: Failed to create nftables file {nftables_file} on the disabled PodNet',
         3100: f'3100: Failed to connect to the disabled PodNet from the config file {config_file}',
         3101: f'3101: Failed to create nftables file {nftables_file} on the disabled PodNet',
         3110: f'3110: Failed to connect to the disabled PodNet from the config file {config_file}',
@@ -490,7 +493,10 @@ def build(
             username='robot',
         )
     except CouldNotConnectException:
-        pass
+        return False, messages[3090]
+
+    if exit_code != SUCCESS_CODE:
+        return False, f'{messages[3091]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     # Block 10: Create temp nftables.conf file on Disabled PodNet
     # call rcc comms_ssh on enabled PodNet
@@ -553,7 +559,10 @@ def build(
             username='robot',
         )
     except CouldNotConnectException:
-        pass
+        return False, messages[3140]
+
+    if exit_code != SUCCESS_CODE:
+        return False, f'{messages[3141]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
     return True, messages[1000]
 
@@ -683,7 +692,7 @@ def read(
         namespace: str,
         table: str,
         config_file=None,
-) -> Tuple[bool, str]:
+) -> Tuple[bool, dict, list]:
     """
     description: Gets the entire rules of nftables <table> in <namespace>
     parameters:
@@ -714,11 +723,18 @@ def read(
         3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
         3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
         3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
+        2012: f'2012: Since enabled and disabled podnets are unknown assuming podnet-a as enabled and podnet-b as'
+              f' disabled',
         3020: f'3020: Failed to connect to the Enabled PodNet from the config file {config_file}',
         3021: f'3021: Failed to read table {table} from the Enabled PodNet',
         3030: f'3030: Failed to connect to the Disabled PodNet from the config file {config_file}',
         3031: f'3031: Failed to read table {table} from the Disabled PodNet',
     }
+
+    # set the outputs
+    success = True
+    data_dict = {}
+    message_list = []
 
     # Block 01: Get the PodNets IPs
     # set default config_file if it is None
@@ -727,19 +743,25 @@ def read(
 
     # Get load config from config_file
     if not Path(config_file).exists():
-        return False, messages[3011]
+        success = False
+        message_list.append(messages[3011])
+        return success, data_dict, message_list
     with Path(config_file).open('r') as file:
         config = json.load(file)
 
     # Get the ipv6_subnet from config_file
     ipv6_subnet = config.get('ipv6_subnet', None)
     if ipv6_subnet is None:
-        return False, messages[3012]
+        success = False
+        message_list.append(messages[3012])
+        return success, data_dict, message_list
     # Verify the ipv6_subnet value
     try:
         ipaddress.ip_network(ipv6_subnet)
     except ValueError:
-        return False, messages[3013]
+        success = False
+        message_list.append(messages[3013])
+        return success, data_dict, message_list
 
     # Get the PodNet Mgmt ips from ipv6_subnet
     podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
@@ -748,12 +770,16 @@ def read(
     # Get `podnet_a_enabled` and `podnet_b_enabled`
     podnet_a_enabled = config.get('podnet_a_enabled', None)
     if podnet_a_enabled is None:
-        return False, messages[3014]
+        success = False
+        message_list.append(messages[3014])
     podnet_b_enabled = config.get('podnet_b_enabled', None)
     if podnet_a_enabled is None:
-        return False, messages[3015]
+        success = False
+        message_list.append(messages[3015])
 
-    # First run on enabled PodNet
+    # Find out enabled and disabled podnets
+    enabled = None
+    disabled = None
     if podnet_a_enabled is True and podnet_b_enabled is False:
         enabled = podnet_a
         disabled = podnet_b
@@ -761,40 +787,66 @@ def read(
         enabled = podnet_b
         disabled = podnet_a
     elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, messages[3016]
+        success = False
+        message_list.append(messages[3016])
     elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, messages[3017]
+        success = False
+        message_list.append(messages[3017])
     else:
-        return False, messages[3018]
+        success = False
+        message_list.append(messages[3018])
+
+    if enabled is None and disabled is None:
+        # lets set podnet-a as enabled and podnet-b as disabled, this is to be know so add to messages
+        message_list.append(messages[3019])
+        enabled = podnet_a
+        disabled = podnet_b
+
+    # update the data_dict with podnet keys
+    data_dict = {
+        enabled: None,
+        disabled: None,
+    }
 
     # Define payload
     payload_read_table = f'if ip netns exec {namespace} nft list table inet {table}'
 
     # Block 02: Read the table from Enabled PodNet
     try:
-        exit_code, enabled_stdout, enabled_stderr = comms_ssh(
+        exit_code, stdout, stderr = comms_ssh(
             host_ip=enabled,
             payload=payload_read_table,
             username='robot',
         )
     except CouldNotConnectException:
-        return False, messages[3020]
+        success = False
+        message_list.append(messages[3020])
+        exit_code = None
+        stdout = None
 
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3021]}\nExit Code: {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
+    if exit_code is None and exit_code != SUCCESS_CODE:
+        success = False
+        message_list.append(messages[3021])
+
+    data_dict[enabled] = stdout
 
     # Block 03: Flush the table if exists already on Disabled PodNet
     try:
-        exit_code, disabled_stdout, disabled_stderr = comms_ssh(
+        exit_code, stdout, stderr = comms_ssh(
             host_ip=disabled,
             payload=payload_read_table,
             username='robot',
         )
     except CouldNotConnectException:
-        return False, messages[3030]
+        success = False
+        message_list.append(messages[3030])
+        exit_code = None
+        stdout = None
 
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3031]}\nExit Code: {exit_code}\nSTDOUT: {disabled_stdout }\nSTDERR: {disabled_stderr}'
+    if exit_code is None and exit_code != SUCCESS_CODE:
+        success = False
+        message_list.append(messages[3031])
 
-    return True, f'{messages[1000]}. \nSTDOUT from Enabled PodNet: {enabled_stdout}' \
-                 f'\nSTDOUT from Disabled PodNet: {disabled_stdout}'
+    data_dict[enabled] = stdout
+
+    return success, data_dict, message_list
