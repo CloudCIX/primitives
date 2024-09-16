@@ -508,7 +508,7 @@ def read(
     }
 
     retval = True
-    data_dict = None
+    data_dict = {}
     message_list = ()
 
     # Default config_file if it is None
@@ -519,6 +519,9 @@ def read(
     if not Path(config_file).exists():
         retval = False
         message_list.append(messages[3211])
+        # Config file not found, cannot proceed
+        return retval, data_dict, message_list
+
     with Path(config_file).open('r') as file:
         config = json.load(file)
 
@@ -537,8 +540,6 @@ def read(
     # Get the PodNet Mgmt ips from ipv6_subnet
     podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
     podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
-
-    data_dict = {}
 
     data_dict[podnet_a] = {
         'userdata': None,
