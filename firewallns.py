@@ -333,7 +333,7 @@ def build(
     if podnet_a_enabled is None:
         return False, messages[3015]
 
-    # First run on enabled PodNet
+    # Find out enabled and disabled PodNets
     if podnet_a_enabled is True and podnet_b_enabled is False:
         enabled = podnet_a
         disabled = podnet_b
@@ -434,135 +434,195 @@ def build(
 
     # Block 05: Create temp nftables.conf file on Enabled PodNet
     # call rcc comms_ssh on enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload_create_nftables_file,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3050]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3051]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload_create_nftables_file,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3050]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3051]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 06: Validate temp nftables.conf file on Enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload_validate_nftables_file,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3060]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3061]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload_validate_nftables_file,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3060]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3061]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 07: Flush the table if exists already on Enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload_flush_table,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3070]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3071]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload_flush_table,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3070]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3071]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 08: Apply the nftables.conf file to the namespace on Enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload_apply_nftables_file,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3080]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3081]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload_apply_nftables_file,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3080]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3081]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 09: Remove the temp nftables.conf file on Enabled PodNet
-    try:
-        remove_nftables_file, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload_remvoe_nftables_file,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3090]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3091]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload_remvoe_nftables_file,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3090]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3091]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 10: Create temp nftables.conf file on Disabled PodNet
     # call rcc comms_ssh on enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload_create_nftables_file,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3100]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3101]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload_create_nftables_file,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3100]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3101]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 11: Validate temp nftables.conf file on Disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload_validate_nftables_file,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3110]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3111]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload_validate_nftables_file,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3110]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3111]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 12: Flush the table if exists already on Disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload_flush_table,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3120]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3121]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload_flush_table,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3120]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3121]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 13: Apply the nftables.conf file to the namespace on Disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload_apply_nftables_file,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3130]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3131]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload_apply_nftables_file,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3130]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3131]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 14: Remove the temp nftables.conf file on Disabled PodNet
-    try:
-        remove_nftables_file, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload_remvoe_nftables_file,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3140]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3141]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload_remvoe_nftables_file,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3140]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3141]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     return True, messages[1000]
 
@@ -641,7 +701,7 @@ def scrub(
     if podnet_a_enabled is None:
         return False, messages[3015]
 
-    # First run on enabled PodNet
+    # Find out enabled and disabled PodNets
     if podnet_a_enabled is True and podnet_b_enabled is False:
         enabled = podnet_a
         disabled = podnet_b
@@ -660,30 +720,42 @@ def scrub(
                           f' ip netns exec {namespace} nft flush table inet {table}; fi'
 
     # Block 02: Flush the table if exists already on Enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload_flush_table,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3020]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3021]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload_flush_table,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3020]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3021]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     # Block 03: Flush the table if exists already on Disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload_flush_table,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3030]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3031]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload_flush_table,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3030]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        return False, msg
+    if response['payload_code'] != 0:
+        msg = f'{messages[3031]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        return False, msg
 
     return True, messages[1000]
 
@@ -724,7 +796,7 @@ def read(
                 description: read output data from machine <podnet_ip>
                   type: string
           messages:
-            description: list of errors and debug messages collected until the last step
+            description: list of errors and debug messages collected before failure occurred
             type: array
             items:
               <message>:
@@ -818,6 +890,7 @@ def read(
         success = False
         message_list.append(messages[3018])
 
+    # return if success is False at this stage
     if success is False:
         return success, data_dict, message_list
 
@@ -825,41 +898,49 @@ def read(
     payload_read_table = f'if ip netns exec {namespace} nft list table inet {table}'
 
     # Block 02: Read the table from Enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload_read_table,
-            username='robot',
-        )
-    except CouldNotConnectException:
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload_read_table,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3020]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        message_list.append(msg)
         success = False
-        message_list.append(messages[3020])
-        exit_code = None
-        stdout = None
-
-    if exit_code is None and exit_code != SUCCESS_CODE:
+    if response['payload_code'] != 0:
+        msg = f'{messages[3021]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        message_list.append(msg)
         success = False
-        message_list.append(messages[3021])
 
-    data_dict[enabled] = stdout
+    data_dict[enabled] = response['payload_message']
 
     # Block 03: Flush the table if exists already on Disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload_read_table,
-            username='robot',
-        )
-    except CouldNotConnectException:
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload_read_table,
+        username='robot',
+    )
+    if response['channel_code'] != 200:
+        msg = f'{messages[3030]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        message_list.append(msg)
         success = False
-        message_list.append(messages[3030])
-        exit_code = None
-        stdout = None
-
-    if exit_code is None and exit_code != SUCCESS_CODE:
+    if response['payload_code'] != 0:
+        msg = f'{messages[3031]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        message_list.append(msg)
         success = False
-        message_list.append(messages[3031])
 
-    data_dict[enabled] = stdout
+    data_dict[enabled] = response['payload_message']
 
     return success, data_dict, message_list
