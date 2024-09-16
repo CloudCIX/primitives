@@ -192,7 +192,7 @@ def scrub(
     }
 
     # Define payload
-    payload = f'rm -force {domain_path}{storage}'
+    payload = f'rm --force {domain_path}{storage}'
 
     # Remove storage using SSH communication
     try:
