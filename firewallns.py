@@ -744,8 +744,6 @@ def read(
         3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
         3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
         3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        2012: f'2012: Since enabled and disabled podnets are unknown assuming podnet-a as enabled and podnet-b as'
-              f' disabled',
         3020: f'3020: Failed to connect to the Enabled PodNet from the config file {config_file}',
         3021: f'3021: Failed to read table {table} from the Enabled PodNet',
         3030: f'3030: Failed to connect to the Disabled PodNet from the config file {config_file}',
@@ -788,6 +786,11 @@ def read(
     podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
     podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
 
+    data_dict = {
+        podnet_a: None,
+        podnet_b: None,
+    }
+
     # Get `podnet_a_enabled` and `podnet_b_enabled`
     podnet_a_enabled = config.get('podnet_a_enabled', None)
     if podnet_a_enabled is None:
@@ -799,8 +802,6 @@ def read(
         message_list.append(messages[3015])
 
     # Find out enabled and disabled podnets
-    enabled = None
-    disabled = None
     if podnet_a_enabled is True and podnet_b_enabled is False:
         enabled = podnet_a
         disabled = podnet_b
@@ -817,17 +818,8 @@ def read(
         success = False
         message_list.append(messages[3018])
 
-    if enabled is None and disabled is None:
-        # lets set podnet-a as enabled and podnet-b as disabled, this is to be know so add to messages
-        message_list.append(messages[3019])
-        enabled = podnet_a
-        disabled = podnet_b
-
-    # update the data_dict with podnet keys
-    data_dict = {
-        enabled: None,
-        disabled: None,
-    }
+    if success is False:
+        return success, data_dict, message_list
 
     # Define payload
     payload_read_table = f'if ip netns exec {namespace} nft list table inet {table}'
