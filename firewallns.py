@@ -6,7 +6,7 @@ import json
 import ipaddress
 from pathlib import Path
 from collections import deque
-from typing import Deque, List, Tuple
+from typing import Any, Deque, Dict, List, Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
@@ -716,7 +716,7 @@ def read(
         namespace: str,
         table: str,
         config_file=None,
-) -> Tuple[bool, dict, list]:
+) -> Tuple[bool, Dict[str, Any], List[str]]:
     """
     description: Gets the entire rules of nftables <table> in <namespace>
     parameters:
