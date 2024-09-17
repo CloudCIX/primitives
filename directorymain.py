@@ -47,7 +47,7 @@ def build(
     # Define message
     messages = {
         1000: f'1000: Successfully created directory {path}',
-        2011: f'2011: Config file {config_file} loaded.',
+        2111: f'2011: Config file {path} loaded.',
         3000: f'3000: Failed to create directory {path}',
         3011: f'3011: Failed to load config file {config_file}, It does not exits.',
         3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
@@ -59,13 +59,11 @@ def build(
         3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
         3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file}',
         3022: f'3022: Failed to create directory {path} on the enabled PodNet',
-        3031: f'3031: Successfully created directory {path} on enabled PodNet but Failed to connect to the disabled '
-              f'PodNet',
-        3032: f'3032: Successfully created directory {path} on enabled PodNet but Failed to create on the disabled '
-              f'PodNet',
+        3031: f'3031: Successfully created directory {path} on enabled PodNet but Failed to connect to the disabled PodNet '
+              f'from the config file {config_file}',
+        3032: f'3032: Successfully created directory {path} on enabled PodNet but Failed to create on the disabled PodNet',
     }
 
-    # Block 01: Get the PodNet IPs
     # Default config_file if it is None
     if config_file is None:
         config_file = '/opt/robot/config.json'
@@ -115,7 +113,6 @@ def build(
     # define payload
     payload = f'mkdir --parents {path}'
 
-    # Block 02
     # call rcc comms_ssh on enabled PodNet
     try:
         exit_code, stdout, stderr = comms_ssh(
@@ -129,7 +126,6 @@ def build(
     if exit_code != SUCCESS_CODE:
         return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
-    # Block 03
     # call rcc comms_ssh on disabled PodNet
     try:
         exit_code, stdout, stderr = comms_ssh(
@@ -172,7 +168,7 @@ def read(
     # Define message
     messages = {
         1000: f'1000: Successfully read directory {path}',
-        2011: f'2011: Config file {config_file} loaded.',
+        2111: f'2011: Config file {path} loaded.',
         3000: f'3000: Failed to read directory {path}',
         3011: f'3011: Failed to load config file {config_file}, It does not exits.',
         3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
@@ -184,12 +180,11 @@ def read(
         3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
         3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file}',
         3022: f'3022: Failed to read directory {path} on the enabled PodNet',
-        3031: f'3031: Successfully read directory {path} on enabled PodNet but Failed to connect to the disabled '
-              f'PodNet',
+        3031: f'3031: Successfully read directory {path} on enabled PodNet but Failed to connect to the disabled PodNet '
+              f'from the config file {config_file}',
         3032: f'3032: Successfully read directory {path} on enabled PodNet but Failed to read on the disabled PodNet',
     }
 
-    # Block 01
     # Default config_file if it is None
     if config_file is None:
         config_file = '/opt/robot/config.json'
@@ -239,10 +234,9 @@ def read(
     # define payload
     payload = f'stat {path}'
 
-    # Block 02
     # call rcc comms_ssh on enabled PodNet
     try:
-        exit_code, enabled_stdout, enabled_stderr = comms_ssh(
+        exit_code, stdout, stderr = comms_ssh(
             host_ip=enabled,
             payload=payload,
             username='robot',
@@ -251,12 +245,11 @@ def read(
         return False, messages[3021]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {enabled_stdout}\nSTDERR: {enabled_stderr}'
+        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
-    # Block 03
     # call rcc comms_ssh on disabled PodNet
     try:
-        exit_code, disabled_stdout, disabled_stderr = comms_ssh(
+        exit_code, stdout, stderr = comms_ssh(
             host_ip=disabled,
             payload=payload,
             username='robot',
@@ -265,10 +258,9 @@ def read(
         return False, messages[3031]
 
     if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {disabled_stdout}\nSTDERR: {disabled_stderr}'
+        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
-    return True, f'{messages[1000]}. \nSTDOUT from Enabled PodNet: {enabled_stdout}' \
-                 f'\nSTDOUT from Disabled PodNet: {disabled_stdout}'
+    return True, messages[1000]
 
 
 def scrub(
@@ -297,7 +289,7 @@ def scrub(
     # Define message
     messages = {
         1000: f'1000: Successfully removed directory {path}',
-        2011: f'2011: Config file {config_file} loaded.',
+        2111: f'2011: Config file {path} loaded.',
         3000: f'3000: Failed to remove directory {path}',
         3011: f'3011: Failed to load config file {config_file}, It does not exits.',
         3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
@@ -309,12 +301,11 @@ def scrub(
         3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
         3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file}',
         3022: f'3022: Failed to remove directory {path} on the enabled PodNet',
-        3031: f'3031: Successfully removed directory {path} on enabled PodNet but Failed to connect to the disabled '
-              f'PodNet ',
-        3032: f'3032: Successfully removed directory {path} on enabled PodNet but Failed to remove on the disabled '
-              f'PodNet',
+        3031: f'3031: Successfully removed directory {path} on enabled PodNet but Failed to connect to the disabled PodNet '
+              f'from the config file {config_file}',
+        3032: f'3032: Successfully removed directory {path} on enabled PodNet but Failed to remove on the disabled PodNet',
     }
-    # Block 01
+
     # Default config_file if it is None
     if config_file is None:
         config_file = '/opt/robot/config.json'
@@ -364,7 +355,6 @@ def scrub(
     # define payload
     payload = f'rm --recursive --force {path}'
 
-    # Block 02
     # call rcc comms_ssh on enabled PodNet
     try:
         exit_code, stdout, stderr = comms_ssh(
@@ -378,7 +368,6 @@ def scrub(
     if exit_code != SUCCESS_CODE:
         return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
 
-    # Block 03
     # call rcc comms_ssh on disabled PodNet
     try:
         exit_code, stdout, stderr = comms_ssh(
