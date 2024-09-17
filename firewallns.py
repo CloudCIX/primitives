@@ -445,7 +445,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3051]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -464,7 +464,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3061]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -483,7 +483,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3071]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -502,7 +502,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3081]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -521,7 +521,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3091]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -541,7 +541,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3101]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -560,7 +560,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3111]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -579,7 +579,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3121]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -598,7 +598,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3131]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -617,7 +617,7 @@ def build(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3141]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -731,7 +731,7 @@ def scrub(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3021]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -750,7 +750,7 @@ def scrub(
               f'channel_message: {response["channel_message"]}\n' \
               f'channel_error: {response["channel_error"]}'
         return False, msg
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3031]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -910,7 +910,7 @@ def read(
               f'channel_error: {response["channel_error"]}'
         message_list.append(msg)
         success = False
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3021]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -933,7 +933,7 @@ def read(
               f'channel_error: {response["channel_error"]}'
         message_list.append(msg)
         success = False
-    if response['payload_code'] != 0:
+    if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3031]}\n ' \
               f'payload_code: {response["payload_code"]}s.\n' \
               f'payload_message: {response["payload_message"]}\n' \
@@ -941,6 +941,6 @@ def read(
         message_list.append(msg)
         success = False
 
-    data_dict[enabled] = response['payload_message']
+    data_dict[disabled] = response['payload_message']
 
     return success, data_dict, message_list
