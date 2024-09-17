@@ -5,8 +5,8 @@ Primitive for Storage image drives (QEMU images) on KVM hosts
 # stdlib
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CouldNotConnectException
-
+from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
+import re
 
 __all__ = [
     'build',
@@ -63,38 +63,58 @@ def build(
         3022: f'3022: Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{storage} on Host {host}.',
         3023: f'3023: Failed to resize the copied storage image to {size}GB on Host {host}.'
     }
-
+    message_list = {}
     # Define payload
     copy_cloud_image_payload = f'cp {cloudimage} {domain_path}{storage}'
     resize_copied_file = f'qemu-img resize {domain_path}{storage} {size}G'
 
     # Copy cloud image to domains directory using SSH communication
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=host,
-            payload=copy_cloud_image_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3021]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=host,
+        payload=copy_cloud_image_payload,
+        username='robot',
+    )
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3021]}\n ' \
+                f'channel_code: {response["channel_code"]}s.\n' \
+                f'channel_message: {response["channel_message"]}\n' \
+                f'channel_error: {response["channel_error"]}'
+        message_list.append(msg)
+        success = False
+    if response['payload_code'] != SUCCESS_CODE:
+        msg = f'{messages[3022]}\n ' \
+                f'payload_code: {response["payload_code"]}s.\n' \
+                f'payload_message: {response["payload_message"]}\n' \
+                f'payload_error: {response["payload_error"]}'
+        message_list.append(msg)
+        success = False
+    if not success:
+        return success, message_list
 
     # Resize the copied file to `size` using SSH communication
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=host,
-            payload=resize_copied_file,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3021]
+    response = comms_ssh(
+        host_ip=host,
+        payload=resize_copied_file,
+        username='robot',
+    )
 
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3023]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3021]}\n ' \
+                f'channel_code: {response["channel_code"]}s.\n' \
+                f'channel_message: {response["channel_message"]}\n' \
+                f'channel_error: {response["channel_error"]}'
+        message_list.append(msg)
+        success = False
+    if response['payload_code'] != SUCCESS_CODE:
+        msg = f'{messages[3023]}\n ' \
+                f'payload_code: {response["payload_code"]}s.\n' \
+                f'payload_message: {response["payload_message"]}\n' \
+                f'payload_error: {response["payload_error"]}'
+        message_list.append(msg)
+        success = False
 
-    return True, messages[1000]
+    message_list.append(messages[1000])
+    return success, message_list
 
 
 def update(
@@ -136,24 +156,34 @@ def update(
         3021: f'3021: Failed to connect to the Host {host}.',
         3022: f'3022: Failed to update storage image {domain_path}{storage} to {size}GB on Host {host}.'
     }
-
+    message_list = {}
     # Define payload
     payload = f'qemu-img resize {domain_path}{storage} {size}G'
 
     # Update storage using SSH communication
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=host,
-            payload=payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3021]
+    response = comms_ssh(
+        host_ip=host,
+        payload=payload,
+        username='robot',
+    )
 
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3021]}\n ' \
+                f'channel_code: {response["channel_code"]}s.\n' \
+                f'channel_message: {response["channel_message"]}\n' \
+                f'channel_error: {response["channel_error"]}'
+        message_list.append(msg)
+        success = False
+    if response['payload_code'] != SUCCESS_CODE:
+        msg = f'{messages[3022]}\n ' \
+                f'payload_code: {response["payload_code"]}s.\n' \
+                f'payload_message: {response["payload_message"]}\n' \
+                f'payload_error: {response["payload_error"]}'
+        message_list.append(msg)
+        success = False
 
-    return True, messages[1000]
+    message_list.append(messages[1000])
+    return success, message_list
 
 
 def scrub(
@@ -190,24 +220,33 @@ def scrub(
         3021: f'3021: Failed to connect to the Host {host}',
         3022: f'3022: Failed to remove storage image {domain_path}{storage} from Host {host}.'
     }
-
+    message_list = {}
     # Define payload
     payload = f'rm --force {domain_path}{storage}'
 
     # Remove storage using SSH communication
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=host,
-            payload=payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3021]
+    response = comms_ssh(
+        host_ip=host,
+        payload=payload,
+        username='robot',
+    )
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3021]}\n ' \
+                f'channel_code: {response["channel_code"]}s.\n' \
+                f'channel_message: {response["channel_message"]}\n' \
+                f'channel_error: {response["channel_error"]}'
+        message_list.append(msg)
+        success = False
+    if response['payload_code'] != SUCCESS_CODE:
+        msg = f'{messages[3022]}\n ' \
+                f'payload_code: {response["payload_code"]}s.\n' \
+                f'payload_message: {response["payload_message"]}\n' \
+                f'payload_error: {response["payload_error"]}'
+        message_list.append(msg)
+        success = False
 
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-
-    return True, messages[1000]
+    message_list.append(messages[1000])
+    return success, message_list
 
 
 def read(
@@ -244,21 +283,51 @@ def read(
         3021: f'3021: Failed to connect to the Host {host}',
         3022: f'3022: Failed to read storage image {domain_path}{storage} on the Host {host}'
     }
+    message_list = {}
+    data_dict = {
+        host: {
+            'image': None,
+            'disk_size': None,
+        }
+    }
 
     # Define payload
     payload = f'qemu-img info {domain_path}{storage}'
 
     # Read storage using SSH communication
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=host,
-            payload=payload,
-            username='robot',
+    response = comms_ssh(
+                host_ip=host,
+                payload=payload,
+                username='robot',
         )
-    except CouldNotConnectException:
-        return False, messages[3021]
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3021]}\n ' \
+              f'channel_code: {response["channel_code"]}s.\n' \
+              f'channel_message: {response["channel_message"]}\n' \
+              f'channel_error: {response["channel_error"]}'
+        message_list.append(msg)
+        success = False
+    if response['payload_code'] != SUCCESS_CODE:
+        msg = f'{messages[3022]}\n ' \
+              f'payload_code: {response["payload_code"]}s.\n' \
+              f'payload_message: {response["payload_message"]}\n' \
+              f'payload_error: {response["payload_error"]}'
+        message_list.append(msg)
+        success = False
+    if success:
+        stdout = response.get('stdout', '')
 
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]} {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        # Extract the image path
+        image_match = re.search(r'image: (\S+)', stdout)
+        image = image_match.group(1) if image_match else None
 
-    return True, f'{messages[1000]}.\n STDOUT from the Host {host} is {stdout}'
+        # Extract the disk size
+        disk_size_match = re.search(r'disk size: (\S+)', stdout)
+        disk_size = disk_size_match.group(1) if disk_size_match else None
+
+        data_dict[host] = {
+            'image': image,
+            'disk_size': disk_size,
+        }
+
+    return success, data_dict, message_list
