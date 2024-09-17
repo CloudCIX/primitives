@@ -8,7 +8,7 @@ from pathlib import Path
 from collections import deque
 from typing import Deque, List, Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CouldNotConnectException
+from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
 from .controllers import FirewallNamespace
 from utils import JINJA_ENV, check_template_data
@@ -439,17 +439,13 @@ def build(
         payload=payload_create_nftables_file,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3050]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3050]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3051]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3051]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 06: Validate temp nftables.conf file on Enabled PodNet
@@ -458,17 +454,13 @@ def build(
         payload=payload_validate_nftables_file,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3060]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3060]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3061]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3061]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 07: Flush the table if exists already on Enabled PodNet
@@ -477,17 +469,13 @@ def build(
         payload=payload_flush_table,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3070]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3070]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3071]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3071]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 08: Apply the nftables.conf file to the namespace on Enabled PodNet
@@ -496,17 +484,13 @@ def build(
         payload=payload_apply_nftables_file,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3080]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3080]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3081]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3081]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 09: Remove the temp nftables.conf file on Enabled PodNet
@@ -515,17 +499,13 @@ def build(
         payload=payload_remvoe_nftables_file,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3090]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3090]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3091]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3091]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 10: Create temp nftables.conf file on Disabled PodNet
@@ -535,17 +515,13 @@ def build(
         payload=payload_create_nftables_file,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3100]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3100]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3101]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3101]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 11: Validate temp nftables.conf file on Disabled PodNet
@@ -554,17 +530,13 @@ def build(
         payload=payload_validate_nftables_file,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3110]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3110]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3111]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3111]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 12: Flush the table if exists already on Disabled PodNet
@@ -573,17 +545,13 @@ def build(
         payload=payload_flush_table,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3120]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3120]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3121]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3121]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 13: Apply the nftables.conf file to the namespace on Disabled PodNet
@@ -592,17 +560,13 @@ def build(
         payload=payload_apply_nftables_file,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3130]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3130]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3131]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3131]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 14: Remove the temp nftables.conf file on Disabled PodNet
@@ -611,17 +575,13 @@ def build(
         payload=payload_remvoe_nftables_file,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3140]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3140]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3141]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3141]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     return True, messages[1000]
@@ -725,17 +685,13 @@ def scrub(
         payload=payload_flush_table,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3020]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3020]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3021]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3021]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     # Block 03: Flush the table if exists already on Disabled PodNet
@@ -744,17 +700,13 @@ def scrub(
         payload=payload_flush_table,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3030]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3030]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         return False, msg
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3031]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3031]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         return False, msg
 
     return True, messages[1000]
@@ -903,18 +855,14 @@ def read(
         payload=payload_read_table,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3020]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3020]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         message_list.append(msg)
         success = False
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3021]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3021]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         message_list.append(msg)
         success = False
 
@@ -926,18 +874,14 @@ def read(
         payload=payload_read_table,
         username='robot',
     )
-    if response['channel_code'] != 200:
-        msg = f'{messages[3030]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3030]}\nChannel Code: {response["channel_code"]}s.\n'
+        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
         message_list.append(msg)
         success = False
     if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3031]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
+        msg = f'{messages[3031]}\nPayload Code: {response["payload_code"]}s.\n'
+        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
         message_list.append(msg)
         success = False
 
