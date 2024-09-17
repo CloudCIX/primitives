@@ -1,0 +1,111 @@
+#!/usr/sbin/nft -f
+
+# each domain is a table
+table inet {{ table }} {
+{# ----------------------------------------------------------------------- #}
+{% if applications|length > 0 %}
+    # cloudcix supported applications(a rule with one or more conditions)
+{% for application in applications %}
+{% if application == 'icmp_accept' %}
+    # icmp v4 allow
+    chain icmp_accept {
+        icmp type { echo-reply, destination-unreachable, echo-request, time-exceeded } accept
+    }
+{% elseif application == 'icmp_drop' %}
+    # icmp v4 block
+    chain icmp_drop {
+        icmp type { echo-reply, destination-unreachable, echo-request, time-exceeded } drop
+    }
+{% elseif application == 'icmp6_accept' %}
+    # icmp v6 allow
+    chain icmp6_accept {
+        icmpv6 type { echo-reply, echo-request, mld-listener-query, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
+    }
+{% elseif application == 'icmp6_drop' %}
+    # icmp v6 block
+    chain icmp6_drop {
+        icmpv6 type { echo-reply, echo-request, mld-listener-query, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } drop
+    }
+{% elseif application == 'dns_accept' %}
+    # dns allow
+    chain dns_accept {
+        meta l4proto {tcp, udp} th dport 53 accept
+    }
+{% elseif application == 'dns_drop' %}
+    # dns block
+    chain dns_drop {
+        meta l4proto {tcp, udp} th dport 53 drop
+    }
+{% elseif application == 'vpn_accept' %}
+    # vpn allow
+    chain vpn_accept {
+        # IKE 500, 4500 ports and udp protocol
+        udp dport { 500, 4500 } accept
+        ip protocol esp accept
+    }
+{% elseif application == 'vpn_drop' %}
+    # vpn block
+    chain vpn_drop {
+        # IKE 500, 4500 ports and udp protocol
+        meta l4proto udp th dport { 500, 4500 } drop
+        # Allow IPSec esp protocol
+        ip protocol esp drop
+    }
+{% endif %}
+{% endfor %}
+{% endif %}
+{# ----------------------------------------------------------------------- #}
+{% if prerouting_rules|length > 0 %}
+    # Pre-Routing, Inbount NAT (DNAT), Only IPv4
+    chain prerouting {
+        type nat hook prerouting priority {{ priority }}; policy accept;
+        # Inbound destination NAT 1:1
+{% for rule in prerouting_rules %}
+        {{ rule }}
+{% endfor %}
+    }
+{% endif %}
+{# ----------------------------------------------------------------------- #}
+{% if input_rules|length > 0 %}
+    # Traffic TO Namespace IPv4 and IPv6
+    chain input {
+        type filter hook input priority {{ priority }}; policy drop;
+{% for rule in input_rules %}
+        {{ rule }}
+{% endfor %}
+    }
+{% endif %}
+{# ---------------------------------------------------------------------- #}
+{% if forward_rules|length > 0 %}
+    # Traffic TO and FROM VMs in Namespace Networks, IPv4 and IPv6
+    chain forward {
+        type filter hook forward priority {{ priority }}; policy drop;
+
+{% for rule in forward_rules %}
+        {{ rule }}
+{% endfor %}
+
+    }
+{% endif %}
+{# ---------------------------------------------------------------------- #}
+{% if output_rules|length > 0 %}
+    # Traffic FROM Namespace IPv4 and IPv6
+    chain output {
+        type filter hook output priority {{ priority }}; policy drop;
+{% for rule in output_rules %}
+        {{ rule }}
+{% endfor %}
+    }
+{% endif %}
+{# ---------------------------------------------------------------------- #}
+{% if postrouting_rules|length > 0 %}
+    # Post-Routing, Outbound NAT(SNAT), Only IPv4
+    chain postrouting {
+        type nat hook postrouting priority {{ priority }}; policy accept;
+        # Source NAT 1:N
+    {% for nat in postrouting_rules %}
+        {{ nat }}
+    {% endfor %}
+    }
+{% endif %}
+}

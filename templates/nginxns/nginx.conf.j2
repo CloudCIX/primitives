@@ -1,0 +1,17 @@
+user www-data;
+worker_processes auto;
+pid {{pidfile}};
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+}
+
+http {
+    server {
+        server_name ci-data;
+        listen 169.254.169.254:80;
+        location / {
+            root /etc/netns/{{namespace}}/cloudcix-metadata/$remote_addr/;
+        }
+    }
+}

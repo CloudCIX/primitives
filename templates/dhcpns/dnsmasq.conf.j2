@@ -1,0 +1,6 @@
+port=0  # Disable DNS functionality
+pid-file={{ pidfile }}
+{% for range in ranges %}
+dhcp-range={{ range['ip_address'] }}/{{range['mask']}}
+{% endfor %}
+dhcp-hostsfile={{ hostsfile }}

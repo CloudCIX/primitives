@@ -6,9 +6,9 @@ Primitive to Build and Delete directories on PodNet HA
 import json
 import ipaddress
 from pathlib import Path
-from typing import Tuple
+from typing import Any, Dict, List, Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CouldNotConnectException
+from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
 
 
@@ -21,10 +21,7 @@ __all__ = [
 SUCCESS_CODE = 0
 
 
-def build(
-        path: str,
-        config_file=None,
-) -> Tuple[bool, str]:
+def build(path: str, config_file=None) -> Tuple[bool, str]:
     """
     description:
         Creates directory on PodNet HA.
@@ -114,38 +111,39 @@ def build(
     payload = f'mkdir --parents {path}'
 
     # call rcc comms_ssh on enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3021]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload,
+        username='robot',
+    )
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+        msg += f'\nChannel Error: {response["channel_error"]}'
+        return False, msg
+    if response["payload_code"] != SUCCESS_CODE:
+        msg = f'{messages[3022]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+        msg += f'\nPayload Error: {response["payload_error"]}'
+        return False, msg
 
     # call rcc comms_ssh on disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3031]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload,
+        username='robot',
+    )
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3031]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+        msg += f'\nChannel Error: {response["channel_error"]}'
+        return False, msg
+    if response["payload_code"] != SUCCESS_CODE:
+        msg = f'{messages[3032]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+        msg += f'\nPayload Error: {response["payload_error"]}'
+        return False, msg
 
     return True, messages[1000]
 
 
-def read(
-        path: str,
-        config_file=None,
-) -> Tuple[bool, str]:
+def read(path: str, config_file=None) -> Tuple[bool, Dict[str, Any], List[str]]:
     """
     description:
         Gets the status of the directory on PodNet HA.
@@ -161,9 +159,26 @@ def read(
             required: false
     return:
         description: |
-            A tuple with a boolean flag stating the read was successful or not and
-            the output or error message.
+            A list with 3 items: (1) a boolean status flag indicating if the
+            read was successfull, (2) a dict containing the data as read from
+            the both machines' current state and (3) the output or success message.
         type: tuple
+        items:
+          read:
+            description: True if all read operations were successful, False otherwise.
+            type: boolean
+          data:
+            type: object
+            description: |
+              file contents retrieved from both podnet nodes. May be None if nothing
+              could be retrieved.
+            properties:
+              <podnet_ip>:
+                description: The output from the command "stat <path>"
+        message_list:
+            description: A list of comma seperated messages recording any errors encountered during the request.
+            type: array
+
     """
     # Define message
     messages = {
@@ -184,6 +199,9 @@ def read(
               f'from the config file {config_file}',
         3032: f'3032: Successfully read directory {path} on enabled PodNet but Failed to read on the disabled PodNet',
     }
+    retval = True
+    data_dict = {}
+    message_list = ()
 
     # Default config_file if it is None
     if config_file is None:
@@ -191,31 +209,41 @@ def read(
 
     # Get load config from config_file
     if not Path(config_file).exists():
-        return False, messages[3011]
+        retval = False
+        message_list.append(messages[3011])
+        # Config file not found, cannot proceed
+        return retval, data_dict, message_list
     with Path(config_file).open('r') as file:
         config = json.load(file)
 
     # Get the ipv6_subnet from config_file
     ipv6_subnet = config.get('ipv6_subnet', None)
     if ipv6_subnet is None:
-        return False, messages[3012]
+        retval = False
+        message_list.append(messages[3012])
     # Verify the ipv6_subnet value
     try:
         ipaddress.ip_network(ipv6_subnet)
     except ValueError:
-        return False, messages[3013]
+        retval = False
+        message_list.append(messages[3013])
 
     # Get the PodNet Mgmt ips from ipv6_subnet
     podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
     podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
 
+    data_dict[podnet_a] = None
+    data_dict[podnet_b] = None
+
     # Get `podnet_a_enabled` and `podnet_b_enabled`
     podnet_a_enabled = config.get('podnet_a_enabled', None)
     if podnet_a_enabled is None:
-        return False, messages[3014]
+        retval = False
+        message_list.append(messages[3014])
     podnet_b_enabled = config.get('podnet_b_enabled', None)
     if podnet_a_enabled is None:
-        return False, messages[3015]
+        retval = False
+        message_list.append(messages[3015])
 
     # First run on enabled PodNet
     if podnet_a_enabled is True and podnet_b_enabled is False:
@@ -225,48 +253,59 @@ def read(
         enabled = podnet_b
         disabled = podnet_a
     elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, messages[3016]
+        retval = False
+        message_list.append(messages[3016])
     elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, messages[3017]
+        retval = False
+        message_list.append(messages[3017])
     else:
-        return False, messages[3018]
+        retval = False
+        message_list.append(messages[3018])
+
+    if retval == False:
+        return retval, data_dict, message_list
 
     # define payload
     payload = f'stat {path}'
 
     # call rcc comms_ssh on enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3021]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload,
+        username='robot',
+    )
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+        msg += f'\nChannel Error: {response["channel_error"]}'
+        retval = False
+        message_list.append(msg)
+    if response["payload_code"] != SUCCESS_CODE:
+        msg = f'{messages[3022]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+        msg += f'\nPayload Error: {response["payload_error"]}'
+        retval = False
+        message_list.append(msg)
+    
     # call rcc comms_ssh on disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3031]
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload,
+        username='robot',
+    )
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3031]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+        msg += f'\nChannel Error: {response["channel_error"]}'
+        retval = False
+        message_list.append(msg)
+    if response["payload_code"] != SUCCESS_CODE:
+        msg = f'{messages[3032]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+        msg += f'\nPayload Error: {response["payload_error"]}'
+        retval = False
+        message_list.append(msg)
 
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-
-    return True, messages[1000]
+    return retval, data_dict, message_list
 
 
-def scrub(
-        path: str,
-        config_file=None,
-) -> Tuple[bool, str]:
+def scrub(path: str, config_file=None) -> Tuple[bool, str]:
     """
     description:
         Removes directory on PodNet HA.
@@ -356,29 +395,33 @@ def scrub(
     payload = f'rm --recursive --force {path}'
 
     # call rcc comms_ssh on enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3021]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3022]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=enabled,
+        payload=payload,
+        username='robot',
+    )
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+        msg += f'\nChannel Error: {response["channel_error"]}'
+        return False, msg
+    if response["payload_code"] != SUCCESS_CODE:
+        msg = f'{messages[3022]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+        msg += f'\nPayload Error: {response["payload_error"]}'
+        return False, msg
 
     # call rcc comms_ssh on disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3031]
-
-    if exit_code != SUCCESS_CODE:
-        return False, f'{messages[3032]}\nExit Code: {exit_code}\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    response = comms_ssh(
+        host_ip=disabled,
+        payload=payload,
+        username='robot',
+    )
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3031]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+        msg += f'\nChannel Error: {response["channel_error"]}'
+        return False, msg
+    if response["payload_code"] != SUCCESS_CODE:
+        msg = f'{messages[3032]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+        msg += f'\nPayload Error: {response["payload_error"]}'
+        return False, msg
 
     return True, messages[1000]

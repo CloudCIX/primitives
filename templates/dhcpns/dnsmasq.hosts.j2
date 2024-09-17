@@ -1,0 +1,5 @@
+# Map MAC addresses to IP Addresses
+# A MAC address can map to one IPv4 Address and/or many IPv6 Addresses
+{% for host in hosts %}
+{{ host['mac_address'] }},{{ host['ip_address'] }}
+{% endfor %}
