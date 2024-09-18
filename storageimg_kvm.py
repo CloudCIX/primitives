@@ -287,7 +287,7 @@ def read(
     data_dict = {
         host: {
             'image': None,
-            'disk_size': None,
+            'size': None,
         }
     }
 
@@ -322,12 +322,12 @@ def read(
         image = image_match.group(1) if image_match else None
 
         # Extract the disk size
-        disk_size_match = re.search(r'disk size: (\S+)', stdout)
-        disk_size = disk_size_match.group(1) if disk_size_match else None
+        size_match = re.search(r'virtual size: (\S+)', stdout)
+        size = size_match.group(1) if size_match else None
 
         data_dict[host] = {
             'image': image,
-            'disk_size': disk_size,
+            'size': size,
         }
 
     return success, data_dict, message_list
