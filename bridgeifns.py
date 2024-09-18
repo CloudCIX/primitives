@@ -4,7 +4,7 @@ import ipaddress
 from pathlib import Path
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CouldNotConnectException
+from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
 
 
@@ -47,6 +47,7 @@ def build(
         1000: f'1000: Successfully created VETH from Namespace: {namespace} to Bridge: {bridgename}',
         2111: f'2011: Config file {config_file} loaded.',
         3000: f'3000: Failed to create VETH from Namespace: {namespace} to Bridge: {bridgename}',
+        3001: f'3001: Failed. Interface {bridgename}.{namespace} already exists.',
         3011: f'3011: Failed to load config file {config_file}, It does not exits.',
         3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
         3013: f'3013: Invalid value for `ipv6_subnet` from config file {config_file}',
@@ -110,91 +111,99 @@ def build(
 
     # Define payload
 
-    payload_bridge_exists = f'ip link show {bridgename}'
-    payload_namespace_exists = f'ip link show {bridgename}'
+    # auxiliary payloads
+    payload_ns_check = f"ip netns list | grep -w '{namespace} '" + '||' + '{' + f"echo Namespace {namespace} not found; exit 1;" + '}'
+    payload_add_ns = f'ip netns add {namespace}'
+    payload_interface_check = f'ip link show {bridgename}.{namespace}'
+
+    # main payloads
     payload_1 = f'ip link add {bridgename}.{namespace} type veth peer name {namespace}.{bridgename}'
     payload_2 = f'ip link set dev {bridgename}.{namespace} master {bridgename}'
     payload_3 = f'ip link set dev {namespace}.{bridgename} netns {namespace}'
     payload_4 = f'ip netns exec {namespace} ip link set dev {namespace}.{bridgename} up'
 
-    #Check if bridgename and namespaces already exists or not
-    try:
-        #Check if bridgename exists if true it will return 0
-        exit_code_bridge, _, _ = comms_ssh(
-            host_ip='localhost',
-            payload=payload_bridge_exists,
-            username='robot',)
-
-        #Check if namespace exists if true it will return 0
-        exit_code_namespace, _, _ = comms_ssh(
-            host_ip='localhost',
-            payload=payload_namespace_exists,
-            username='robot',)
-
-        # If there are names then the exit code would be 0 and what we want is both bridge and namespace to give exit code 1
-        # which means neither exists.
-        if exit_code_namespace and exit_code_bridge:
-            already_exists = False
-        else:
-            already_exists = True
-
-    except CouldNotConnectException:
-        already_exists = True
-
-    if already_exists:
-        return False, messages[3000]
+    # check NAMESPACE and BRIDGENAME
+    if comms_ssh(host_ip='localhost',
+                payload=payload_interface_check,
+                username='robot')['channel_code'] == CHANNEL_SUCCESS:
+        return False, messages[3001]
     else:
-        # Step 1: Create veth link
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip='localhost',
-                payload=payload_1,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3000]
+        # If there is no namespace add the NAME as a NAMESPACE
+        if comms_ssh(host_ip='localhost',
+                payload=payload_ns_check,
+                username='robot')['channel_code'] == CHANNEL_SUCCESS:
+            pass
+        else:
+            response = comms_ssh(
+                host_ip=enabled,
+                payload=payload_add_ns,
+                username='robot',)
 
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3000] + f'\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+            if response['channel_code'] != CHANNEL_SUCCESS:
+                msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+                msg += f'\nChannel Error: {response["channel_error"]}'
+                return False, msg
+            if response["payload_code"] != SUCCESS_CODE:
+                msg = f'{messages[3022]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+                msg += f'\nPayload Error: {response["payload_error"]}'
+                return False, msg
 
-        # Step 2: Connect one end to the bridge
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip='localhost',
-                payload=payload_2,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3000]
-
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3000] + f'\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-
-        # Step 3: Move the other end to the namespace
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip='localhost',
-                payload=payload_3,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3000]
-
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3000] + f'\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-
-        # Step 4: Set the interface up in the namespace
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip='localhost',
-                payload=payload_4,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3000]
-
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3000] + f'\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        #STEP 1 create VETH
+        response = comms_ssh(
+            host_ip=enabled,
+            payload=payload_1,
+            username='robot',
+        )
+        if response['channel_code'] != CHANNEL_SUCCESS:
+            msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+            msg += f'\nChannel Error: {response["channel_error"]}'
+            return False, msg
+        if response["payload_code"] != SUCCESS_CODE:
+            msg = f'{messages[3022]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+            msg += f'\nPayload Error: {response["payload_error"]}'
+            return False, msg
+        #STEP 2
+        response = comms_ssh(
+            host_ip=enabled,
+            payload=payload_2,
+            username='robot',
+        )
+        if response['channel_code'] != CHANNEL_SUCCESS:
+            msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+            msg += f'\nChannel Error: {response["channel_error"]}'
+            return False, msg
+        if response["payload_code"] != SUCCESS_CODE:
+            msg = f'{messages[3022]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+            msg += f'\nPayload Error: {response["payload_error"]}'
+            return False, msg
+        #STEP 3
+        response = comms_ssh(
+            host_ip=enabled,
+            payload=payload_3,
+            username='robot',
+        )
+        if response['channel_code'] != CHANNEL_SUCCESS:
+            msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+            msg += f'\nChannel Error: {response["channel_error"]}'
+            return False, msg
+        if response["payload_code"] != SUCCESS_CODE:
+            msg = f'{messages[3022]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+            msg += f'\nPayload Error: {response["payload_error"]}'
+            return False, msg
+        #STEP 4
+        response = comms_ssh(
+            host_ip=enabled,
+            payload=payload_4,
+            username='robot',
+        )
+        if response['channel_code'] != CHANNEL_SUCCESS:
+            msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
+            msg += f'\nChannel Error: {response["channel_error"]}'
+            return False, msg
+        if response["payload_code"] != SUCCESS_CODE:
+            msg = f'{messages[3022]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
+            msg += f'\nPayload Error: {response["payload_error"]}'
+            return False, msg
 
         return True, messages[1000]
 
