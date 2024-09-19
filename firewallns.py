@@ -10,7 +10,7 @@ from typing import Any, Deque, Dict, List, Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
-from .controllers import FirewallNamespace
+from .controllers import FirewallNamespace, FirewallNAT, FirewallSet
 from utils import JINJA_ENV, check_template_data
 
 __all__ = [
@@ -70,13 +70,13 @@ def complete_rule(rule, iiface, oiface, namespace, table):
 
 
 def dnat_rule(nat):
-    rule_line = f'iifname "{nat["iiface"]}" ' if nat['iiface'] is not None else ''
+    rule_line = f'iifname "{nat["iface"]}" ' if nat['iface'] is not None else ''
     rule_line = f'{rule_line}ip daddr {nat["public"]} dnat to {nat["private"]} '
     return rule_line
 
 
 def snat_rule(nat):
-    rule_line = f'oifname "{nat["oiface"]}" ' if nat['oiface'] is not None else ''
+    rule_line = f'oifname "{nat["iface"]}" ' if nat['iface'] is not None else ''
     rule_line = f'{rule_line}ip saddr {nat["private"]} snat to {nat["public"]} '
     return rule_line
 
@@ -86,8 +86,9 @@ def build(
         table: str,
         priority: int,
         config_file=None,
-        rules=None,
         nats=None,
+        rules=None,
+        sets=None,
 ) -> Tuple[bool, str]:
     """
     description: |
@@ -191,27 +192,27 @@ def build(
             required: false
         nats:
             description: |
-                    NAT object with dnats and snats Private IP and its Public IP or defaulted to None
+                NAT object with dnats and snats Private IP and its Public IP or defaulted to None
                 nats = {
                     'dnats': [
                         {
                             'public': '91.103.3.36',
                             'private': '192.168.0.2',
-                            'iiface': 'VRF123.BM45'
+                            'iface': 'VRF123.BM45'
                         },
                     ]
                     'snats': [
                         {
                             'public': '91.103.3.1',
                             'private': '192.168.0.1/24',
-                            'oiface': 'VRF123.BM45'
+                            'iface': 'VRF123.BM45'
                         },
                     ]
                 }
             required: false
             type: array
             items:
-                type: object
+                type: dict
                 properties:
                     dnats:
                         description: list of dnat pairs
@@ -227,7 +228,7 @@ def build(
                                     description: destination nat address, it should be a Private IP
                                     type: string
                                     required: true
-                                iiface:
+                                iface:
                                     description: |
                                         the input interface, entry point of a traffic in the network namespace
                                         e.g 'VRF123.BM90'
@@ -248,13 +249,51 @@ def build(
                                     description: source address, it should be a Private address or address range
                                     type: string
                                     required: true
-                                oiface:
+                                iface:
                                     description: |
                                         the output interface, exit point of a traffic from the network namespace
                                         e.g 'VRF123.BM90'
                                     type: string
                                     required: true
                         required: false
+        sets:
+            description: |
+                List of objects, each defined for a collection of elements
+                (such as IP addresses, network ranges, ports, or other data types)
+                that can be used to group similar items together for easier management within rules.
+                sets = [
+                    {
+                        'name': 'ie_ipv4',
+                        'type': 'ipv4_addr',
+                        'elements': ['91.103.0.1/24',],
+                    },
+                ]
+            required: false
+            type: array
+            items:
+                type: dict
+                properties:
+                    name:
+                        description: unique name within the table to identify the set and to call the set in rules
+                        required: true
+                        type: string
+                    type:
+                        description: |
+                            To define the nature of the set elements
+                             - `ipv4_addr`: IP addresses and or IP address ranges of version 4
+                             - `ipv6_addr`: IP addresses and or IP address ranges of version 6
+                             - `inet_service`: Port Numbers
+                             - `ether_addr` : Mac Addresses
+                        required: true
+                        type: string
+                    elements:
+                        description: The list of items of the same type
+                        required: true
+                        type: array
+                        items:
+                            type: string
+                            required: true
+
     return:
         description: |
             A tuple with a boolean flag stating the build was successful or not and
@@ -268,6 +307,7 @@ def build(
     messages = {
         1000: f'1000: Successfully created nftables {table} in namespace {namespace}',
         2011: f'2011: Config file {config_file} loaded.',
+        2020: f'2020: All the supplied parameters are validated.',
         3000: f'3000: Failed to create nftables {table} in namespace {namespace}',
         3011: f'3011: Failed to load config file {config_file}, It does not exits.',
         3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
@@ -277,7 +317,12 @@ def build(
         3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
         3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
         3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        3020: f'3020: Failed to Verify rules. One or more rules have invalid values',
+        3020: f'3020: Errors occurred in validating supplied parameters.',
+        3021: f'3021: Failed to validate Sets. One or more sets have same names. Name must be unique in the Sets',
+        3022: f'3022: Failed to validate Sets. Errors occurred while validating sets. Errors: ',
+        3023: f'3023: Failed to validate Rules. One or more rules have invalid values. Errors: ',
+        3024: f'3024: Failed to validate Rules. Sets used in rules are not found in supplied Sets. Errors: ',
+        3025: f'3025: Failed to validate NATs. One or more NATs are invalid. Errors: ',
         3030: f'3030: One of the rule is Invalid, Both `iiface` and `oiface` cannot be None in a rule object',
         3040: f'3040: Failed to verify nftables.conf.j2 template data, One or more template fields are None',
         3050: f'3050: Failed to connect to the enabled PodNet from the config file {config_file}',
@@ -347,17 +392,80 @@ def build(
     else:
         return False, messages[3018]
 
-    # Block 02: Validate rules
-    proceed, errors = True, []
-    for rule in rules:
-        validated = FirewallNamespace(rule)
-        success, errs = validated()
-        if success is False:
-            proceed = False
-            errors.extend(errs)
+    # Block 02: Validate sets and rules
+    validated = True
+    messages_list = []
+    set_names = []
+    # validate sets
+    # 1. Same Set names are not allowed
+    # 2. Validate fields of Set object
+    if sets:
+        valid_sets = True
+        # first make sure set names are unique in the list
+        set_names.extend([obj['name'] for obj in sets])
+        if len(sets) != len(list(set(set_names))):
+            valid_sets = False
+            messages_list.append(messages[3021])
+        errors = []
+        for obj in sets:
+            controller = FirewallSet(obj)
+            success, errs = controller()
+            if success is False:
+                valid_sets = False
+                errors.extend(errs)
+        if valid_sets is False:
+            validated = False
+            messages_list.append(f'{messages[3022]} {";".join(errors)}')
 
-    if proceed is False:
-        return False, messages[3020]
+    # validate rules
+    if rules:
+        errors = []
+        valid_rules = True
+        for rule in rules:
+            controller = FirewallNamespace(rule)
+            success, errs = controller()
+            if success is False:
+                valid_rules = False
+                errors.extend(errs)
+        if valid_rules is False:
+            validated = False
+            messages_list.append(f'{messages[3023]} {";".join(errors)}')
+
+        # check if the rule has any sets in source, destination or ports,
+        # if so then check that set is defined in sets
+        errors = []
+        valid_set_elements = True
+        for rule in rules:
+            # collect the sets from the rules that starts with `@`
+            rule_sets = [item for item in rule['source'] if '@' in item]
+            rule_sets.extend([item for item in rule['destination'] if '@' in item])
+            rule_sets.extend([item for item in rule['ports'] if '@' in item])
+            # now check if each rule_set is supplied in sets(set_names)
+            for rule_set in rule_sets:
+                if rule_set not in set_names:
+                    valid_set_elements = False
+                    errors.append(f'{rule_set} not found in the supplied sets')
+        if valid_set_elements is False:
+            validated = False
+            messages_list.append(f'{messages[3024]} {";".join(errors)}')
+
+    # validate nats
+    if nats:
+        errors = []
+        valid_nats = True
+        nats_list = nats['dnats'] + nats['snats']
+        for nat in nats_list:
+            controller = FirewallNAT(nat)
+            success, errs = controller()
+            if success is False:
+                valid_nats = False
+                errors.extend(errs)
+        if valid_nats is False:
+            validated = False
+            messages_list.append(f'{messages[3025]} {";".join(errors)}')
+
+    if validated is False:
+        return False, f'{messages[3020]} {"; ".join(messages_list)}'
 
     # Block 03: Prepare Firewall rules
     # DNAT and SNAT rules
@@ -412,6 +520,7 @@ def build(
         'postrouting_rules': postrouting_rules,
         'prerouting_rules': prerouting_rules,
         'priority': priority,
+        'sets': sets,
         'table': table,
     }
 

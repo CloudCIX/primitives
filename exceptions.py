@@ -77,3 +77,67 @@ class InvalidPodNetIPv4CPE(BaseException):
 
 class InvalidPodNetMgmtIPv6(BaseException):
     pass
+
+
+class InvalidSetName(BaseException):
+    def __str__(self):
+        return "Invalid name field, white spaces are not allowed in name field."
+
+
+class InvalidSetType(BaseException):
+    def __str__(self):
+        msg = "Invalid type field. "
+        msg += "One of the set type is not in 'ipv4_addr', 'ipv6_addr', 'inet_service'. and 'ether_addr'"
+        return msg
+
+
+class InvalidSetIPAddressVersion(BaseException):
+    def __str__(self):
+        return "Invalid IP Address version, One of the element is not matching with set type."
+
+
+class InvalidSetIPAddress(BaseException):
+    def __str__(self):
+        return "Invalid set element, One of the element is not a valid IPAddress."
+
+
+class InvalidSetMacAddress(BaseException):
+    def __str__(self):
+        return "Invalid set element, One of the element is not a valid Mac Address."
+
+
+class InvalidSetPort(BaseException):
+    def __str__(self):
+        return "Invalid set element, One of the element is not a valid Port."
+
+
+class InvalidSetPortValue(BaseException):
+    def __str__(self):
+        msg = "Invalid set element, One of the element is not a valid Port."
+        msg += "Port value can only be in the range 1-65536"
+        return msg
+
+
+class InvalidNATIface(BaseException):
+    def __str__(self):
+        return "Invalid iface field, white spaces are not allowed in iface field."
+
+
+class InvalidNATIPAddress(BaseException):
+    def __str__(self):
+        return "Invalid nat element, One of the element is not a valid IPAddress."
+
+
+class InvalidNATIPAddressVersion(BaseException):
+    def __str__(self):
+        return "Invalid IP Address version, NAT IPAddress version must be 4."
+
+
+class InvalidNATPrivate(BaseException):
+    def __str__(self):
+        return "Invalid NATs private field, NAT private address is not RFC1918."
+
+
+class InvalidNATPublic(BaseException):
+    def __str__(self):
+        return "Invalid NATs public field, NAT public address cannot be RFC1918."

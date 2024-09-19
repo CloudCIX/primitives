@@ -55,6 +55,18 @@ table inet {{ table }} {
 {% endfor %}
 {% endif %}
 {# ----------------------------------------------------------------------- #}
+{% if sets|length > 0 %}
+{% for obj in sets %}
+    set {{ obj['name'] }} {
+        type {{ obj['type'] }}
+        flags interval
+        elements = {
+            {{ ', '.join(obj['elements']) }}
+        }
+    }
+{% endfor %}
+{% endif %}
+{# ----------------------------------------------------------------------- #}
 {% if prerouting_rules|length > 0 %}
     # Pre-Routing, Inbount NAT (DNAT), Only IPv4
     chain prerouting {
