@@ -1,5 +1,5 @@
 """
-Primitive for Storage drives (QEMU images) on KVM hosts
+Primitive for Storage image drives (QEMU images) on KVM hosts
 """
 
 # stdlib
@@ -7,7 +7,6 @@ from typing import Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 import re
-
 
 __all__ = [
     'build',
@@ -24,27 +23,32 @@ def build(
         domain_path: str,
         storage: str,
         size: int,
+        cloudimage: str,
 ) -> Tuple[bool, str]:
     """
     description:
-        Creates <domain_path><storage> file on the given Host <host>.
+        Copies <cloudimage> to the given <domain_path><storage> and resizes the storage file to <size>.
 
     parameters:
         host:
-            description: The dns or ipadddress of the Host on which this storage_kvm is built
+            description: The dns or ipadddress of the Host on which this storage image will be created
             type: string
             required: true
         domain_path:
-            description: The location or directory path where this storage_kvm is created
+            description: The location or directory path where this storage image will be created
             type: string
             required: true
         storage:
-            description: The unique name of the storage_kvm to be created
+            description: The unique name of the storage image file to be created
             type: string
             required: true
         size:
-            description: The size of the storage_kvm to be created, must be in GB value 
+            description: The size of the storage image to be created, must be in GB value 
             type: int
+            required: true
+        cloudimage:
+            description: The path to the cloud image file that will be copied to the domain directory.
+            type: string
             required: true
     return:
         description: |
@@ -54,20 +58,20 @@ def build(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully created storage {storage}',
-        3021: f'3021: Failed to connect to the host {host}',
-        3022: f'3022: Failed to create storage_kvm {domain_path}{storage} on the host {host}'
+        1000: f'1000: Successfully created and resized storage image {storage} to {size}GB at {domain_path}{storage} on Host {host}.',
+        3021: f'3021: Failed to connect to the Host {host}',
+        3022: f'3022: Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{storage} on Host {host}.',
+        3023: f'3023: Failed to resize the copied storage image to {size}GB on Host {host}.'
     }
-
     message_list = {}
-
     # Define payload
-    payload = f'qemu-img create -f qcow2 {domain_path}{storage} {size}G'
+    copy_cloud_image_payload = f'cp {cloudimage} {domain_path}{storage}'
+    resize_copied_file = f'qemu-img resize {domain_path}{storage} {size}G'
 
-    # Create storage using SSH communication
+    # Copy cloud image to domains directory using SSH communication
     response = comms_ssh(
         host_ip=host,
-        payload=payload,
+        payload=copy_cloud_image_payload,
         username='robot',
     )
     if response['channel_code'] != CHANNEL_SUCCESS:
@@ -79,6 +83,30 @@ def build(
         success = False
     if response['payload_code'] != SUCCESS_CODE:
         msg = f'{messages[3022]}\n ' \
+                f'payload_code: {response["payload_code"]}s.\n' \
+                f'payload_message: {response["payload_message"]}\n' \
+                f'payload_error: {response["payload_error"]}'
+        message_list.append(msg)
+        success = False
+    if not success:
+        return success, message_list
+
+    # Resize the copied file to `size` using SSH communication
+    response = comms_ssh(
+        host_ip=host,
+        payload=resize_copied_file,
+        username='robot',
+    )
+
+    if response['channel_code'] != CHANNEL_SUCCESS:
+        msg = f'{messages[3021]}\n ' \
+                f'channel_code: {response["channel_code"]}s.\n' \
+                f'channel_message: {response["channel_message"]}\n' \
+                f'channel_error: {response["channel_error"]}'
+        message_list.append(msg)
+        success = False
+    if response['payload_code'] != SUCCESS_CODE:
+        msg = f'{messages[3023]}\n ' \
                 f'payload_code: {response["payload_code"]}s.\n' \
                 f'payload_message: {response["payload_message"]}\n' \
                 f'payload_error: {response["payload_error"]}'
@@ -97,23 +125,23 @@ def update(
 ) -> Tuple[bool, str]:
     """
     description:
-        Updates the size of the <domain_path><storage> file on the given host <host>."
+        Updates the size of the <domain_path><storage> file on the given Host <host>."
 
     parameters:
         host:
-            description: The dns or ipadddress of the Host on which this storage_kvm is built
+            description: The dns or ipadddress of the Host on which this storage image is updated
             type: string
             required: true
         domain_path:
-            description: The location or directory path where this storage_kvm is updated
+            description: The location or directory path where this storage image is located
             type: string
             required: true
         storage:
-            description: The name of the storage_kvm to be updated
+            description: The name of the storage image to be updated
             type: string
             required: true
         size:
-            description: The size of the storage_kvm to be updated, must be in GB value
+            description: The new size of the storage image in GB.
             type: int
             required: true
     return:
@@ -124,9 +152,9 @@ def update(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully update storage {storage}',
-        3021: f'3021: Failed to connect to the host {host}',
-        3022: f'3022: Failed to update storage_kvm {domain_path}{storage}'
+        1000: f'1000: Successfully updated storage image {storage} to {size}GB at {domain_path}{storage} on Host {host}.',
+        3021: f'3021: Failed to connect to the Host {host}.',
+        3022: f'3022: Failed to update storage image {domain_path}{storage} to {size}GB on Host {host}.'
     }
     message_list = {}
     # Define payload
@@ -138,6 +166,7 @@ def update(
         payload=payload,
         username='robot',
     )
+
     if response['channel_code'] != CHANNEL_SUCCESS:
         msg = f'{messages[3021]}\n ' \
                 f'channel_code: {response["channel_code"]}s.\n' \
@@ -168,15 +197,15 @@ def scrub(
 
     parameters:
         host:
-            description: The dns or ipadddress of the Host on which this storage_kvm is built
+            description: The DNS or IP address of the Host where the storage image is to be removed.
             type: string
             required: true
         domain_path:
-            description: The location or directory path where this storage_kvm is removed
+            description: The location or directory path where the storage image is located.
             type: string
             required: true
         storage:
-            description: The name of the storage_kvm to be removed
+            description: The name of the storage image to be removed.
             type: string
             required: true
     return:
@@ -187,13 +216,13 @@ def scrub(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully removed storage {storage}',
-        3021: f'3021: Failed to connect to the host {host}',
-        3022: f'3022: Failed to remove storage_kvm {domain_path}{storage} on the host {host}'
+        1000: f'1000: Successfully removed storage image {storage} from {domain_path} on Host {host}.',
+        3021: f'3021: Failed to connect to the Host {host}',
+        3022: f'3022: Failed to remove storage image {domain_path}{storage} from Host {host}.'
     }
     message_list = {}
     # Define payload
-    payload = f'rm -force {domain_path}{storage}'
+    payload = f'rm --force {domain_path}{storage}'
 
     # Remove storage using SSH communication
     response = comms_ssh(
@@ -231,15 +260,15 @@ def read(
 
     parameters:
         host:
-            description: The dns or ipadddress of the Host on which this storage_kvm is built
+            description: The dns or ipadddress of the Host where the storage image is located
             type: string
             required: true
         domain_path:
-            description: The location or directory path where this storage_kvm is read
+            description: The location or directory path where this storage image is read
             type: string
             required: true
         storage:
-            description: The name of the storage_kvm to be read
+            description: The name of the storage image to be read
             type: string
             required: true
     return:
@@ -250,9 +279,9 @@ def read(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully read storage {storage}',
-        3021: f'3021: Failed to connect to the host {host}',
-        3022: f'3022: Failed to read storage_kvm {domain_path}{storage} on the host {host}'
+        1000: f'1000: Successfully read storage image {storage}',
+        3021: f'3021: Failed to connect to the Host {host}',
+        3022: f'3022: Failed to read storage image {domain_path}{storage} on the Host {host}'
     }
     message_list = {}
     data_dict = {
@@ -261,6 +290,7 @@ def read(
             'size': None,
         }
     }
+
     # Define payload
     payload = f'qemu-img info {domain_path}{storage}'
 
@@ -284,7 +314,6 @@ def read(
               f'payload_error: {response["payload_error"]}'
         message_list.append(msg)
         success = False
-
     if success:
         stdout = response.get('stdout', '')
 
