@@ -9,7 +9,7 @@ from typing import Tuple
 from cloudcix.rcc import deploy_lsh, CouldNotExecuteException
 # local
 from .controllers import FirewallPodNet
-from .utils import JINJA_ENV, check_template_data
+from cloudcix_primitives.utils import JINJA_ENV, check_template_data
 
 __all__ = [
     'build',

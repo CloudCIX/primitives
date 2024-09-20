@@ -7,7 +7,7 @@ from typing import Tuple
 # lib
 from cloudcix.rcc import deploy_lsh, deploy_ssh, CouldNotConnectException
 # local
-from .utils import JINJA_ENV, check_template_data
+from cloudcix_primitives.utils import JINJA_ENV, check_template_data
 
 
 __all__ = [

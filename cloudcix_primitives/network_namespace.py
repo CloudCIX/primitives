@@ -7,7 +7,7 @@ from typing import Tuple
 # lib
 from cloudcix.rcc import deploy_ssh, CouldNotConnectException
 # local
-import utils
+import cloudcix_primitives.utils
 
 __all__ = [
     'build',

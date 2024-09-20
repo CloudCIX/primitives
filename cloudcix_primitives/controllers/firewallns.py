@@ -2,7 +2,7 @@
 import ipaddress
 import re
 # local
-from ..exceptions import (
+from cloudcix_primitives.exceptions import (
     exception_handler,
     InvalidFirewallRuleAction,
     InvalidFirewallRuleDestination,
