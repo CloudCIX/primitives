@@ -11,7 +11,13 @@ from typing import Any, Deque, Dict, List, Tuple
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
 from .controllers import FirewallNamespace, FirewallNAT, FirewallSet
-from utils import JINJA_ENV, check_template_data
+from cloudcix_primitives.utils import (
+    JINJA_ENV,
+    check_template_data,
+    load_pod_config,
+    SSHCommsWrapper,
+    PodnetErrorFormatter,
+)
 
 __all__ = [
     'build',
@@ -306,17 +312,9 @@ def build(
     # Define message
     messages = {
         1000: f'1000: Successfully created nftables {table} in namespace {namespace}',
-        2011: f'2011: Config file {config_file} loaded.',
-        2020: f'2020: All the supplied parameters are validated.',
         3000: f'3000: Failed to create nftables {table} in namespace {namespace}',
-        3011: f'3011: Failed to load config file {config_file}, It does not exits.',
-        3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
-        3013: f'3013: Invalid value for `ipv6_subnet` from config file {config_file}',
-        3014: f'3014: Failed to get `podnet_a_enabled` from config file {config_file}',
-        3015: f'3015: Failed to get `podnet_b_enabled` from config file {config_file}',
-        3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-        3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-        3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
+        # Validating params
+        2020: f'2020: All the supplied parameters are validated.',
         3020: f'3020: Errors occurred in validating supplied parameters.',
         3021: f'3021: Failed to validate Sets. One or more sets have same names. Name must be unique in the Sets',
         3022: f'3022: Failed to validate Sets. Errors occurred while validating sets. Errors: ',
@@ -325,24 +323,28 @@ def build(
         3025: f'3025: Failed to validate NATs. One or more NATs are invalid. Errors: ',
         3030: f'3030: One of the rule is Invalid, Both `iiface` and `oiface` cannot be None in a rule object',
         3040: f'3040: Failed to verify nftables.conf.j2 template data, One or more template fields are None',
-        3050: f'3050: Failed to connect to the enabled PodNet from the config file {config_file}',
-        3051: f'3051: Failed to create nftables file {nftables_file} on the enabled PodNet',
-        3060: f'3060: Failed to connect to the enabled PodNet from the config file {config_file}',
-        3061: f'3061: Failed to validate nftables file {nftables_file} on the enabled PodNet',
-        3070: f'3070: Failed to connect to the enabled PodNet from the config file {config_file}',
-        3071: f'3071: Failed to flush table {table} on the enabled PodNet',
-        3080: f'3080: Failed to connect to the enabled PodNet from the config file {config_file}',
-        3081: f'3081: Failed to apply nftables file {nftables_file} on the enabled PodNet',
-        3090: f'3090: Failed to connect to the disabled PodNet from the config file {config_file}',
-        3091: f'3091: Failed to create nftables file {nftables_file} on the disabled PodNet',
-        3100: f'3100: Failed to connect to the disabled PodNet from the config file {config_file}',
-        3101: f'3101: Failed to create nftables file {nftables_file} on the disabled PodNet',
-        3110: f'3110: Failed to connect to the disabled PodNet from the config file {config_file}',
-        3111: f'3111: Failed to validate nftables file {nftables_file} on the disabled PodNet',
-        3120: f'3120: Failed to connect to the disabled PodNet from the config file {config_file}',
-        3121: f'3121: Failed to flush table {table} on the disabled PodNet',
-        3130: f'3130: Failed to connect to the disabled PodNet from the config file {config_file}',
-        3131: f'3131: Failed to apply nftables file {nftables_file} on the disabled PodNet',
+        # Enabled PodNet
+        3051: f'3051: Failed to connect to the enabled PodNet from the config file {config_file}',
+        3052: f'3052: Failed to create nftables file {nftables_file} on the enabled PodNet',
+        3053: f'3053: Failed to connect to the enabled PodNet from the config file {config_file}',
+        3054: f'3054: Failed to validate nftables file {nftables_file} on the enabled PodNet',
+        3055: f'3055: Failed to connect to the enabled PodNet from the config file {config_file}',
+        3056: f'3056: Failed to flush table {table} on the enabled PodNet',
+        3057: f'3057: Failed to connect to the enabled PodNet from the config file {config_file}',
+        3058: f'3058: Failed to apply nftables file {nftables_file} on the enabled PodNet',
+        3059: f'3059: Failed to connect to the enabled PodNet from the config file {config_file}',
+        3060: f'3060: Failed to remove nftables file {nftables_file} on the enabled PodNet',
+        # Disable PodNet
+        3061: f'3061: Failed to connect to the disabled PodNet from the config file {config_file}',
+        3062: f'3062: Failed to create nftables file {nftables_file} on the disabled PodNet',
+        3063: f'3063: Failed to connect to the disabled PodNet from the config file {config_file}',
+        3064: f'3064: Failed to validate nftables file {nftables_file} on the disabled PodNet',
+        3065: f'3065: Failed to connect to the disabled PodNet from the config file {config_file}',
+        3066: f'3066: Failed to flush table {table} on the disabled PodNet',
+        3067: f'3067: Failed to connect to the disabled PodNet from the config file {config_file}',
+        3068: f'3068: Failed to apply nftables file {nftables_file} on the disabled PodNet',
+        3069: f'3069: Failed to connect to the disabled PodNet from the config file {config_file}',
+        3070: f'3070: Failed to remove nftables file {nftables_file} on the disabled PodNet',
     }
 
     # Block 01: Get the PodNets IPs
@@ -351,46 +353,15 @@ def build(
         config_file = '/opt/robot/config.json'
 
     # Get load config from config_file
-    if not Path(config_file).exists():
-        return False, messages[3011]
-    with Path(config_file).open('r') as file:
-        config = json.load(file)
-
-    # Get the ipv6_subnet from config_file
-    ipv6_subnet = config.get('ipv6_subnet', None)
-    if ipv6_subnet is None:
-        return False, messages[3012]
-    # Verify the ipv6_subnet value
-    try:
-        ipaddress.ip_network(ipv6_subnet)
-    except ValueError:
-        return False, messages[3013]
-
-    # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
-
-    # Get `podnet_a_enabled` and `podnet_b_enabled`
-    podnet_a_enabled = config.get('podnet_a_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3014]
-    podnet_b_enabled = config.get('podnet_b_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3015]
-
-    # Find out enabled and disabled PodNets
-    if podnet_a_enabled is True and podnet_b_enabled is False:
-        enabled = podnet_a
-        disabled = podnet_b
-    elif podnet_a_enabled is False and podnet_b_enabled is True:
-        enabled = podnet_b
-        disabled = podnet_a
-    elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, messages[3016]
-    elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, messages[3017]
-    else:
-        return False, messages[3018]
+    status, config_data, msg = load_pod_config(config_file)
+    if not status:
+        if config_data['raw'] is None:
+            return False, msg
+        else:
+            msg += "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'], indent=2, sort_keys=True)
+            return False, msg
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
 
     # Block 02: Validate sets and rules
     validated = True
@@ -533,165 +504,66 @@ def build(
     # Generate Firewall build config
     nftables_config = template.render(**template_data)
 
-    # Define Payloads
-    payload_create_nftables_file = f'echo "{nftables_config}" > {nftables_file}'
-    payload_validate_nftables_file = f'ip netns exec {namespace} nft --check --file {nftables_file}'
-    payload_flush_table = f'if ip netns exec {namespace} nft list tables | grep -q "inet {table}"; then' \
-                          f' ip netns exec {namespace} nft flush table inet {table}; fi'
-    payload_apply_nftables_file = f'ip netns exec {namespace} nft --file {nftables_file}'
-    payload_remvoe_nftables_file = f'rm {nftables_file}'
+    def run_podnet(podnet_node, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
+        fmt = PodnetErrorFormatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
 
-    # Block 05: Create temp nftables.conf file on Enabled PodNet
-    # call rcc comms_ssh on enabled PodNet
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_create_nftables_file,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3050]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3051]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
+        payloads = {
+            'create_nftables_file': f'echo "{nftables_config}" > {nftables_file}',
+            'validate_nftables_file': f'ip netns exec {namespace} nft --check --file {nftables_file}',
+            'flush_table': f'if ip netns exec {namespace} nft list tables | grep -q "inet {table}"; then ip netns exec {namespace} nft flush table inet {table}; fi',
+            'apply_nftables_file': f'ip netns exec {namespace} nft --file {nftables_file}',
+            'remvoe_nftables_file': f'rm {nftables_file}',
+        }
 
-    # Block 06: Validate temp nftables.conf file on Enabled PodNet
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_validate_nftables_file,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3060]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3061]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
+        ret = rcc.run(payloads['create_nftables_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+        fmt.add_successful('create_nftables_file', ret)
 
-    # Block 07: Flush the table if exists already on Enabled PodNet
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_flush_table,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3070]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3071]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
+        ret = rcc.run(payloads['validate_nftables_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 3]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 4]), fmt.successful_payloads
+        fmt.add_successful('validate_nftables_file', ret)
 
-    # Block 08: Apply the nftables.conf file to the namespace on Enabled PodNet
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_apply_nftables_file,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3080]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3081]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
+        ret = rcc.run(payloads['flush_table'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 5]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 6]), fmt.successful_payloads
+        fmt.add_successful('flush_table', ret)
 
-    # Block 09: Remove the temp nftables.conf file on Enabled PodNet
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_remvoe_nftables_file,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3090]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3091]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
+        ret = rcc.run(payloads['apply_nftables_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 7]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 8]), fmt.successful_payloads
+        fmt.add_successful('apply_nftables_file', ret)
 
-    # Block 10: Create temp nftables.conf file on Disabled PodNet
-    # call rcc comms_ssh on enabled PodNet
-    response = comms_ssh(
-        host_ip=disabled,
-        payload=payload_create_nftables_file,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3100]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3101]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
+        ret = rcc.run(payloads['remove_nftables_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 9]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 10]), fmt.successful_payloads
+        fmt.add_successful('remove_nftables_file', ret)
 
-    # Block 11: Validate temp nftables.conf file on Disabled PodNet
-    response = comms_ssh(
-        host_ip=disabled,
-        payload=payload_validate_nftables_file,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3110]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3111]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
+    status, msg, successful_payloads = run_podnet(enabled, 3050, {})
+    if status is False:
+        return status, msg
 
-    # Block 12: Flush the table if exists already on Disabled PodNet
-    response = comms_ssh(
-        host_ip=disabled,
-        payload=payload_flush_table,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3120]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3121]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
-
-    # Block 13: Apply the nftables.conf file to the namespace on Disabled PodNet
-    response = comms_ssh(
-        host_ip=disabled,
-        payload=payload_apply_nftables_file,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3130]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3131]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
-
-    # Block 14: Remove the temp nftables.conf file on Disabled PodNet
-    response = comms_ssh(
-        host_ip=disabled,
-        payload=payload_remvoe_nftables_file,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3140]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3141]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
+    status, msg, successful_payloads = run_podnet(disabled, 3060, successful_payloads)
+    if status is False:
+        return status, msg
 
     return True, messages[1000]
 
@@ -720,21 +592,12 @@ def scrub(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully removed nftables {table} in namespace {namespace}',
-        2011: f'2011: Config file {config_file} loaded.',
-        3000: f'3000: Failed to remove nftables {table} in namespace {namespace}',
-        3011: f'3011: Failed to load config file {config_file}, It does not exits.',
-        3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
-        3013: f'3013: Invalid value for `ipv6_subnet` from config file {config_file}',
-        3014: f'3014: Failed to get `podnet_a_enabled` from config file {config_file}',
-        3015: f'3015: Failed to get `podnet_b_enabled` from config file {config_file}',
-        3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-        3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-        3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        3020: f'3020: Failed to connect to the Enabled PodNet from the config file {config_file}',
-        3021: f'3021: Failed to flush table {table} on the Enabled PodNet',
-        3030: f'3030: Failed to connect to the Disabled PodNet from the config file {config_file}',
-        3031: f'3031: Failed to flush table {table} on the Disabled PodNet',
+        1100: f'1100: Successfully removed nftables {table} in namespace {namespace}',
+        3100: f'3100: Failed to remove nftables table {table} in namespace {namespace}',
+        3121: f'3121: Failed to connect to the Enabled PodNet from the config file {config_file}',
+        3122: f'3122: Failed to flush table {table} on the Enabled PodNet',
+        3131: f'3131: Failed to connect to the Disabled PodNet from the config file {config_file}',
+        3132: f'3132: Failed to flush table {table} on the Disabled PodNet',
     }
 
     # Block 01: Get the PodNets IPs
@@ -743,80 +606,45 @@ def scrub(
         config_file = '/opt/robot/config.json'
 
     # Get load config from config_file
-    if not Path(config_file).exists():
-        return False, messages[3011]
-    with Path(config_file).open('r') as file:
-        config = json.load(file)
+    status, config_data, msg = load_pod_config(config_file)
+    if not status:
+        if config_data['raw'] is None:
+            return False, msg
+        else:
+            msg += "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'], indent=2, sort_keys=True)
+            return False, msg
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
 
-    # Get the ipv6_subnet from config_file
-    ipv6_subnet = config.get('ipv6_subnet', None)
-    if ipv6_subnet is None:
-        return False, messages[3012]
-    # Verify the ipv6_subnet value
-    try:
-        ipaddress.ip_network(ipv6_subnet)
-    except ValueError:
-        return False, messages[3013]
+    def run_podnet(podnet_node, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
+        fmt = PodnetErrorFormatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
 
-    # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
+        payloads = {
+            'flush_table': f'if ip netns exec {namespace} nft list tables | grep -q "inet {table}"; then '
+                           f'ip netns exec {namespace} nft flush table inet {table}; fi',
+        }
 
-    # Get `podnet_a_enabled` and `podnet_b_enabled`
-    podnet_a_enabled = config.get('podnet_a_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3014]
-    podnet_b_enabled = config.get('podnet_b_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3015]
+        ret = rcc.run(payloads['flush_table'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+        fmt.add_successful('flush_table', ret)
 
-    # Find out enabled and disabled PodNets
-    if podnet_a_enabled is True and podnet_b_enabled is False:
-        enabled = podnet_a
-        disabled = podnet_b
-    elif podnet_a_enabled is False and podnet_b_enabled is True:
-        enabled = podnet_b
-        disabled = podnet_a
-    elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, messages[3016]
-    elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, messages[3017]
-    else:
-        return False, messages[3018]
+    status, msg, successful_payloads = run_podnet(enabled, 3020, {})
+    if status is False:
+        return status, msg
 
-    # Define payload
-    payload_flush_table = f'if ip netns exec {namespace} nft list tables | grep -q "inet {table}"; then' \
-                          f' ip netns exec {namespace} nft flush table inet {table}; fi'
-
-    # Block 02: Flush the table if exists already on Enabled PodNet
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_flush_table,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3020]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3021]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
-
-    # Block 03: Flush the table if exists already on Disabled PodNet
-    response = comms_ssh(
-        host_ip=disabled,
-        payload=payload_flush_table,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3030]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3031]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        return False, msg
+    status, msg, successful_payloads = run_podnet(disabled, 3030, successful_payloads)
+    if status is False:
+        return status, msg
 
     return True, messages[1000]
 
@@ -866,25 +694,15 @@ def read(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully read nftables {table} in namespace {namespace}',
-        2011: f'2011: Config file {config_file} loaded.',
-        3000: f'3000: Failed to read nftables {table} in namespace {namespace}',
-        3011: f'3011: Failed to load config file {config_file}, It does not exits.',
-        3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
-        3013: f'3013: Invalid value for `ipv6_subnet` from config file {config_file}',
-        3014: f'3014: Failed to get `podnet_a_enabled` from config file {config_file}',
-        3015: f'3015: Failed to get `podnet_b_enabled` from config file {config_file}',
-        3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-        3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-        3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        3020: f'3020: Failed to connect to the Enabled PodNet from the config file {config_file}',
-        3021: f'3021: Failed to read table {table} from the Enabled PodNet',
-        3030: f'3030: Failed to connect to the Disabled PodNet from the config file {config_file}',
-        3031: f'3031: Failed to read table {table} from the Disabled PodNet',
+        1200: f'1200: Successfully read nftables {table} in namespace {namespace}',
+        3200: f'3200: Failed to read nftables {table} in namespace {namespace}',
+        3220: f'3220: Failed to connect to the Enabled PodNet from the config file {config_file}',
+        3221: f'3221: Failed to read table {table} from the Enabled PodNet',
+        3230: f'3230: Failed to connect to the Disabled PodNet from the config file {config_file}',
+        3231: f'3231: Failed to read table {table} from the Disabled PodNet',
     }
 
     # set the outputs
-    success = True
     data_dict = {}
     message_list = []
 
@@ -894,106 +712,55 @@ def read(
         config_file = '/opt/robot/config.json'
 
     # Get load config from config_file
-    if not Path(config_file).exists():
-        success = False
-        message_list.append(messages[3011])
-        return success, data_dict, message_list
-    with Path(config_file).open('r') as file:
-        config = json.load(file)
+    status, config_data, msg = load_pod_config(config_file)
+    message_list.append(msg)
+    if not status:
+        if config_data['raw'] is None:
+            return False, data_dict, message_list
+        else:
+            msg += "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'], indent=2, sort_keys=True)
+            message_list.append(msg)
+            return False, data_dict, message_list
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
 
-    # Get the ipv6_subnet from config_file
-    ipv6_subnet = config.get('ipv6_subnet', None)
-    if ipv6_subnet is None:
-        success = False
-        message_list.append(messages[3012])
-        return success, data_dict, message_list
-    # Verify the ipv6_subnet value
-    try:
-        ipaddress.ip_network(ipv6_subnet)
-    except ValueError:
-        success = False
-        message_list.append(messages[3013])
-        return success, data_dict, message_list
+    def run_podnet(podnet_node, prefix, successful_payloads, data_dict):
+        retval = True
+        data_dict[podnet_node] = {}
 
-    # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
+        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
+        fmt = PodnetErrorFormatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
 
-    data_dict = {
-        podnet_a: None,
-        podnet_b: None,
-    }
+        payloads = {
+            'read_table': f'if ip netns exec {namespace} nft list table inet {table}',
+        }
 
-    # Get `podnet_a_enabled` and `podnet_b_enabled`
-    podnet_a_enabled = config.get('podnet_a_enabled', None)
-    if podnet_a_enabled is None:
-        success = False
-        message_list.append(messages[3014])
-    podnet_b_enabled = config.get('podnet_b_enabled', None)
-    if podnet_a_enabled is None:
-        success = False
-        message_list.append(messages[3015])
+        ret = rcc.run(payloads['read_table'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+        else:
+            data_dict[podnet_node]['read_table'] = ret["payload_message"].strip()
+            fmt.add_successful('read_table', ret)
 
-    # Find out enabled and disabled podnets
-    if podnet_a_enabled is True and podnet_b_enabled is False:
-        enabled = podnet_a
-        disabled = podnet_b
-    elif podnet_a_enabled is False and podnet_b_enabled is True:
-        enabled = podnet_b
-        disabled = podnet_a
-    elif podnet_a_enabled is True and podnet_b_enabled is True:
-        success = False
-        message_list.append(messages[3016])
-    elif podnet_a_enabled is False and podnet_b_enabled is False:
-        success = False
-        message_list.append(messages[3017])
+        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+
+    retval_a, msg_list, successful_payloads, data_dict = run_podnet(enabled, 3220, {}, {})
+    message_list.extend(msg_list)
+
+    retval_b, msg_list, successful_payloads, data_dict = run_podnet(disabled, 3250, successful_payloads, data_dict)
+    message_list.extend(msg_list)
+
+    if not (retval_a and retval_b):
+        return (retval_a and retval_b), data_dict, message_list
     else:
-        success = False
-        message_list.append(messages[3018])
-
-    # return if success is False at this stage
-    if success is False:
-        return success, data_dict, message_list
-
-    # Define payload
-    payload_read_table = f'if ip netns exec {namespace} nft list table inet {table}'
-
-    # Block 02: Read the table from Enabled PodNet
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_read_table,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3020]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        message_list.append(msg)
-        success = False
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3021]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        message_list.append(msg)
-        success = False
-
-    data_dict[enabled] = response['payload_message']
-
-    # Block 03: Flush the table if exists already on Disabled PodNet
-    response = comms_ssh(
-        host_ip=disabled,
-        payload=payload_read_table,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3030]}\nChannel Code: {response["channel_code"]}s.\n'
-        msg += f'Channel Message: {response["channel_message"]}\nChannel Error: {response["channel_error"]}'
-        message_list.append(msg)
-        success = False
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3031]}\nPayload Code: {response["payload_code"]}s.\n'
-        msg += f'Payload Message: {response["payload_message"]}\nPayload Error: {response["payload_error"]}'
-        message_list.append(msg)
-        success = False
-
-    data_dict[disabled] = response['payload_message']
-
-    return success, data_dict, message_list
+        return True, data_dict, [messages[1200]]
