@@ -2,13 +2,14 @@
 import ipaddress
 import re
 # local
-from cloudcix_primitives.exceptions import (
+from cloudcix_primitives.controllers.exceptions import (
     exception_handler,
     InvalidFirewallRuleAction,
     InvalidFirewallRuleDestination,
     InvalidFirewallRuleIPAddress,
     InvalidFirewallRulePort,
     InvalidFirewallRuleProtocol,
+    InvalidFirewallRuleSingular,
     InvalidFirewallRuleSource,
     InvalidFirewallRuleType,
     InvalidFirewallRuleVersion,
@@ -76,14 +77,18 @@ class FirewallNamespace:
             return None
         # check the `destination` type
         if type(self.rule['destination']) is not list:
-            raise InvalidFirewallRuleDestination
+            raise InvalidFirewallRuleDestination(self.rule['destination'])
         #  catch invalid entries for `destination`
         for ip in self.rule['destination']:
-            if ip != 'any' or '@' not in ip:
+            if ip != 'any' and '@' not in ip:
                 try:
                     ipaddress.ip_network(ip)
                 except (TypeError, ValueError):
-                    raise InvalidFirewallRuleIPAddress
+                    raise InvalidFirewallRuleIPAddress(ip)
+            else:
+                # only one item (with `@` or `any`) is allowed
+                if len(self.rule['destination']) > 1:
+                    raise InvalidFirewallRuleSingular(self.rule['destination'])
         return None
 
     @exception_handler
@@ -92,20 +97,24 @@ class FirewallNamespace:
             return None
         # check the `source` type
         if type(self.rule['source']) is not list:
-            raise InvalidFirewallRuleSource
+            raise InvalidFirewallRuleSource(self.rule['source'])
         # catch invalid entries for `source`
         for ip in self.rule['source']:
-            if ip != 'any' or '@' not in ip:
+            if ip != 'any' and '@' not in ip:
                 try:
                     ipaddress.ip_network(ip)
                 except (TypeError, ValueError):
-                    raise InvalidFirewallRuleIPAddress
+                    raise InvalidFirewallRuleIPAddress(ip)
+            else:
+                # only one item (with `@` or `any`) is allowed
+                if len(self.rule['source']) > 1:
+                    raise InvalidFirewallRuleSingular(self.rule['source'])
         return None
 
     @exception_handler
     def _validate_protocol(self):
         if self.rule['protocol'] not in PROTOCOL_CHOICES:
-            raise InvalidFirewallRuleProtocol
+            raise InvalidFirewallRuleProtocol(self.rule['protocol'])
         return None
 
     @exception_handler
@@ -114,45 +123,47 @@ class FirewallNamespace:
             return None
         # check the `port` type
         if type(self.rule['port']) is not list:
-            raise InvalidFirewallRulePort
+            raise InvalidFirewallRulePort(self.rule['port'])
         # catch invalid entries for `port`
         for prt in self.rule['port']:
             try:
                 if '-' in prt:
                     items = prt.split('-')
                     if len(items) >= 3:
-                        raise InvalidFirewallRulePort
+                        raise InvalidFirewallRulePort(prt)
                     for item in items:
                         if int(item) not in PORT_RANGE:
-                            raise InvalidFirewallRulePort
+                            raise InvalidFirewallRulePort(prt)
                 elif '@' in prt:  # ports set is validated separately
-                    pass
+                    # only one set element (with `@`) is allowed
+                    if len(self.rule['port']) > 1:
+                        raise InvalidFirewallRuleSingular(self.rule['port'])
                 else:
                     if int(prt) not in PORT_RANGE:
-                        raise InvalidFirewallRulePort
+                        raise InvalidFirewallRulePort(prt)
             except (TypeError, ValueError):
-                raise InvalidFirewallRulePort
+                raise InvalidFirewallRulePort(prt)
         return None
 
     @exception_handler
     def _validate_version(self):
         try:
             if int(self.rule['version']) not in [4, 6]:
-                raise InvalidFirewallRuleVersion
+                raise InvalidFirewallRuleVersion(self.rule['version'])
         except (TypeError, ValueError):
-            raise InvalidFirewallRuleVersion
+            raise InvalidFirewallRuleVersion(self.rule['version'])
         return None
 
     @exception_handler
     def _validate_action(self):
         if self.rule['action'] not in ['accept', 'drop']:
-            raise InvalidFirewallRuleAction
+            raise InvalidFirewallRuleAction(self.rule['action'])
         return None
 
     @exception_handler
     def _validate_type(self):
         if self.rule['iiface'] in [None, '', 'none'] and self.rule['oiface'] in [None, '', 'none']:
-            raise InvalidFirewallRuleType
+            raise InvalidFirewallRuleType(f'iiface:{self.rule["iiface"]};oiface:{self.rule["oiface"]}')
         return None
 
 
@@ -184,13 +195,13 @@ class FirewallSet:
     @exception_handler
     def _validate_name(self):
         if ' ' in self.obj['name']:  # White spaces in names are not allowed
-            raise InvalidSetName
+            raise InvalidSetName(self.obj['name'])
         return None
 
     @exception_handler
     def _validate_type(self):
         if self.obj['type'] not in SET_TYPES:
-            raise InvalidSetType
+            raise InvalidSetType(self.obj['type'])
         return None
 
     @exception_handler
@@ -200,38 +211,38 @@ class FirewallSet:
                 try:
                     ip = ipaddress.ip_network(element)
                     if ip.version != 4:
-                        raise InvalidSetIPAddressVersion
+                        raise InvalidSetIPAddressVersion(element)
                 except (TypeError, ValueError):
-                    raise InvalidSetIPAddress
+                    raise InvalidSetIPAddress(element)
         elif self.obj['type'] == 'ipv6_addr':
             for element in self.obj['elements']:
                 try:
                     ip = ipaddress.ip_network(element)
                     if ip.version != 6:
-                        raise InvalidSetIPAddressVersion
+                        raise InvalidSetIPAddressVersion(element)
                 except (TypeError, ValueError):
-                    raise InvalidSetIPAddress
+                    raise InvalidSetIPAddress(element)
         elif self.obj['type'] == 'ether_addr':
             for element in self.obj['elements']:
                 if is_valid_mac(element) is False:
-                    raise InvalidSetMacAddress
+                    raise InvalidSetMacAddress(element)
         elif self.obj['type'] == 'inet_service':
             for element in self.obj['elements']:
                 try:
                     if '-' in element:
                         items = element.split('-')
                         if len(items) >= 3:
-                            raise InvalidSetPort
+                            raise InvalidSetPort(element)
                         for item in items:
                             if int(item) not in PORT_RANGE:
-                                raise InvalidSetPortValue
+                                raise InvalidSetPortValue(element)
                     else:
                         if int(element) not in PORT_RANGE:
-                            raise InvalidSetPortValue
+                            raise InvalidSetPortValue(element)
                 except (TypeError, ValueError):
-                    raise InvalidSetPortValue
+                    raise InvalidSetPortValue(element)
         else:
-            raise InvalidSetType
+            raise InvalidSetType(self.obj['type'])
 
 
 class FirewallNAT:
@@ -262,7 +273,7 @@ class FirewallNAT:
     @exception_handler
     def _validate_iface(self):
         if ' ' in self.nat['iface']:  # White spaces in iface are not allowed
-            raise InvalidNATIface
+            raise InvalidNATIface(self.nat['iface'])
         return None
 
     @exception_handler
@@ -270,19 +281,19 @@ class FirewallNAT:
         try:
             ip = ipaddress.ip_network(self.nat['private'])
             if ip.version != 4:
-                raise InvalidNATIPAddressVersion
+                raise InvalidNATIPAddressVersion(self.nat['private'])
             if ip.is_private is False:
-                raise InvalidNATPrivate
+                raise InvalidNATPrivate(self.nat['private'])
         except (TypeError, ValueError):
-            raise InvalidNATIPAddress
+            raise InvalidNATIPAddress(self.nat['private'])
 
     @exception_handler
     def _validate_public(self):
         try:
             ip = ipaddress.ip_network(self.nat['public'])
             if ip.version != 4:
-                raise InvalidNATIPAddressVersion
+                raise InvalidNATIPAddressVersion(self.nat['public'])
             if ip.is_private is True:
-                raise InvalidNATPublic
+                raise InvalidNATPublic(self.nat['public'])
         except (TypeError, ValueError):
-            raise InvalidNATIPAddress
+            raise InvalidNATIPAddress(self.nat['public'])

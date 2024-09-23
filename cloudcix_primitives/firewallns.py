@@ -3,8 +3,6 @@ Primitive for Domain Nftables of Network Namespace on PodNet HA
 """
 # stdlib
 import json
-import ipaddress
-from pathlib import Path
 from collections import deque
 from typing import Any, Deque, Dict, List, Tuple
 # lib
@@ -27,7 +25,7 @@ SUCCESS_CODE = 0
 
 
 def complete_rule(rule, iiface, oiface, namespace, table):
-    v = '' if rule['version'] == '4' else '6'
+    v = '' if str(rule['version']) == '4' else '6'
 
     # input interface line
     iif = f'iifname {iiface}' if iiface not in [None, 'any'] else ''
@@ -38,20 +36,26 @@ def complete_rule(rule, iiface, oiface, namespace, table):
     # sort the `destination` rule format
     if rule['destination'] is None or 'any' in rule['destination']:
         daddr = ''
+    elif '@' in rule['destination'][0]:
+        daddr = f'ip{v} daddr {rule["destination"][0]}'
     else:
-        daddr = f'ip{v} daddr ' + '{' + ','.join(rule['destination']) + '}'
+        daddr = f'ip{v} daddr ' + '{ ' + ', '.join(rule['destination']) + ' }'
 
     # sort the `source` rule format
     if rule['source'] is None or 'any' in rule['source']:
         saddr = ''
+    elif '@' in rule['source'][0]:
+        daddr = f'ip{v} saddr {rule["source"][0]}'
     else:
-        saddr = f'ip{v} saddr ' + '{' + ','.join(rule['source']) + '}'
+        saddr = f'ip{v} saddr ' + '{ ' + ', '.join(rule['source']) + ' }'
 
     # sort the `port` rule format
     if rule['port'] is None or rule['protocol'] == 'any':
         dport = ''
+    elif '@' in rule['port'][0]:
+        daddr = f'dport {rule["port"][0]}'
     else:
-        dport = 'dport ' + '{' + ','.join(rule['port']) + '}'
+        dport = 'dport ' + '{ ' + ', '.join(rule['port']) + ' }'
 
     # rule protocol and port statement, also gather protocols that require to define chains in config
     application = None
@@ -70,7 +74,7 @@ def complete_rule(rule, iiface, oiface, namespace, table):
         proto_port = f'{rule["protocol"]} {dport} {rule["action"]}'
 
     # log
-    log = f'log prefix "{namespace} Table: {table}" level debug group 0' if rule['log'] is True else ''
+    log = f'log prefix "Namespace_{namespace}_Table_{table}" level debug' if rule['log'] is True else ''
 
     return f'{iif} {oif} {saddr} {daddr} {log} {proto_port}', application
 
@@ -170,7 +174,7 @@ def build(
                         type: string
                         required: true
                     port:
-                        description: list of ports, a port is a number in range [0, 65535] and `*`(any)
+                        description: list of ports, a port is a number in range [0, 65535] and `*`(any) or an empty list
                         type: array
                         items:
                             type: string
@@ -407,10 +411,14 @@ def build(
         errors = []
         valid_set_elements = True
         for rule in rules:
+            rule_sets = []
             # collect the sets from the rules that starts with `@`
-            rule_sets = [item for item in rule['source'] if '@' in item]
-            rule_sets.extend([item for item in rule['destination'] if '@' in item])
-            rule_sets.extend([item for item in rule['ports'] if '@' in item])
+            if type(rule['source']) is list:
+                rule_sets.extend([item.strip('@') for item in rule['source'] if '@' in item])
+            if type(rule['destination']) is list:
+                rule_sets.extend([item.strip('@') for item in rule['destination'] if '@' in item])
+            if type(rule['port']) is list:
+                rule_sets.extend([item.strip('@') for item in rule['port'] if '@' in item])
             # now check if each rule_set is supplied in sets(set_names)
             for rule_set in rule_sets:
                 if rule_set not in set_names:

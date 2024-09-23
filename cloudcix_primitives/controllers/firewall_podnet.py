@@ -1,7 +1,7 @@
 # stdlib
 import ipaddress
 # local
-from cloudcix_primitives.exceptions import (
+from cloudcix_primitives.controllers.exceptions import (
     exception_handler,
     InvalidFirewallRuleAction,
     InvalidFirewallRuleDestination,
