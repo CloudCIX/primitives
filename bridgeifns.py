@@ -4,7 +4,8 @@ import ipaddress
 from pathlib import Path
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
+from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS, VALIDATION_ERROR, CONNECTION_ERROR
+from cloudcix_primitives.utils import load_pod_config, SSHCommsWrapper, PodnetErrorFormatter
 # local
 
 
@@ -47,150 +48,108 @@ def build(
     messages = {
         1000: f'1000: Successfully created interface {namespace}.{bridgename} inside namespace {namespace}',
         1001: f'1001: Interface {namespace}.{bridgename} already exists inside namespace {namespace}',
-        2111: f'2011: Config file {config_file} loaded.',
-        3000: f'3000: Failed to create VETH from Namespace: {namespace} to Bridge: {bridgename}',
-        3001: f'3001: Failed to create interface {bridgename}.{namespace}.',
-        3002: f'3002: Failed to attach interface {bridgename}.{namespace} to the bridge named {bridgename}',
-        3003: f'3003: Failed to isolate {namespace}.{bridgename} to namespace {namespace}',
-        3004: f'3004: Failed to bring up interface {namespace}.{bridgename} inside namespace {namespace}',
-        3011: f'3011: Failed to load config file {config_file}, It does not exits.',
-        3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
-        3013: f'3013: Invalid value for `ipv6_subnet` from config file {config_file}',
-        3014: f'3014: Failed to get `podnet_a_enabled` from config file {config_file}',
-        3015: f'3015: Failed to get `podnet_b_enabled` from config file {config_file}',
-        3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-        3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-        3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file}',
+
+        3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check:  ',
+        3022: f'3022: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_add:  ',
+        3023: f'3023: Failed to run interface_add payload on the enabled PodNet. Payload exited with status ',
+        3024: f'3024: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_isolate:  ',
+        3025: f'3025: Failed to run interface_isolate payload on the enabled PodNet. Payload exited with status ',
+        3026: f'3026: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_ns:  ',
+        3027: f'3027: Failed to run interface_ns payload on the enabled PodNet. Payload exited with status ',
+        3028: f'3028: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_up:  ',
+        3029: f'3029: Failed to run interface_up payload on the enabled PodNet. Payload exited with status ',
+
+        3051: f'3051: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_check:  ',
+        3052: f'3052: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_add:  ',
+        3053: f'3053: Failed to run interface_add payload on the disabled PodNet. Payload exited with status ',
+        3054: f'3054: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_isolate:  ',
+        3055: f'3055: Failed to run interface_isolate payload on the disabled PodNet. Payload exited with status ',
+        3056: f'3056: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_ns:  ',
+        3057: f'3057: Failed to run interface_ns payload on the disabled PodNet. Payload exited with status ',
+        3058: f'3058: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_up:  ',
+        3059: f'3059: Failed to run interface_up payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
     if config_file is None:
         config_file = '/opt/robot/config.json'
 
-    # Get load config from config_file
-    if not Path(config_file).exists():
-        return False, messages[3011]
-    with Path(config_file).open('r') as file:
-        config = json.load(file)
+    status, config_data, msg = load_pod_config(config_file)
+    if not status:
+      if config_data['raw'] is None:
+          return False, msg
+      else:
+          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+              indent=2,
+              sort_keys=True)
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
 
-    # Get the ipv6_subnet from config_file
-    ipv6_subnet = config.get('ipv6_subnet', None)
-    if ipv6_subnet is None:
-        return False, messages[3012]
-    # Verify the ipv6_subnet value
-    try:
-        ipaddress.ip_network(ipv6_subnet)
-    except ValueError:
-        return False, messages[3013]
 
-    # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
+    def run_podnet(podnet_node, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
+        fmt = PodnetErrorFormatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
 
-    # Get `podnet_a_enabled` and `podnet_b_enabled`
-    podnet_a_enabled = config.get('podnet_a_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3014]
-    podnet_b_enabled = config.get('podnet_b_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3015]
+        payloads = {
+            'interface_check' : f'ip netns exec {namespace} ip link show {namespace}.{bridgename}',
+            'interface_add' : f'ip link add {bridgename}.{namespace} type veth peer name {namespace}.{bridgename}',
+            'interface_isolate' : f'ip link set dev {bridgename}.{namespace} master {bridgename}',
+            'interface_ns': f'ip link set dev {namespace}.{bridgename} netns {namespace}',
+            'interface_up' : f'ip netns exec {namespace} ip link set dev {namespace}.{bridgename} up',
+        }
 
-    # First run on enabled PodNet
-    if podnet_a_enabled is True and podnet_b_enabled is False:
-        enabled = podnet_a
-        disabled = podnet_b
-    elif podnet_a_enabled is False and podnet_b_enabled is True:
-        enabled = podnet_b
-        disabled = podnet_a
-    elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, messages[3016]
-    elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, messages[3017]
-    else:
-        return False, messages[3018]
+        ret = rcc.run(payloads['interface_check'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
+        if ret["payload_code"] == SUCCESS_CODE:
+            #If the interface already exists returns info and true state
+            return True, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
+        fmt.add_successful('interface_check', ret)
 
-    # Define payload
+        #STEP 1-4
+        ret = rcc.run(payloads['interface_add'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+        fmt.add_successful('interface_add', ret)
 
-    # auxiliary payloads
-    payload_interface_check = f'ip netns exec {namespace} ip link show {namespace}.{bridgename}'
+        ret = rcc.run(payloads['interface_isolate'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+        fmt.add_successful('interface_isolate', ret)
 
-    # main payloads
-    payload_1 = f'ip link add {bridgename}.{namespace} type veth peer name {namespace}.{bridgename}'
-    payload_2 = f'ip link set dev {bridgename}.{namespace} master {bridgename}'
-    payload_3 = f'ip link set dev {namespace}.{bridgename} netns {namespace}'
-    payload_4 = f'ip netns exec {namespace} ip link set dev {namespace}.{bridgename} up'
+        ret = rcc.run(payloads['interface_ns'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
+        fmt.add_successful('interface_ns', ret)
 
-    #CHECK interface already exists. If there exists the code automatically assume True state then terminate.
-    response = comms_ssh(
-            host_ip=enabled,
-            payload=payload_interface_check,
-            username='robot'
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
-        msg += f'\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response["payload_code"] == SUCCESS_CODE:
-        msg = f'{messages[1001]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
-        return True, msg
+        ret = rcc.run(payloads['interface_up'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
+        fmt.add_successful('interface_up', ret)
 
-    #STEP 1 create VETH
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_1,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
-        msg += f'\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response["payload_code"] != SUCCESS_CODE:
-        msg = f'{messages[3001]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
-        msg += f'\nPayload Error: {response["payload_error"]}'
-        return False, msg
-    #STEP 2
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_2,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
-        msg += f'\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response["payload_code"] != SUCCESS_CODE:
-        msg = f'{messages[3002]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
-        msg += f'\nPayload Error: {response["payload_error"]}'
-        return False, msg
-    #STEP 3
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_3,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
-        msg += f'\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response["payload_code"] != SUCCESS_CODE:
-        msg = f'{messages[3003]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
-        msg += f'\nPayload Error: {response["payload_error"]}'
-        return False, msg
-    #STEP 4
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_4,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
-        msg += f'\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response["payload_code"] != SUCCESS_CODE:
-        msg = f'{messages[3004]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
-        msg += f'\nPayload Error: {response["payload_error"]}'
-        return False, msg
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_podnet(enabled,3020,{})
+    if status == False:
+        return status, msg
+
+    status, msg, successful_payloads = run_podnet(disabled, 3050, successful_payloads)
+    if status == False:
+        return status, msg
 
     return True, messages[1000]
 
@@ -222,109 +181,75 @@ def scrub(
 
     # Define message
     messages = {
-        1000: f'1000: Successfully removed interface {namespace}.{bridgename} inside namespace {namespace}',
-        1001: f'1001: Interface {namespace}.{bridgename} does not exist',
-        2111: f'2011: Config file {config_file} loaded.',
-        3000: f'3000: Failed to create VETH from Namespace: {namespace} to Bridge: {bridgename}',
-        3001: f'3001: Failed to create interface {bridgename}.{namespace}.',
-        3002: f'3002: Failed to attach interface {bridgename}.{namespace} to the bridge named {bridgename}',
-        3003: f'3003: Failed to isolate {namespace}.{bridgename} to namespace {namespace}',
-        3004: f'3004: Failed to bring up interface {namespace}.{bridgename} inside namespace {namespace}',
-        3005: f'3005: Failed to delete {namespace}.{bridgename} inside namespace {namespace}.',
-        3011: f'3011: Failed to load config file {config_file}, It does not exits.',
-        3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
-        3013: f'3013: Invalid value for `ipv6_subnet` from config file {config_file}',
-        3014: f'3014: Failed to get `podnet_a_enabled` from config file {config_file}',
-        3015: f'3015: Failed to get `podnet_b_enabled` from config file {config_file}',
-        3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-        3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-        3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file}',
+        1100: f'1100: Successfully removed interface {namespace}.{bridgename} inside namespace {namespace}',
+        1101: f'1101: Interface {namespace}.{bridgename} does not exist',
+
+        3121: f'3121: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check:  ',
+        3122: f'3122: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_del:  ',
+        3123: f'3123: Failed to run interface_del payload on the enabled PodNet. Payload exited with status ',
+
+        3151: f'3151: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_check:  ',
+        3152: f'3152: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_del:  ',
+        3153: f'3153: Failed to run interface_del payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
     if config_file is None:
         config_file = '/opt/robot/config.json'
 
-    # Get load config from config_file
-    if not Path(config_file).exists():
-        return False, messages[3011]
-    with Path(config_file).open('r') as file:
-        config = json.load(file)
+    status, config_data, msg = load_pod_config(config_file)
+    if not status:
+      if config_data['raw'] is None:
+          return False, msg
+      else:
+          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+              indent=2,
+              sort_keys=True)
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
 
-    # Get the ipv6_subnet from config_file
-    ipv6_subnet = config.get('ipv6_subnet', None)
-    if ipv6_subnet is None:
-        return False, messages[3012]
-    # Verify the ipv6_subnet value
-    try:
-        ipaddress.ip_network(ipv6_subnet)
-    except ValueError:
-        return False, messages[3013]
+    def run_podnet(podnet_node, prefix, successful_payloads):
+        rcc = sshcommswrapper(comms_ssh, podnet_node, 'robot')
+        fmt = podneterrorformatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'stdout', 'payload_error': 'stderr'},
+            successful_payloads
+        )
 
-    # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
+        payloads = {
+                'interface_check': f'ip netns exec {namespace} ip link show {namespace}.{bridgename}',
+                'interface_del':  f'ip netns exec {namespace} ip link del {namespace}.{bridgename}'
+        }
 
-    # Get `podnet_a_enabled` and `podnet_b_enabled`
-    podnet_a_enabled = config.get('podnet_a_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3014]
-    podnet_b_enabled = config.get('podnet_b_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3015]
 
-    # First run on enabled PodNet
-    if podnet_a_enabled is True and podnet_b_enabled is False:
-        enabled = podnet_a
-        disabled = podnet_b
-    elif podnet_a_enabled is False and podnet_b_enabled is True:
-        enabled = podnet_b
-        disabled = podnet_a
-    elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, messages[3016]
-    elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, messages[3017]
-    else:
-        return False, messages[3018]
+        ret = rcc.run(payloads['interface_check'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            #If the interface already does NOT exists returns info and true state
+            return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
+        fmt.add_successful('interface_check', ret)
 
-    # auxiliary payloads
-    payload_interface_check = f'ip netns exec {namespace} ip link show {namespace}.{bridgename}'
+        ret = rcc.run(payloads['interface_del'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+8]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+9]), fmt.successful_payloads
+        fmt.add_successful('interface_del', ret)
 
-    # Define payload
-    payload_5 = f'ip netns exec {namespace} ip link del {namespace}.{bridgename}'
+        return True, "", fmt.successful_payloads
 
-    # Check if interface exists returns true if it does not
+    status, msg, successful_payloads = run_podnet(enabled, 3120, {})
+    if status == False:
+        return status, msg
 
-    response = comms_ssh(
-                host_ip=enabled,
-                payload=payload_interface_check,
-                username='robot')
+    status, msg, successful_payloads = run_podnet(disabled, 3150, successful_payloads)
+    if status == False:
+        return status, msg
 
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
-        msg += f'\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response["payload_code"] != SUCCESS_CODE:
-        msg = f'{messages[1001]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
-        return True, msg
-
-    # Remove interface from namespace
-    response = comms_ssh(
-        host_ip=enabled,
-        payload=payload_5,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3021]}\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
-        msg += f'\nChannel Error: {response["channel_error"]}'
-        return False, msg
-    if response["payload_code"] != SUCCESS_CODE:
-        msg = f'{messages[3004]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
-        msg += f'\nPayload Error: {response["payload_error"]}'
-        return False, msg
-
-    return True, messages[1000]
+    return True, messages[1100]
 
 def read(
     bridgename: str,
@@ -354,89 +279,70 @@ def read(
 
     # Define message
     messages = {
-        1000: f'1000: Successfully read interface {namespace}.{bridgename} inside namespace {namespace}',
-        1001: f'1001: Interface {namespace}.{bridgename} does not exist',
-        2111: f'2011: Config file {config_file} loaded.',
-        3000: f'3000: Failed to read VETH from Namespace: {namespace} to Bridge: {bridgename}',
-        3001: f'3001: Failed to create interface {bridgename}.{namespace}.',
-        3002: f'3002: Failed to attach interface {bridgename}.{namespace} to the bridge named {bridgename}',
-        3003: f'3003: Failed to isolate {namespace}.{bridgename} to namespace {namespace}',
-        3004: f'3004: Failed to bring up interface {namespace}.{bridgename} inside namespace {namespace}',
-        3005: f'3005: Failed to delete {namespace}.{bridgename} inside namespace {namespace}.',
-        3011: f'3011: Failed to load config file {config_file}, It does not exits.',
-        3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
-        3013: f'3013: Invalid value for `ipv6_subnet` from config file {config_file}',
-        3014: f'3014: Failed to get `podnet_a_enabled` from config file {config_file}',
-        3015: f'3015: Failed to get `podnet_b_enabled` from config file {config_file}',
-        3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-        3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-        3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file}',
+        1200: f'1200: Successfully removed interface {namespace}.{bridgename} inside namespace {namespace}',
+        1201: f'1201: Interface {namespace}.{bridgename} does not exist',
+
+        3121: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check:  ',
+        3122: f'3022: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_del:  ',
+        3123: f'Failed to run interface_del payload on the enabled PodNet. Payload exited with status ',
+
+        3151: f'3021: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_check:  ',
+        3152: f'3022: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_del:  ',
+        3153: f'Failed to run interface_del payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
     if config_file is None:
         config_file = '/opt/robot/config.json'
 
-    # Get load config from config_file
-    if not Path(config_file).exists():
-        return False, messages[3011]
-    with Path(config_file).open('r') as file:
-        config = json.load(file)
-
-    # Get the ipv6_subnet from config_file
-    ipv6_subnet = config.get('ipv6_subnet', None)
-    if ipv6_subnet is None:
-        return False, messages[3012]
-    # Verify the ipv6_subnet value
-    try:
-        ipaddress.ip_network(ipv6_subnet)
-    except ValueError:
-        return False, messages[3013]
-
-    # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
-
-    # Get `podnet_a_enabled` and `podnet_b_enabled`
-    podnet_a_enabled = config.get('podnet_a_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3014]
-    podnet_b_enabled = config.get('podnet_b_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3015]
-
-    # First run on enabled PodNet
-    if podnet_a_enabled is True and podnet_b_enabled is False:
-        enabled = podnet_a
-        disabled = podnet_b
-    elif podnet_a_enabled is False and podnet_b_enabled is True:
-        enabled = podnet_b
-        disabled = podnet_a
-    elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, messages[3016]
-    elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, messages[3017]
-    else:
-        return False, messages[3018]
+    status, config_data, msg = load_pod_config(config_file)
+    if not status:
+      if config_data['raw'] is None:
+          return False, None, msg
+      else:
+          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+              indent=2,
+              sort_keys=True)
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
 
     # Define payload
-    payload_6 = f'ip netns exec {namespace} ip link show | grep {namespace}.{bridgename}'
 
-    response = comms_ssh(
-            host_ip=enabled,
-            payload=payload_6,
-            username='robot'
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'\nChannel Code: {response["channel_code"]}\nChannel Message: {response["channel_message"]}'
-        msg += f'\nChannel Error: {response["channel_error"]}'
-        return False, {}, msg
-    if response["payload_code"] != SUCCESS_CODE:
-        msg = f'{messages[3000]}\nPayload Code: {response["payload_code"]}\nPayload Message: {response["payload_message"]}'
-        return False, {}, msg
+    def run_podnet(podnet_node, prefix, successful_payloads, data_dict):
+        retval = True
+        data_dict[podnet_node] = {}
 
-    dic = {'payloadcode' : response['payload_code'] ,
-           'payload_message' : response['payload_message']}
+        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
+        fmt = PodnetErrorFormatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
 
-    return True, dic, messages[1000]
+        payloads = {
+                'interface_show': f'ip netns exec {namespace} ip link show | grep {namespace}.{bridgename}'
+        }
+
+        ret = rcc.run(payloads['interface_show'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+1} : " + messages[prefix+1])
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+2} : " + messages[prefix+2])
+        else:
+            data_dict[podnet_node]['entry'] = ret["payload_message"].strip()
+            fmt.add_successful('interface_show', ret)
+
+        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+
+    retval_a, msg_list, successful_payloads, data_dict = run_podnet(enabled, 3220, {}, {})
+
+    retval_b, msg_list, successful_payloads, data_dict = run_podnet(disabled, 3250, successful_payloads, data_dict)
+
+    if not (retval_a and retval_b):
+        return (retval_a and retval_b), data_dict, msg_list
+    else:
+       return True, data_dict, (messages[1200])
