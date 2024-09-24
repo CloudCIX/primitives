@@ -282,13 +282,13 @@ def read(
         1200: f'1200: Successfully removed interface {namespace}.{bridgename} inside namespace {namespace}',
         1201: f'1201: Interface {namespace}.{bridgename} does not exist',
 
-        3121: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check:  ',
-        3122: f'3022: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_del:  ',
-        3123: f'Failed to run interface_del payload on the enabled PodNet. Payload exited with status ',
+        3221: f'3221: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check:  ',
+        3222: f'3222: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_del:  ',
+        3223: f'3223: Failed to run interface_del payload on the enabled PodNet. Payload exited with status ',
 
-        3151: f'3021: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_check:  ',
-        3152: f'3022: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_del:  ',
-        3153: f'Failed to run interface_del payload on the disabled PodNet. Payload exited with status ',
+        3251: f'3251: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_check:  ',
+        3252: f'3252: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_del:  ',
+        3253: f'3253: Failed to run interface_del payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
