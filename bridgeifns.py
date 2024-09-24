@@ -322,13 +322,8 @@ def read(
         )
 
         payloads = {
-<<<<<<< HEAD
                     'interface_show': f'ip netns exec {namespace} ip link show | grep --word "{namespace}.{bridgename}"'
             }
-=======
-                'interface_show': f'ip netns exec {namespace} ip link show | grep --word "{namespace}.{bridgename}"'
-        }
->>>>>>> 3eb15040de4edf4cf2558ac3168f1be744ea9103
 
         ret = rcc.run(payloads['interface_show'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
