@@ -16,13 +16,22 @@ class InvalidFirewallRuleAction(BaseException):
         return f'Invalid firewall rule action, Value: {self.obj}'
 
 
-class InvalidFirewallRuleDestination(BaseException):
+class InvalidFirewallRuleDestinationType(BaseException):
     def __init__(self, obj):
         super().__init__(obj)
         self.obj = obj
 
     def __str__(self):
-        return f'Invalid firewall rule destination, Value: {self.obj}'
+        return f'Invalid firewall rule destination type, Value: {self.obj} is not a list'
+
+
+class InvalidFirewallRuleDestinationEmpty(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid firewall rule destination, it cannot be empty list: {self.obj}'
 
 
 class InvalidFirewallRuleIPAddress(BaseException):
@@ -62,13 +71,31 @@ class InvalidFirewallRuleSingular(BaseException):
         return msg
 
 
-class InvalidFirewallRuleSource(BaseException):
+class InvalidFirewallRuleSourceType(BaseException):
     def __init__(self, obj):
         super().__init__(obj)
         self.obj = obj
 
     def __str__(self):
-        return f'Invalid firewall rule source, Value: {self.obj}'
+        return f'Invalid firewall rule source type, Value: {self.obj} is not a list'
+
+
+class InvalidFirewallRuleSourceEmpty(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid firewall rule source, it cannot be empty list: {self.obj}'
+
+
+class InvalidFirewallRuleItem(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid firewall rule, field: {self.obj} is missing in the rule object'
 
 
 class InvalidFirewallRuleType(BaseException):
@@ -87,6 +114,33 @@ class InvalidFirewallRuleVersion(BaseException):
 
     def __str__(self):
         return f'Invalid firewall rule version, Value: {self.obj}'
+
+
+class InvalidSetElementsType(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid set elements type, Value: {self.obj} is not a list'
+
+
+class InvalidSetElementsEmpty(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid set elements, it cannot be empty list: {self.obj}'
+
+
+class InvalidSetItem(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid firewall set, field: {self.obj} is missing in the set object'
 
 
 class InvalidSetName(BaseException):
@@ -181,6 +235,15 @@ class InvalidNATIPAddressVersion(BaseException):
 
     def __str__(self):
         return f'Invalid IP Address version: {self.obj}, NAT IPAddress version must be 4'
+
+
+class InvalidNATItem(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid NAT, field: {self.obj} is missing in the NAT object'
 
 
 class InvalidNATPrivate(BaseException):

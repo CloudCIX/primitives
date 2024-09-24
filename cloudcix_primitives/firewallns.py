@@ -34,7 +34,7 @@ def complete_rule(rule, iiface, oiface, namespace, table):
     oif = f'oifname {oiface}' if oiface not in [None, 'any'] else ''
 
     # sort the `destination` rule format
-    if rule['destination'] is None or 'any' in rule['destination']:
+    if 'any' in rule['destination']:
         daddr = ''
     elif len(rule['destination']) == 1 and '@' in rule['destination'][0]:
         daddr = f'ip{v} daddr {rule["destination"][0]}'
@@ -42,7 +42,7 @@ def complete_rule(rule, iiface, oiface, namespace, table):
         daddr = f'ip{v} daddr ' + '{ ' + ', '.join(rule['destination']) + ' }'
 
     # sort the `source` rule format
-    if rule['source'] is None or 'any' in rule['source']:
+    if 'any' in rule['source']:
         saddr = ''
     elif len(rule['source']) == 1 and '@' in rule['source'][0]:
         saddr = f'ip{v} saddr {rule["source"][0]}'
@@ -50,7 +50,7 @@ def complete_rule(rule, iiface, oiface, namespace, table):
         saddr = f'ip{v} saddr ' + '{ ' + ', '.join(rule['source']) + ' }'
 
     # sort the `port` rule format
-    if rule['port'] is None or rule['protocol'] == 'any':
+    if rule['protocol'] == 'any':
         dport = ''
     elif len(rule['port']) == 1 and '@' in rule['port'][0]:
         dport = f'dport {rule["port"][0]}'
