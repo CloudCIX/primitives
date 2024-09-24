@@ -19,6 +19,8 @@ from cloudcix_primitives.utils import (
 
 __all__ = [
     'build',
+    'read',
+    'scrub',
 ]
 
 SUCCESS_CODE = 0
