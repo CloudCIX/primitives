@@ -197,7 +197,7 @@ def build(
                               OR
                             - `*` can be used to specify any port ie port = ['*']
                               OR
-                            - An empty list can be used when protocol is `any` ie port = [] of protocol = 'any'
+                            - An empty list can be used when protocol is `any` ie port = [] if protocol = 'any'
                               OR
                             - a set can be used but only one set in port list is allowed and a set should start
                               with `@` sign before the set name ie for set['name'] = 'myports' then the
