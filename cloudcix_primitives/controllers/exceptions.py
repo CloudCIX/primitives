@@ -16,6 +16,15 @@ class InvalidFirewallRuleAction(BaseException):
         return f'Invalid firewall rule action, Value: {self.obj}'
 
 
+class InvalidFirewallRuleDestination(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid firewall rule destination, Value: {self.obj}'
+
+
 class InvalidFirewallRuleDestinationType(BaseException):
     def __init__(self, obj):
         super().__init__(obj)
@@ -69,6 +78,15 @@ class InvalidFirewallRuleSingular(BaseException):
     def __str__(self):
         msg = f'Invalid firewall rule, Value: {self.obj}, When `any` or `@` is used Only one item is allowed per list'
         return msg
+
+
+class InvalidFirewallRuleSource(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid firewall rule source, Value: {self.obj}'
 
 
 class InvalidFirewallRuleSourceType(BaseException):
