@@ -322,7 +322,7 @@ def read(
         )
 
         payloads = {
-                'interface_show': f'ip netns exec {namespace} ip link show | grep {namespace}.{bridgename}'
+                'interface_show': f'ip netns exec {namespace} ip link show | grep --word "{namespace}.{bridgename}"'
         }
 
         ret = rcc.run(payloads['interface_show'])
