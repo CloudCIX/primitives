@@ -15,7 +15,7 @@ nats = {
         {'public': '185.49.60.116', 'private': '192.168.0.2', 'iface': 'testns.BM1'},
     ],
     'snats': [
-        {'private': '192.168.0.1/24', 'public': '185.49.60.117', 'iface': 'testns.BM1'},
+        {'private': '192.168.0.0/24', 'public': '185.49.60.117', 'iface': 'testns.BM1'},
     ],
 }
 rules = [

@@ -36,7 +36,7 @@ def complete_rule(rule, iiface, oiface, namespace, table):
     # sort the `destination` rule format
     if rule['destination'] is None or 'any' in rule['destination']:
         daddr = ''
-    elif '@' in rule['destination'][0]:
+    elif len(rule['destination'][0]) == 1 and '@' in rule['destination'][0]:
         daddr = f'ip{v} daddr {rule["destination"][0]}'
     else:
         daddr = f'ip{v} daddr ' + '{ ' + ', '.join(rule['destination']) + ' }'
@@ -44,16 +44,16 @@ def complete_rule(rule, iiface, oiface, namespace, table):
     # sort the `source` rule format
     if rule['source'] is None or 'any' in rule['source']:
         saddr = ''
-    elif '@' in rule['source'][0]:
-        daddr = f'ip{v} saddr {rule["source"][0]}'
+    elif len(rule['source'][0]) == 1 and '@' in rule['source'][0]:
+        saddr = f'ip{v} saddr {rule["source"][0]}'
     else:
         saddr = f'ip{v} saddr ' + '{ ' + ', '.join(rule['source']) + ' }'
 
     # sort the `port` rule format
     if rule['port'] is None or rule['protocol'] == 'any':
         dport = ''
-    elif '@' in rule['port'][0]:
-        daddr = f'dport {rule["port"][0]}'
+    elif len(rule['port'][0]) == 1 and '@' in rule['port'][0]:
+        dport = f'dport {rule["port"][0]}'
     else:
         dport = 'dport ' + '{ ' + ', '.join(rule['port']) + ' }'
 
@@ -522,12 +522,14 @@ def build(
             successful_payloads
         )
 
+        table_grepsafe = table.replace('.', '\\.')
         payloads = {
             'create_nftables_file': f'echo "{nftables_config}" > {nftables_file}',
             'validate_nftables_file': f'ip netns exec {namespace} nft --check --file {nftables_file}',
-            'flush_table': f'if ip netns exec {namespace} nft list tables | grep -q "inet {table}"; then ip netns exec {namespace} nft flush table inet {table}; fi',
+            'read_table': f'ip netns exec {namespace} nft list tables | grep --word "inet {table_grepsafe} "',
+            'flush_table': f'ip netns exec {namespace} nft delete table inet {table} ',
             'apply_nftables_file': f'ip netns exec {namespace} nft --file {nftables_file}',
-            'remvoe_nftables_file': f'rm {nftables_file}',
+            'remove_nftables_file': f'rm --force {nftables_file}',
         }
 
         ret = rcc.run(payloads['create_nftables_file'])
@@ -544,12 +546,22 @@ def build(
             return False, fmt.payload_error(ret, messages[prefix + 4]), fmt.successful_payloads
         fmt.add_successful('validate_nftables_file', ret)
 
-        ret = rcc.run(payloads['flush_table'])
+        ret = rcc.run(payloads['read_table'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, messages[prefix + 5]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, messages[prefix + 6]), fmt.successful_payloads
-        fmt.add_successful('flush_table', ret)
+        flush_table = False
+        if ret["payload_code"] == SUCCESS_CODE:
+            # Need to delete this table if it exists already
+            flush_table = True
+        fmt.add_successful('read_table', ret)
+
+        if flush_table:
+            ret = rcc.run(payloads['flush_table'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, messages[prefix + 5]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, messages[prefix + 6]), fmt.successful_payloads
+            fmt.add_successful('flush_table', ret)
 
         ret = rcc.run(payloads['apply_nftables_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
@@ -564,6 +576,8 @@ def build(
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.payload_error(ret, messages[prefix + 10]), fmt.successful_payloads
         fmt.add_successful('remove_nftables_file', ret)
+
+        return True, "", fmt.successful_payloads
 
     status, msg, successful_payloads = run_podnet(enabled, 3050, {})
     if status is False:
@@ -634,27 +648,40 @@ def scrub(
             successful_payloads
         )
 
+        table_grepsafe = table.replace('.', '\\.')
         payloads = {
-            'flush_table': f'if ip netns exec {namespace} nft list tables | grep -q "inet {table}"; then '
-                           f'ip netns exec {namespace} nft flush table inet {table}; fi',
+            'read_table': f'ip netns exec {namespace} nft list tables | grep --word "inet {table_grepsafe}"',
+            'flush_table': f'ip netns exec {namespace} nft delete table inet {table} ',
         }
 
-        ret = rcc.run(payloads['flush_table'])
+        ret = rcc.run(payloads['read_table'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
-        fmt.add_successful('flush_table', ret)
+        flush_table = False
+        if ret["payload_code"] == SUCCESS_CODE:
+            # Need to delete this table if it exists already
+            flush_table = True
+        fmt.add_successful('read_table', ret)
 
-    status, msg, successful_payloads = run_podnet(enabled, 3020, {})
+        if flush_table:
+            ret = rcc.run(payloads['flush_table'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+            fmt.add_successful('flush_table', ret)
+
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_podnet(enabled, 3120, {})
     if status is False:
         return status, msg
 
-    status, msg, successful_payloads = run_podnet(disabled, 3030, successful_payloads)
+    status, msg, successful_payloads = run_podnet(disabled, 3130, successful_payloads)
     if status is False:
         return status, msg
 
-    return True, messages[1000]
+    return True, messages[1100]
 
 
 def read(
@@ -704,10 +731,10 @@ def read(
     messages = {
         1200: f'1200: Successfully read nftables {table} in namespace {namespace}',
         3200: f'3200: Failed to read nftables {table} in namespace {namespace}',
-        3220: f'3220: Failed to connect to the Enabled PodNet from the config file {config_file}',
-        3221: f'3221: Failed to read table {table} from the Enabled PodNet',
-        3230: f'3230: Failed to connect to the Disabled PodNet from the config file {config_file}',
-        3231: f'3231: Failed to read table {table} from the Disabled PodNet',
+        3221: f'3221: Failed to connect to the Enabled PodNet from the config file {config_file}',
+        3222: f'3222: Failed to read table {table} from the Enabled PodNet',
+        3231: f'3231: Failed to connect to the Disabled PodNet from the config file {config_file}',
+        3232: f'3232: Failed to read table {table} from the Disabled PodNet',
     }
 
     # set the outputs
@@ -746,7 +773,7 @@ def read(
         )
 
         payloads = {
-            'read_table': f'if ip netns exec {namespace} nft list table inet {table}',
+            'read_table': f'ip netns exec {namespace} nft list table inet {table} ',
         }
 
         ret = rcc.run(payloads['read_table'])
@@ -765,7 +792,7 @@ def read(
     retval_a, msg_list, successful_payloads, data_dict = run_podnet(enabled, 3220, {}, {})
     message_list.extend(msg_list)
 
-    retval_b, msg_list, successful_payloads, data_dict = run_podnet(disabled, 3250, successful_payloads, data_dict)
+    retval_b, msg_list, successful_payloads, data_dict = run_podnet(disabled, 3230, successful_payloads, data_dict)
     message_list.extend(msg_list)
 
     if not (retval_a and retval_b):

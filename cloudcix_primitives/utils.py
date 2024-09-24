@@ -59,13 +59,13 @@ def load_pod_config(config_file=None, prefix=4000) -> Tuple[bool, Dict[str, Opti
     """
 
     messages = {
-        10: 'Config file {config_file} loaded.',
-        11: 'Failed to open {config_file}: ',
-        12: 'Failed to parse {config_file}: ',
-        13: 'Failed to get `ipv6_subnet from config_file.',
-        14: 'Invalid value for `ipv6_subnet` from config file {config_file}',
-        15: 'Failed to get `podnet_a_enabled` from config file {config_file}',
-        16: 'Failed to get `podnet_b_enabled` from config file {config_file}',
+        10: f'Config file {config_file} loaded.',
+        11: f'Failed to open {config_file}: ',
+        12: f'Failed to parse {config_file}: ',
+        13: f'Failed to get `ipv6_subnet from {config_file}',
+        14: f'Invalid value for `ipv6_subnet` from config file {config_file}',
+        15: f'Failed to get `podnet_a_enabled` from config file {config_file}',
+        16: f'Failed to get `podnet_b_enabled` from config file {config_file}',
         17: 'Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
         18: 'Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
         19: 'Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
