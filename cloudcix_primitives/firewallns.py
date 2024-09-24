@@ -157,14 +157,31 @@ def build(
                         type: string
                         required: true
                     source:
-                        description: list of source ipaddresses (all must be either private or public but not mixed)
+                        description: |
+                            - list of ipaddresses (all must be either private or public but not mixed)
+                               OR
+                            - set can be used but only one set in source list is allowed and a set should start with `@`
+                              sign before the set name ie for set['name'] = 'us_ipv4' then the source = ['@us_ipv4'],
+                              if a set is used in source or destination of a rule then a set for
+                              the same name must be supplied in sets.
+                              OR
+                            - `any` can be used to mention for all the IPAddresses
+                               if used then only `any` should be in the list ie source = ['any'].
                         type: array
                         items:
                             type: string
                         required: true
                     destination:
                         description: |
-                            list of destination ipaddresses (all must be either private or public but not mixed)
+                            - list of ipaddresses (all must be either private or public but not mixed)
+                               OR
+                            - a set can be used but only one set in destination list is allowed and a set should start
+                              with `@` sign before the set name ie for set['name'] = 'us_ipv4' then the
+                              destination = ['@us_ipv4'], if a set is used in source or destination of a rule then
+                              a set for the same name must be supplied in sets.
+                              OR
+                            - `any` can be used to mention for all the IPAddresses
+                               if used then only `any` should be in the list ie source = ['any'].
                         type: array
                         items:
                             type: string
@@ -174,7 +191,18 @@ def build(
                         type: string
                         required: true
                     port:
-                        description: list of ports, a port is a number in range [0, 65535] and `*`(any) or an empty list
+                        description: |
+                            - list of ports, a port is a number in range [0, 65535], should be mentioned in
+                              string format ie port = ['3', '22', '45-600']
+                              OR
+                            - `*` can be used to specify any port ie port = ['*']
+                              OR
+                            - An empty list can be used when protocol is `any` ie port = [] of protocol = 'any'
+                              OR
+                            - a set can be used but only one set in port list is allowed and a set should start
+                              with `@` sign before the set name ie for set['name'] = 'myports' then the
+                              port = ['@myports'], if a set is used in port of a rule then
+                              a set for the same name must be supplied in sets.
                         type: array
                         items:
                             type: string
