@@ -5,8 +5,6 @@ import sys
 
 from cloudcix_primitives import firewallns
 
-cmd = sys.argv[1]
-
 namespace = "testns"
 table = 'firewall_123'
 priority = 2
@@ -69,8 +67,16 @@ sets = [
 
 config_file = "/etc/cloudcix/pod/configs/config.json"
 
+cmd = sys.argv[1]
+
 if len(sys.argv) > 2:
-    namespace_name = sys.argv[2]
+    namespace = sys.argv[2]
+
+if len(sys.argv) > 3:
+    table = sys.argv[3]
+
+if len(sys.argv) > 4:
+    priority = int(sys.argv[4])
 
 status = None
 msg = None
