@@ -1,7 +1,7 @@
 # stdlib
 import ipaddress
 # local
-from ..exceptions import (
+from cloudcix_primitives.controllers.exceptions import (
     exception_handler,
     InvalidFirewallRuleAction,
     InvalidFirewallRuleDestination,
@@ -16,10 +16,10 @@ from ..exceptions import (
 PORT_RANGE = range(1, 65536)
 PROTOCOL_CHOICES = ['any', 'tcp', 'udp', 'icmp', 'dns', 'vpn']
 
-__all__ = ['FirewallNamespace']
+__all__ = ['FirewallPodNet']
 
 
-class FirewallNamespace:
+class FirewallPodNet:
     rule: dict
     success: bool
     errors: list
