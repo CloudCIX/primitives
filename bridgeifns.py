@@ -52,8 +52,8 @@ def build(
         3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check:  ',
         3022: f'3022: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_add:  ',
         3023: f'3023: Failed to run interface_add payload on the enabled PodNet. Payload exited with status ',
-        3024: f'3024: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_isolate:  ',
-        3025: f'3025: Failed to run interface_isolate payload on the enabled PodNet. Payload exited with status ',
+        3024: f'3024: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_main:  ',
+        3025: f'3025: Failed to run interface_main payload on the enabled PodNet. Payload exited with status ',
         3026: f'3026: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_ns:  ',
         3027: f'3027: Failed to run interface_ns payload on the enabled PodNet. Payload exited with status ',
         3028: f'3028: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_up:  ',
@@ -62,8 +62,8 @@ def build(
         3051: f'3051: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_check:  ',
         3052: f'3052: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_add:  ',
         3053: f'3053: Failed to run interface_add payload on the disabled PodNet. Payload exited with status ',
-        3054: f'3054: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_isolate:  ',
-        3055: f'3055: Failed to run interface_isolate payload on the disabled PodNet. Payload exited with status ',
+        3054: f'3054: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_main:  ',
+        3055: f'3055: Failed to run interface_main payload on the disabled PodNet. Payload exited with status ',
         3056: f'3056: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_ns:  ',
         3057: f'3057: Failed to run interface_ns payload on the disabled PodNet. Payload exited with status ',
         3058: f'3058: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_up:  ',
@@ -99,7 +99,7 @@ def build(
         payloads = {
             'interface_check' : f'ip netns exec {namespace} ip link show {namespace}.{bridgename}',
             'interface_add' : f'ip link add {bridgename}.{namespace} type veth peer name {namespace}.{bridgename}',
-            'interface_isolate' : f'ip link set dev {bridgename}.{namespace} master {bridgename}',
+            'interface_main' : f'ip link set dev {bridgename}.{namespace} master {bridgename}',
             'interface_ns': f'ip link set dev {namespace}.{bridgename} netns {namespace}',
             'interface_up' : f'ip netns exec {namespace} ip link set dev {namespace}.{bridgename} up',
         }
@@ -120,12 +120,12 @@ def build(
             return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
         fmt.add_successful('interface_add', ret)
 
-        ret = rcc.run(payloads['interface_isolate'])
+        ret = rcc.run(payloads['interface_main'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-        fmt.add_successful('interface_isolate', ret)
+        fmt.add_successful('interface_main', ret)
 
         ret = rcc.run(payloads['interface_ns'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
@@ -322,8 +322,8 @@ def read(
         )
 
         payloads = {
-                'interface_show': f'ip netns exec {namespace} ip link show | grep {namespace}.{bridgename}'
-        }
+                    'interface_show': f'ip netns exec {namespace} ip link show | grep --word "{namespace}.{bridgename}"'
+            }
 
         ret = rcc.run(payloads['interface_show'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
