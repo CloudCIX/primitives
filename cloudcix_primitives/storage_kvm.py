@@ -59,7 +59,6 @@ def build(
     # Define message
     messages = {
         1000: f'1000: Successfully created storage {storage}',
-        1001: f'1001: Already a storage {storage} of size {size}GBs file exists at {domain_path}',
         3001: f'3001: Already a storage {storage} of different size than requested size {size}GBs '
               f'file exists at {domain_path}',
         3021: f'3021: Failed to connect to the host {host} for the payload read_storage_file',
@@ -83,22 +82,24 @@ def build(
         ret = rcc.run(payloads['read_storage_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        create_storage = True
         if ret["payload_code"] == SUCCESS_CODE:
-            fmt.add_successful('read_storage_file', ret)
+            # No need to create storage drive exists already
+            create_storage = False
             # storage already exists, extract the size of the file
             size_match = re.search(r'virtual size: (\S+)', ret["payload_message"].strip())
             checked_size = size_match.group(1) if size_match else 0
-            if int(checked_size) == int(size):
-                return True, messages[1001], fmt.successful_payloads
-            else:
-                return False, messages[3001], fmt.successful_payloads
+            if int(checked_size) != int(size):
+                return True, messages[3001], fmt.successful_payloads
+        fmt.add_successful('read_storage_file', ret)
 
-        ret = rcc.run(payloads['create_storage_file'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, messages[prefix + 2]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, messages[prefix + 3]), fmt.successful_payloads
-        fmt.add_successful('create_storage_file', ret)
+        if create_storage is True:
+            ret = rcc.run(payloads['create_storage_file'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, messages[prefix + 2]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, messages[prefix + 3]), fmt.successful_payloads
+            fmt.add_successful('create_storage_file', ret)
 
         return True, "", fmt.successful_payloads
 
