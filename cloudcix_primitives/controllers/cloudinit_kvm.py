@@ -41,6 +41,7 @@ class KVMInterface:
     def __call__(self):
         validators = [
             self._validate_mac_address,
+            self._validate_vlan_bridge,
         ]
 
         for validator in validators:
