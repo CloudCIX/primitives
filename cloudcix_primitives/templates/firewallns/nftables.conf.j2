@@ -11,39 +11,39 @@ table inet {{ table }} {
     chain icmp_accept {
         icmp type { echo-reply, destination-unreachable, echo-request, time-exceeded } accept
     }
-{% elseif application == 'icmp_drop' %}
+{% elif application == 'icmp_drop' %}
     # icmp v4 block
     chain icmp_drop {
         icmp type { echo-reply, destination-unreachable, echo-request, time-exceeded } drop
     }
-{% elseif application == 'icmp6_accept' %}
+{% elif application == 'icmp6_accept' %}
     # icmp v6 allow
     chain icmp6_accept {
         icmpv6 type { echo-reply, echo-request, mld-listener-query, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
     }
-{% elseif application == 'icmp6_drop' %}
+{% elif application == 'icmp6_drop' %}
     # icmp v6 block
     chain icmp6_drop {
         icmpv6 type { echo-reply, echo-request, mld-listener-query, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } drop
     }
-{% elseif application == 'dns_accept' %}
+{% elif application == 'dns_accept' %}
     # dns allow
     chain dns_accept {
         meta l4proto {tcp, udp} th dport 53 accept
     }
-{% elseif application == 'dns_drop' %}
+{% elif application == 'dns_drop' %}
     # dns block
     chain dns_drop {
         meta l4proto {tcp, udp} th dport 53 drop
     }
-{% elseif application == 'vpn_accept' %}
+{% elif application == 'vpn_accept' %}
     # vpn allow
     chain vpn_accept {
         # IKE 500, 4500 ports and udp protocol
         udp dport { 500, 4500 } accept
         ip protocol esp accept
     }
-{% elseif application == 'vpn_drop' %}
+{% elif application == 'vpn_drop' %}
     # vpn block
     chain vpn_drop {
         # IKE 500, 4500 ports and udp protocol
@@ -52,6 +52,19 @@ table inet {{ table }} {
         ip protocol esp drop
     }
 {% endif %}
+{% endfor %}
+{% endif %}
+{# ----------------------------------------------------------------------- #}
+{% if sets|length > 0 %}
+    # Sets definitions
+{% for obj in sets %}
+    set {{ obj['name'] }} {
+        type {{ obj['type'] }}
+        flags interval
+        elements = {
+            {{ ', '.join(obj['elements']) }}
+        }
+    }
 {% endfor %}
 {% endif %}
 {# ----------------------------------------------------------------------- #}

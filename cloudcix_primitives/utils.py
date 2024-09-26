@@ -3,19 +3,11 @@ import ipaddress
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 # libs
 from jinja2 import Environment, meta, FileSystemLoader, Template
+
 # local
-from cloudcix_primitives.exceptions import (
-    CouldNotFindPodNets,
-    InvalidPodNetPrivate,
-    InvalidPodNetMgmt,
-    InvalidPodNetOOB,
-    InvalidPodNetPublic,
-    InvalidPodNetIPv4CPE,
-    InvalidPodNetMgmtIPv6,
-)
 
 
 __all__ = [
@@ -26,7 +18,6 @@ __all__ = [
     'SSHCommsWrapper',
     'PodnetErrorFormatter',
 ]
-
 
 primitives_directory = os.path.dirname(os.path.abspath(__file__))
 JINJA_ENV = Environment(
@@ -56,7 +47,7 @@ def check_template_data(template_data: Dict[str, Any], template: Template) -> Tu
     return success, err
 
 
-def load_pod_config(config_file=None, prefix=4000) -> Dict[str, Any]:
+def load_pod_config(config_file=None, prefix=4000) -> Tuple[bool, Dict[str, Optional[Any]], str]:
     """
     Checks for pod config.json from supplied config_file loads into a json
     object and returns the object.
@@ -68,21 +59,21 @@ def load_pod_config(config_file=None, prefix=4000) -> Dict[str, Any]:
     """
 
     messages = {
-      10: 'Config file {config_file} loaded.',
-      11: 'Failed to open {config_file}: ',
-      12: 'Failed to parse {config_file}: ',
-      13: 'Failed to get `ipv6_subnet from config_file.',
-      14: 'Invalid value for `ipv6_subnet` from config file {config_file}',
-      15: 'Failed to get `podnet_a_enabled` from config file {config_file}',
-      16: 'Failed to get `podnet_b_enabled` from config file {config_file}',
-      17: 'Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-      18: 'Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-      19: 'Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
+        10: f'Config file {config_file} loaded.',
+        11: f'Failed to open {config_file}: ',
+        12: f'Failed to parse {config_file}: ',
+        13: f'Failed to get `ipv6_subnet from {config_file}',
+        14: f'Invalid value for `ipv6_subnet` from config file {config_file}',
+        15: f'Failed to get `podnet_a_enabled` from config file {config_file}',
+        16: f'Failed to get `podnet_b_enabled` from config file {config_file}',
+        17: 'Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
+        18: 'Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
+        19: 'Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
     }
 
     config_data = {
-      'raw': None,
-      'processed': {}
+        'raw': None,
+        'processed': {}
     }
 
     config = None
@@ -92,21 +83,21 @@ def load_pod_config(config_file=None, prefix=4000) -> Dict[str, Any]:
         with Path(config_file).open('r') as file:
             config = json.load(file)
     except OSError as e:
-            return False, config_data, ("%d: " % (prefix+11)) + messages[11] + e.__str__()
+        return False, config_data, f'{prefix + 11}: {messages[11]} {e.__str__()}'
     except Exception as e:
-            return False, config_data, ("%d: " % (prefix+12)) + messages[12] + e.__str__()
+        return False, config_data, f'{prefix + 12}: {messages[12]} {e.__str__()}'
 
     config_data['raw'] = config
 
     # Get the ipv6_subnet from config_file
     ipv6_subnet = config.get('ipv6_subnet', None)
     if ipv6_subnet is None:
-        return False, config_data, ("%d: " % (prefix+13)) + messages[13]
+        return False, config_data, f'{prefix + 13}: {messages[13]}'
     # Verify the ipv6_subnet value
     try:
         ipaddress.ip_network(ipv6_subnet)
     except ValueError:
-        return False, config_data, messages[14]
+        return False, config_data, f'{prefix + 14}: {messages[14]}'
 
     # Get the PodNet Mgmt ips from ipv6_subnet
     podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
@@ -118,10 +109,10 @@ def load_pod_config(config_file=None, prefix=4000) -> Dict[str, Any]:
     # Get `podnet_a_enabled` and `podnet_b_enabled`
     podnet_a_enabled = config.get('podnet_a_enabled', None)
     if podnet_a_enabled is None:
-        return False, config_data, ("%d: " % (prefix+15)) + messages[15]
+        return False, config_data, f'{prefix + 15}: {messages[15]}'
     podnet_b_enabled = config.get('podnet_b_enabled', None)
     if podnet_a_enabled is None:
-        return False, config_data, ("%d: " % (prefix+16)) + messages[16]
+        return False, config_data, f'{prefix + 16}: {messages[16]}'
 
     # Determine enabled and disabled PodNet
     if podnet_a_enabled is True and podnet_b_enabled is False:
@@ -131,49 +122,16 @@ def load_pod_config(config_file=None, prefix=4000) -> Dict[str, Any]:
         enabled = podnet_b
         disabled = podnet_a
     elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, config_data, ("%d: " % (prefix+17)) + messages[17]
+        return False, config_data, f'{prefix + 17}: {messages[17]}'
     elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, config_data, ("%d: " % (prefix+18)) + messages[18]
+        return False, config_data, f'{prefix + 18}: {messages[18]}'
     else:
-        return False, config_data, ("%d: " % (prefix+19)) + messages[19]
+        return False, config_data, f'{prefix + 19}: {messages[19]}'
 
     config_data['processed']['enabled'] = enabled
     config_data['processed']['disabled'] = disabled
 
-    return True, config_data, ("%d: " % (prefix+10)) + messages[10]
-
-def get_podnets(config_filepath):
-    data = load_pod_config(config_filepath)
-    podnets = [
-        value for key, value in data.items() if key in ['podnet_1', 'podnet_2']
-    ]
-    if len(podnets) == 0:
-        raise CouldNotFindPodNets
-    for podnet in podnets:
-        if podnet.get('mgmt', '') == '':
-            raise InvalidPodNetMgmt
-        if podnet.get('oob', '') == '':
-            raise InvalidPodNetOOB
-        if podnet.get('private', '') == '':
-            raise InvalidPodNetPrivate
-        if podnet.get('public', '') == '':
-            raise InvalidPodNetPublic
-        if podnet.get('ipv4_cpe', '') == '':
-            raise InvalidPodNetIPv4CPE
-    return podnets
-
-
-def get_mgmt_ipv6(mgmt):
-    if mgmt in ['', None]:
-        raise InvalidPodNetMgmt
-    mgmt_ipv6 = ''
-    for ip in mgmt['ips']:
-        address = str(ip['network_address'])
-        if ipaddress.ip_address(address).version == 6:
-            mgmt_ipv6 = address
-    if mgmt_ipv6 == '':
-        raise InvalidPodNetMgmtIPv6
-    return mgmt_ipv6
+    return True, config_data, f'{prefix + 10}: {messages[10]}'
 
 
 class SSHCommsWrapper:
@@ -185,6 +143,7 @@ class SSHCommsWrapper:
     :param host_ip: Target Host for RCC function
     :param username: User name for RCC function to use
     """
+
     def __init__(self, comm_function, host_ip, username):
         self.comm_function = comm_function
         self.host_ip = host_ip
@@ -201,10 +160,11 @@ class SSHCommsWrapper:
             username=self.username
         )
 
+
 class PodnetErrorFormatter:
     """Formats error messages occuring on PodNet nodes and keeps error/success message state if needed"""
 
-    def __init__(self, config_file, podnet_node, enabled, payload_channels, successful_payloads={}):
+    def __init__(self, config_file, podnet_node, enabled, payload_channels, successful_payloads=None):
         """
         Creates a new errorFormatter.
         :param config_file: Config file the PodNet configuration originates from.
@@ -224,6 +184,8 @@ class PodnetErrorFormatter:
                                     over succesful payloads from a different
                                     instance of this class.
         """
+        if successful_payloads is None:
+            successful_payloads = {}
         self.config_file = config_file
         self.podnet_node = podnet_node
         self.enabled = enabled
@@ -243,9 +205,8 @@ class PodnetErrorFormatter:
         self.successful_payloads[self.podnet_node].append({
             'payload_name': payload_name,
             'rcc_return': rcc_return
-            }
+        }
         )
-
 
     def channel_error(self, rcc_return, msg_index):
         """
@@ -298,33 +259,24 @@ class PodnetErrorFormatter:
         for k in sorted(self.successful_payloads.keys()):
             context.append(f'  {k}: ')
             for payload in self.successful_payloads[k]:
-                context.append(f'    {payload["payload_name"]}: ' )
+                context.append(f'    {payload["payload_name"]}: ')
                 if payload["rcc_return"] is not None:
-                    context.append(f'      status: %s' % payload['rcc_return']['payload_code'] )
-                    context.append(f'      %s: ' % self.payload_channels['payload_message'] )
-                    context.append('        ' + payload['rcc_return']['payload_message'])
-                    context.append(f'      %s: ' % self.payload_channels['payload_error'] )
-                    context.append('        ' + payload['rcc_return']['payload_error'])
+                    context.append(f'      status: {payload["rcc_return"]["payload_code"]}')
+                    context.append(f'      {self.payload_channels["payload_message"]}: ')
+                    context.append(f'         {payload["rcc_return"]["payload_message"]}')
+                    context.append(f'      {self.payload_channels["payload_error"]}: ')
+                    context.append(f'         {payload["rcc_return"]["payload_error"]}')
             context.append("")
             context.append("")
         return "\n".join(context)
 
     def _format_channel_error(self, rcc_return, msg):
-        msg = msg + "channel_code: %s\nchannel_message: %s\nchannel_error: %s\n\n" % (
-            rcc_return['channel_code'],
-            rcc_return['channel_error'],
-            rcc_return['channel_message']
-        )
-        msg = msg + self._payloads_context()
+        msg = msg + f"channel_code: {rcc_return['channel_code']}\nchannel_message: {rcc_return['channel_message']}\n"
+        msg += f"channel_error: {rcc_return['channel_error']}\n\n" + self._payloads_context()
         return msg
 
     def _format_payload_error(self, rcc_return, msg):
-        msg = msg + "payload code: %s\n%s: %s\n%s: %s\n\n" % (
-            rcc_return['payload_code'],
-            self.payload_channels['payload_error'],
-            rcc_return['payload_error'],
-            self.payload_channels['payload_message'],
-            rcc_return['payload_message']
-        )
-        msg = msg + self._payloads_context()
+        msg = msg + f"payload code: {rcc_return['payload_code']}\n{self.payload_channels['payload_error']}: "
+        msg += f"{rcc_return['payload_error']}\n{self.payload_channels['payload_message']}: "
+        msg += f"{rcc_return['payload_message']}\n\n" + self._payloads_context()
         return msg
