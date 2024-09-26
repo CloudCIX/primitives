@@ -89,3 +89,6 @@ Primitive for Storage drives (QEMU images) on KVM hosts
     - storage: str
     - size: int
 
+## cloudinit_kvm
+Primitive for Cloud-init VM on KVM hosts
+
