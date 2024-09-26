@@ -87,7 +87,7 @@ def build(
             fmt.add_successful('read_storage_file', ret)
             # storage already exists, extract the size of the file
             size_match = re.search(r'virtual size: (\S+)', ret["payload_message"].strip())
-            checked_size = size_match.group(1) if size_match else None
+            checked_size = size_match.group(1) if size_match else 0
             if int(checked_size) == int(size):
                 return True, messages[1001], fmt.successful_payloads
             else:
