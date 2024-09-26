@@ -60,9 +60,8 @@ def build(
     messages = {
         1000: f'1000: Successfully created storage {storage}',
         3021: f'3021: Failed to connect to the host {host} for the payload read_storage_file',
-        3022: f'3022: Failed to create storage_kvm {domain_path}{storage} on the host {host}'
-        3023: f'3023: Failed to connect to the host {host} for the payload create_storage_file',
-        3024: f'3024: Failed to create storage_kvm {domain_path}{storage} on the host {host}'
+        3022: f'3022: Failed to connect to the host {host} for the payload create_storage_file',
+        3023: f'3023: Failed to create storage_kvm {domain_path}{storage} on the host {host}',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -89,9 +88,9 @@ def build(
         if create_storage_file:
             ret = rcc.run(payloads['create_storage_file'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, messages[prefix + 3]), fmt.successful_payloads
+                return False, fmt.channel_error(ret, messages[prefix + 2]), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, messages[prefix + 4]), fmt.successful_payloads
+                return False, fmt.payload_error(ret, messages[prefix + 3]), fmt.successful_payloads
             fmt.add_successful('create_storage_file', ret)
 
         return True, "", fmt.successful_payloads
