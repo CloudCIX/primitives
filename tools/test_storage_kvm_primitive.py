@@ -7,20 +7,27 @@ from cloudcix_primitives import storage_kvm
 
 cmd = sys.argv[1]
 
-host = '2a02:2078:9::30:0:8'
+host = None
 domain_path = '/var/lib/libvirt/images/'
 storage = '123_234_HDD_568.img'
 size = 20
 update_size = 30
 
 if len(sys.argv) > 2:
-    storage = sys.argv[2]
+    host = sys.argv[2]
 
 if len(sys.argv) > 3:
-    size = sys.argv[3]
+    storage = sys.argv[3]
 
 if len(sys.argv) > 4:
-    cloudimage = sys.argv[4]
+    size = sys.argv[4]
+
+if len(sys.argv) > 5:
+    cloudimage = sys.argv[5]
+
+if host is None:
+    print('Host is required, please supply the host as second argument.')
+    exit()
 
 status = None
 msg = None
