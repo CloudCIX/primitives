@@ -90,7 +90,7 @@ def build(
             size_match = re.search(r'virtual size: (\S+)', ret["payload_message"].strip())
             checked_size = size_match.group(1) if size_match else 0
             if int(checked_size) != int(size):
-                return True, messages[3001], fmt.successful_payloads
+                return False, messages[3001], fmt.successful_payloads
         fmt.add_successful('read_storage_file', ret)
 
         if create_storage is True:
