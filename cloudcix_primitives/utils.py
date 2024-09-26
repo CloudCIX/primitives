@@ -17,6 +17,7 @@ __all__ = [
     'load_pod_config',
     'SSHCommsWrapper',
     'PodnetErrorFormatter',
+    'HostErrorFormatter',
 ]
 
 primitives_directory = os.path.dirname(os.path.abspath(__file__))
