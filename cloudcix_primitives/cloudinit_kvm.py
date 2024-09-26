@@ -35,7 +35,9 @@ def build(
 ) -> Tuple[bool, str]:
     """
     description:
-        Copies <cloudimage> to the given <domain_path><storage> and resizes the storage file to <size>.
+        1. Copies <cloudimage> to the given <domain_path><storage>
+        2. Resizes the storage file to <size>
+        3. Creates a Cloud-init VM
 
     parameters:
         cloudimage:

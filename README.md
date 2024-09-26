@@ -92,3 +92,18 @@ Primitive for Storage drives (QEMU images) on KVM hosts
 ## cloudinit_kvm
 Primitive for Cloud-init VM on KVM hosts
 
+supported verbs:
+
+- build:
+    - cloudimage: str
+    - cpu: int
+    - domain: str
+    - domain_path: str
+    - gateway_interface: dict
+    - host: str
+    - primary_storage: str
+    - ram: int
+    - size: int
+    - secondary_interfaces: optional list
+    - secondary_storages: optional list
+
