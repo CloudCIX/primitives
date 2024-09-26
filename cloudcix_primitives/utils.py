@@ -303,12 +303,13 @@ class HostErrorFormatter:
                                     over successful payloads from a different
                                     instance of this class.
         """
+        self.host = host
+        self.message_list = list()
+        self.payload_channels = payload_channels
         if successful_payloads is None:
             successful_payloads = {}
         self.successful_payloads = successful_payloads
-        self.host = host
-        self.payload_channels = payload_channels
-        self.message_list = list()
+        self.successful_payloads[self.host] = list()
 
     def add_successful(self, payload_name, rcc_return=None):
         """
@@ -321,8 +322,7 @@ class HostErrorFormatter:
         self.successful_payloads[self.host].append({
             'payload_name': payload_name,
             'rcc_return': rcc_return,
-        }
-        )
+        })
 
     def channel_error(self, rcc_return, msg_index):
         """

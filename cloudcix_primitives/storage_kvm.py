@@ -68,7 +68,7 @@ def build(
         fmt = HostErrorFormatter(
             host,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
-            successful_payloads
+            successful_payloads,
         )
 
         payloads = {
