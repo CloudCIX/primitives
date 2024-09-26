@@ -59,7 +59,7 @@ def build(
     # Define message
     messages = {
         1000: f'1000: Successfully created storage {storage}',
-        1001: f'1001: Already a storage {storage} of size {size} file exists at {domain_path}',
+        1001: f'1001: Already a storage {storage} of size {size}GBs file exists at {domain_path}',
         3001: f'3001: Already a storage {storage} of different size than requested size {size} '
               f'file exists at {domain_path}',
         3021: f'3021: Failed to connect to the host {host} for the payload read_storage_file',
