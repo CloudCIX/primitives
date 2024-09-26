@@ -6,8 +6,8 @@ Primitive for Cloud-init VM on KVM hosts
 from typing import Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
-import re
 # local
+from .controllers import KVMInterface
 from cloudcix_primitives.utils import (
     SSHCommsWrapper,
     HostErrorFormatter,
@@ -59,7 +59,7 @@ def build(
                 The gateway interface of the domain connected to the gateway network
                 gateway_interface = {
                     'mac_address': 'aa:bb:cc:dd:ee:f0',
-                    'vlan', 1000
+                    'vlan_bridge': 'br1000',
                 }
             type: dictionary
             required: true
@@ -68,9 +68,9 @@ def build(
                     description: mac_address of the interface
                     type: string
                     required: true
-                vlan:
-                    description: vlan of the bridge to which the gateway interface is connected to
-                    type: integer
+                vlan_bridge:
+                    description: name of the vlan bridge to which the gateway interface is connected to
+                    type: string
                     required: true
         host:
             description: The dns or ipadddress of the Host on which this storage image will be created
@@ -105,7 +105,7 @@ def build(
                 List of all other interfaces of the domain
                 secondary_interfaces = [{
                     'mac_address': 'aa:bb:cc:dd:ee:f0',
-                    'vlan', 1000
+                    'vlan_bridge': 'br1004',
                 },]
             type: array
             required: false
@@ -116,8 +116,8 @@ def build(
                         description: mac_address of the interface
                         type: string
                         required: true
-                    vlan:
-                        description: vlan of the bridge to which the interface is connected to
+                    vlan_bridge:
+                        description: name of the vlan bridge to which the interface is connected to
                         type: integer
                         required: true
 
@@ -130,12 +130,47 @@ def build(
     # Define message
     messages = {
         1000: f'1000: Successfully created domain {domain} on Host {host}.',
+        3011: f'3011: Gateway interface cannot be None.',
+        3012: f'3012: Failed to Validate Gateway interface {gateway_interface}.',
+        3013: f'3013: Failed to Validate Secondary interfaces {secondary_interfaces}.',
         3021: f'3021: Failed to connect the Host {host} for payload copy_cloudimage',
         3022: f'3022: Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{primary_storage}'
               f' on Host {host}.',
         3023: f'3023: Failed to connect the Host {host} for payload resize_copied_file',
-        3024: f'3024: Failed to resize the copied storage image to {size}GB on Host {host}.'
+        3024: f'3024: Failed to resize the copied storage image to {size}GB on Host {host}.',
+        3025: f'3025: Failed to connect the Host {host} for payload virt_install_cmd',
+        3026: f'3026: Failed to create domain {domain} on Host {host}.'
     }
+
+    messages_list = []
+    validated = True
+
+    # validate gateway_interface
+    if gateway_interface is None:
+        return False, messages[3011]
+
+    controller = KVMInterface(gateway_interface)
+    success, errs = controller()
+    if success is False:
+        validated = False
+        messages_list.append(f'{messages[3012]} {";".join(errs)}')
+
+    # validate secondary interfaces
+    if secondary_interfaces is not None:
+        errors = []
+        valid_interface = True
+        for interface in secondary_interfaces:
+            controller = KVMInterface(interface)
+            success, errs = controller()
+            if success is False:
+                valid_interface = False
+                errors.extend(errs)
+        if valid_interface is False:
+            validated = False
+            messages_list.append(f'{messages[3013]} {";".join(errors)}')
+
+    if validated is False:
+        return False, '; '.join(messages_list)
 
     def run_host(host, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
@@ -145,17 +180,31 @@ def build(
             successful_payloads
         )
 
-        cmd = f'virt-install --autostart --graphics vnc --os-variant generic '
-        cmd += f'--sysinfo smbios,system.product=CloudCIX --boot uefi '
+        #  define virt install payload
+        cmd = f'virt-install --autostart --graphics vnc --os-variant generic --boot uefi'
+        # cloudinit datasource
+        cmd += f'--sysinfo smbios,system.product=CloudCIX '
+        # name
         cmd += f'--name {domain} '
+        # ram
         cmd += f'--memory {ram} '
+        # cpu
         cmd += f'--vcpus {cpu} '
-        cmd +=
+        # primary storage
+        cmd += f'--disk path="{domain_path}{primary_storage},device=disk,bus=virtio"'
+        # secondary storages
+        for storage in secondary_storages:
+            cmd += f'--disk path="{domain_path}{storage},device=disk,bus=virtio"'
+        # gateway interface
+        cmd += f'--network bridge={gateway_interface["vlan_bridge"]},model=virtio,mac={gateway_interface["mac_address"]}'
+        # secondary interface
+        for interface in secondary_interfaces:
+            cmd += f'--network bridge={interface["vlan_bridge"]},model=virtio,mac={interface["mac_address"]}'
 
         payloads = {
             'copy_cloudimage': f'cp {cloudimage} {domain_path}{primary_storage}',
             'resize_copied_file': f'qemu-img resize {domain_path}{primary_storage} {size}G',
-            'virt_install_cmd': f''
+            'virt_install_cmd': cmd,
         }
 
         ret = rcc.run(payloads['copy_cloudimage'])
@@ -171,6 +220,13 @@ def build(
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.payload_error(ret, messages[prefix + 4]), fmt.successful_payloads
         fmt.add_successful('resize_copied_file', ret)
+
+        ret = rcc.run(payloads['virt_install_cmd'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 5]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 6]), fmt.successful_payloads
+        fmt.add_successful('virt_install_cmd', ret)
 
         return True, "", fmt.successful_payloads
 
