@@ -59,6 +59,7 @@ def build(
     # Define message
     messages = {
         1000: f'1000: Successfully created storage {storage}',
+        1001: f'1001: Already storage {storage} file exists at {domain_path}',
         3021: f'3021: Failed to connect to the host {host} for the payload read_storage_file',
         3022: f'3022: Failed to connect to the host {host} for the payload create_storage_file',
         3023: f'3023: Failed to create storage_kvm {domain_path}{storage} on the host {host}',
@@ -77,21 +78,19 @@ def build(
             'create_storage_file': f'qemu-img create -f qcow2 {domain_path}{storage} {size}G',
         }
 
-        create_storage_file = True
         ret = rcc.run(payloads['read_storage_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
         if ret["payload_code"] == SUCCESS_CODE:
-            create_storage_file = False
-            fmt.add_successful('read_storage_file', ret), fmt.successful_payloads
+            # storage already exists so return with success
+            return True, "preexists", fmt.successful_payloads
 
-        if create_storage_file:
-            ret = rcc.run(payloads['create_storage_file'])
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, messages[prefix + 2]), fmt.successful_payloads
-            if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, messages[prefix + 3]), fmt.successful_payloads
-            fmt.add_successful('create_storage_file', ret)
+        ret = rcc.run(payloads['create_storage_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 2]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 3]), fmt.successful_payloads
+        fmt.add_successful('create_storage_file', ret)
 
         return True, "", fmt.successful_payloads
 
@@ -99,6 +98,8 @@ def build(
     if status is False:
         return status, msg
 
+    if msg == "preexists":
+        return True, messages[1001]
     return True, messages[1000]
 
 
