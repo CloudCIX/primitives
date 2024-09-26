@@ -89,9 +89,9 @@ def build(
             size_match = re.search(r'virtual size: (\S+)', ret["payload_message"].strip())
             checked_size = size_match.group(1) if size_match else None
             if int(checked_size) == int(size):
-                return True, messages[1001]
+                return True, messages[1001], fmt.successful_payloads
             else:
-                return False, messages[3001]
+                return False, messages[3001], fmt.successful_payloads
 
         ret = rcc.run(payloads['create_storage_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
