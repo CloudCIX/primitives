@@ -68,6 +68,10 @@ supported verbs:
 
 ## storage_kvm
 Primitive for Storage drives (QEMU images) on KVM hosts
+
+supported verbs:
+
+- build
     - host: str
     - domain_path: str
     - storage: str

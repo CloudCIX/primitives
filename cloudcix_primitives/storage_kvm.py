@@ -7,7 +7,11 @@ from typing import Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 import re
-
+# local
+from cloudcix_primitives.utils import (
+    SSHCommsWrapper,
+    HostErrorFormatter,
+)
 
 __all__ = [
     'build',
@@ -55,38 +59,55 @@ def build(
     # Define message
     messages = {
         1000: f'1000: Successfully created storage {storage}',
-        3021: f'3021: Failed to connect to the host {host}',
-        3022: f'3022: Failed to create storage_kvm {domain_path}{storage} on the host {host}'
+        3001: f'3001: Already a storage {storage} of different size than requested size {size}GBs '
+              f'file exists at {domain_path}',
+        3021: f'3021: Failed to connect to the host {host} for the payload read_storage_file',
+        3022: f'3022: Failed to connect to the host {host} for the payload create_storage_file',
+        3023: f'3023: Failed to create storage_kvm {domain_path}{storage} on the host {host}',
     }
 
-    message_list = {}
+    def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads,
+        )
 
-    # Define payload
-    payload = f'qemu-img create -f qcow2 {domain_path}{storage} {size}G'
+        payloads = {
+            'read_storage_file': f'qemu-img info {domain_path}{storage}',
+            'create_storage_file': f'qemu-img create -f qcow2 {domain_path}{storage} {size}G',
+        }
 
-    # Create storage using SSH communication
-    response = comms_ssh(
-        host_ip=host,
-        payload=payload,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3021]}\n ' \
-                f'channel_code: {response["channel_code"]}s.\n' \
-                f'channel_message: {response["channel_message"]}\n' \
-                f'channel_error: {response["channel_error"]}'
-        message_list.append(msg)
-        success = False
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3022]}\n ' \
-                f'payload_code: {response["payload_code"]}s.\n' \
-                f'payload_message: {response["payload_message"]}\n' \
-                f'payload_error: {response["payload_error"]}'
-        message_list.append(msg)
-        success = False
+        ret = rcc.run(payloads['read_storage_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        create_storage = True
+        if ret["payload_code"] == SUCCESS_CODE:
+            # No need to create storage drive exists already
+            create_storage = False
+            # storage already exists, extract the size of the file
+            size_match = re.search(r'virtual size: (\S+)', ret["payload_message"].strip())
+            checked_size = size_match.group(1) if size_match else 0
+            if int(checked_size) != int(size):
+                return False, messages[3001], fmt.successful_payloads
+        fmt.add_successful('read_storage_file', ret)
 
-    message_list.append(messages[1000])
-    return success, message_list
+        if create_storage is True:
+            ret = rcc.run(payloads['create_storage_file'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, messages[prefix + 2]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, messages[prefix + 3]), fmt.successful_payloads
+            fmt.add_successful('create_storage_file', ret)
+
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(host, 3020, {})
+    if status is False:
+        return status, msg
+
+    return True, messages[1000]
 
 
 def update(
@@ -124,37 +145,38 @@ def update(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully update storage {storage}',
-        3021: f'3021: Failed to connect to the host {host}',
-        3022: f'3022: Failed to update storage_kvm {domain_path}{storage}'
+        1300: f'1300: Successfully updated storage image {storage} to {size}GB at {domain_path}{storage}'
+              f' on Host {host}.',
+        3321: f'3321: Failed to connect to the Host {host} for payload resize_storage_file.',
+        3322: f'3322: Failed to update storage image {domain_path}{storage} to {size}GB on Host {host}.'
     }
-    message_list = {}
-    # Define payload
-    payload = f'qemu-img resize {domain_path}{storage} {size}G'
 
-    # Update storage using SSH communication
-    response = comms_ssh(
-        host_ip=host,
-        payload=payload,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3021]}\n ' \
-                f'channel_code: {response["channel_code"]}s.\n' \
-                f'channel_message: {response["channel_message"]}\n' \
-                f'channel_error: {response["channel_error"]}'
-        message_list.append(msg)
-        success = False
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3022]}\n ' \
-                f'payload_code: {response["payload_code"]}s.\n' \
-                f'payload_message: {response["payload_message"]}\n' \
-                f'payload_error: {response["payload_error"]}'
-        message_list.append(msg)
-        success = False
+    def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
 
-    message_list.append(messages[1000])
-    return success, message_list
+        payloads = {
+            'resize_storage_file': f'qemu-img resize {domain_path}{storage} {size}G',
+        }
+
+        ret = rcc.run(payloads['resize_storage_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+        fmt.add_successful('resize_storage_file', ret)
+
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(host, 3320, {})
+    if status is False:
+        return status, msg
+
+    return True, messages[1300]
 
 
 def scrub(
@@ -187,37 +209,37 @@ def scrub(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully removed storage {storage}',
-        3021: f'3021: Failed to connect to the host {host}',
-        3022: f'3022: Failed to remove storage_kvm {domain_path}{storage} on the host {host}'
+        1100: f'1100: Successfully removed storage image {storage} from {domain_path} on Host {host}.',
+        3121: f'3121: Failed to connect to the Host {host} for the payload remove_storage_file',
+        3122: f'3122: Failed to remove storage image {domain_path}{storage} from Host {host}.'
     }
-    message_list = {}
-    # Define payload
-    payload = f'rm -force {domain_path}{storage}'
 
-    # Remove storage using SSH communication
-    response = comms_ssh(
-        host_ip=host,
-        payload=payload,
-        username='robot',
-    )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3021]}\n ' \
-                f'channel_code: {response["channel_code"]}s.\n' \
-                f'channel_message: {response["channel_message"]}\n' \
-                f'channel_error: {response["channel_error"]}'
-        message_list.append(msg)
-        success = False
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3022]}\n ' \
-                f'payload_code: {response["payload_code"]}s.\n' \
-                f'payload_message: {response["payload_message"]}\n' \
-                f'payload_error: {response["payload_error"]}'
-        message_list.append(msg)
-        success = False
+    def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
 
-    message_list.append(messages[1000])
-    return success, message_list
+        payloads = {
+            'remove_storage_file': f'rm --force {domain_path}{storage}',
+        }
+
+        ret = rcc.run(payloads['remove_storage_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+        fmt.add_successful('remove_storage_file', ret)
+
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(host, 3120, {})
+    if status is False:
+        return status, msg
+
+    return True, messages[1100]
 
 
 def read(
@@ -250,55 +272,62 @@ def read(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully read storage {storage}',
-        3021: f'3021: Failed to connect to the host {host}',
-        3022: f'3022: Failed to read storage_kvm {domain_path}{storage} on the host {host}'
+        1200: f'1200: Successfully read storage image {storage}',
+        3221: f'3221: Failed to connect to the Host {host} for the payload read_storage_file',
+        3222: f'3222: Failed to read storage image {domain_path}{storage} on the Host {host}'
     }
-    message_list = {}
+    message_list = []
     data_dict = {
         host: {
             'image': None,
             'size': None,
         }
     }
-    # Define payload
-    payload = f'qemu-img info {domain_path}{storage}'
 
-    # Read storage using SSH communication
-    response = comms_ssh(
-                host_ip=host,
-                payload=payload,
-                username='robot',
+    def run_host(host, prefix, successful_payloads):
+        retval = True
+        data_dict[host] = {}
+
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
         )
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        msg = f'{messages[3021]}\n ' \
-              f'channel_code: {response["channel_code"]}s.\n' \
-              f'channel_message: {response["channel_message"]}\n' \
-              f'channel_error: {response["channel_error"]}'
-        message_list.append(msg)
-        success = False
-    if response['payload_code'] != SUCCESS_CODE:
-        msg = f'{messages[3022]}\n ' \
-              f'payload_code: {response["payload_code"]}s.\n' \
-              f'payload_message: {response["payload_message"]}\n' \
-              f'payload_error: {response["payload_error"]}'
-        message_list.append(msg)
-        success = False
 
-    if success:
-        stdout = response.get('stdout', '')
-
-        # Extract the image path
-        image_match = re.search(r'image: (\S+)', stdout)
-        image = image_match.group(1) if image_match else None
-
-        # Extract the disk size
-        size_match = re.search(r'virtual size: (\S+)', stdout)
-        size = size_match.group(1) if size_match else None
-
-        data_dict[host] = {
-            'image': image,
-            'size': size,
+        payloads = {
+            'read_storage_file': f'qemu-img info {domain_path}{storage}',
         }
 
-    return success, data_dict, message_list
+        ret = rcc.run(payloads['read_storage_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+        else:
+            # Extract the image path
+            image_match = re.search(r'image: (\S+)', ret["payload_message"].strip())
+            image = image_match.group(1) if image_match else None
+
+            # Extract the disk size
+            size_match = re.search(r'virtual size: (\S+)', ret["payload_message"].strip())
+            size = size_match.group(1) if size_match else None
+
+            data_dict[host] = {
+                'image': image,
+                'size': size,
+            }
+
+            fmt.add_successful('read_storage_file', ret)
+
+        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+
+    retval, msg_list, successful_payloads, data_dict = run_host(host, 3220, {})
+    message_list.extend(msg_list)
+
+    if not retval:
+        return retval, data_dict, message_list
+    else:
+        return True, data_dict, [messages[1200]]

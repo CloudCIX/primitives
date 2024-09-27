@@ -17,6 +17,7 @@ __all__ = [
     'load_pod_config',
     'SSHCommsWrapper',
     'PodnetErrorFormatter',
+    'HostErrorFormatter',
 ]
 
 primitives_directory = os.path.dirname(os.path.abspath(__file__))
@@ -162,7 +163,7 @@ class SSHCommsWrapper:
 
 
 class PodnetErrorFormatter:
-    """Formats error messages occuring on PodNet nodes and keeps error/success message state if needed"""
+    """Formats error messages occurring on PodNet nodes and keeps error/success message state if needed"""
 
     def __init__(self, config_file, podnet_node, enabled, payload_channels, successful_payloads=None):
         """
@@ -181,7 +182,7 @@ class PodnetErrorFormatter:
                                     Each key contains a list of successful
                                     payload names as created by
                                     add_successful() this can be used to carry
-                                    over succesful payloads from a different
+                                    over successful payloads from a different
                                     instance of this class.
         """
         if successful_payloads is None:
@@ -279,4 +280,77 @@ class PodnetErrorFormatter:
         msg = msg + f"payload code: {rcc_return['payload_code']}\n{self.payload_channels['payload_error']}: "
         msg += f"{rcc_return['payload_error']}\n{self.payload_channels['payload_message']}: "
         msg += f"{rcc_return['payload_message']}\n\n" + self._payloads_context()
+        return msg
+
+
+class HostErrorFormatter:
+    """Formats error messages occurring on KVM/HyperV/Ceph hosts and keeps error/success message state if needed"""
+
+    def __init__(self, host, payload_channels, successful_payloads=None):
+        """
+        Creates a new errorFormatter.
+        :param host: KVM/HyperV/Ceph host the errors occur on.
+        :param payload_channels: dict assigning names to the payload_error and
+                                 payload_message keys returned by RCC. For
+                                 rcc_ssh you might use
+                                 {'payload_message': 'STDOUT', 'payload_error':
+                                 'STDERR'}, for instance. These names will be
+                                 used by format_payload_error(). and
+                                 store_payload_error().
+        :param successful_payloads: dict keyed by kvm host (may be empty).
+                                    Each key contains a list of successful
+                                    payload names as created by
+                                    add_successful() this can be used to carry
+                                    over successful payloads from a different
+                                    instance of this class.
+        """
+        self.host = host
+        self.message_list = list()
+        self.payload_channels = payload_channels
+        if successful_payloads is None:
+            successful_payloads = {}
+        self.successful_payloads = successful_payloads
+        self.successful_payloads[self.host] = list()
+
+    def add_successful(self, payload_name, rcc_return=None):
+        """
+        Records a payload as having run successfully on this host
+
+        :param payload_name: the payload's name (str)
+        :param rcc_return: [optional] data structure returned from RCC. This will be
+                           recorded as well and can be used for debugging.
+        """
+        self.successful_payloads[self.host].append({
+            'payload_name': payload_name,
+            'rcc_return': rcc_return,
+        })
+
+    def channel_error(self, rcc_return, msg_index):
+        """
+        Formats an error message for a channel error (e.g. network connectivity
+        problem or authentication error) and returns it as a string. This multi
+        line message will include the error code, the channel's channel_message
+        and channel_error.
+        """
+        return self._format_channel_error(rcc_return, msg_index)
+
+    def payload_error(self, rcc_return, msg_index):
+        """
+        Formats an error message for a payload error (e.g. a failed command)
+        and returns it as a string. This multi line message will include the
+        error code, the channel's channel_message and channel_error.
+        """
+        return self._format_payload_error(rcc_return, msg_index)
+
+    def _format_channel_error(self, rcc_return, msg):
+        msg = f"{msg}\nChannel response from the host: {self.host}\n"
+        msg += f"channel_code: {rcc_return['channel_code']}\nchannel_message: {rcc_return['channel_message']}\n"
+        msg += f"channel_error: {rcc_return['channel_error']}\n\n"
+        return msg
+
+    def _format_payload_error(self, rcc_return, msg):
+        msg = f"{msg}\nPayload response from the host: {self.host}\n"
+        msg += f"payload code: {rcc_return['payload_code']}\n{self.payload_channels['payload_error']}: "
+        msg += f"{rcc_return['payload_error']}\n{self.payload_channels['payload_message']}: "
+        msg += f"{rcc_return['payload_message']}\n"
         return msg
