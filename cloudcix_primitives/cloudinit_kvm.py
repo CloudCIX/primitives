@@ -32,6 +32,7 @@ def build(
         size: int,
         secondary_interfaces=None,
         secondary_storages=None,
+        osvariant='generic',
 ) -> Tuple[bool, str]:
     """
     description:
@@ -122,7 +123,14 @@ def build(
                         description: name of the vlan bridge to which the interface is connected to
                         type: integer
                         required: true
-
+        osvariant:
+            description: |
+                specifies the type of operating system (OS) the virtual machine will run.
+                Defaults to generic, generic is used when there isn’t a specific OS variant in mind or
+                when the OS is not recognized by the system.
+                e.g 'ubuntu24.04', 'rhel9.0'
+            type: string
+            required: false
     return:
         description: |
             A tuple with a boolean flag stating the build was successful or not and
@@ -183,22 +191,36 @@ def build(
         )
 
         #  define virt install payload
-        cmd = f'virt-install --autostart --graphics vnc --os-variant generic --boot uefi'
+        cmd = 'virt-install '
+        # When KVM host reboots, then VM starts if it was running before KVM host was rebooted
+        cmd += '--autostart '
+        # To view the VM via Virt Manager
+        cmd += '--graphics vnc '
+        # To boot as UEFI, a modern firmware interface
+        cmd += '--boot uefi '
+        # To import an existing disk image(cloud image),for Non .ISO installations
+        cmd += '--import '
+        # To avoid waiting forever until VM completes installation and reboots, usually VM doesn't reboot so
+        # without this option, command hangs forever
+        cmd += '--noautoconsole '
         # cloudinit datasource
-        cmd += f'--sysinfo smbios,system.product=CloudCIX '
+        cmd += '--sysinfo smbios,system.product=CloudCIX '
         # name
         cmd += f'--name {domain} '
         # ram
         cmd += f'--memory {ram} '
         # cpu
         cmd += f'--vcpus {cpu} '
+        # os variant
+        cmd += f'--os-variant {osvariant} '
         # primary storage
-        cmd += f'--disk path="{domain_path}{primary_storage},device=disk,bus=virtio"'
+        cmd += f'--disk path="{domain_path}{primary_storage},device=disk,bus=virtio" '
         # secondary storages
         for storage in secondary_storages:
-            cmd += f'--disk path="{domain_path}{storage},device=disk,bus=virtio"'
+            cmd += f'--disk path="{domain_path}{storage},device=disk,bus=virtio" '
         # gateway interface
-        cmd += f'--network bridge={gateway_interface["vlan_bridge"]},model=virtio,mac={gateway_interface["mac_address"]}'
+        cmd += f'--network bridge={gateway_interface["vlan_bridge"]},'
+        cmd += f'model=virtio,mac={gateway_interface["mac_address"]} '
         # secondary interface
         for interface in secondary_interfaces:
             cmd += f'--network bridge={interface["vlan_bridge"]},model=virtio,mac={interface["mac_address"]}'
