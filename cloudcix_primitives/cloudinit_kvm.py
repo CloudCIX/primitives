@@ -139,17 +139,17 @@ def build(
     """
     # Define message
     messages = {
-        1000: f'1000: Successfully created domain {domain} on Host {host}.',
-        3011: f'3011: Gateway interface cannot be None.',
-        3012: f'3012: Failed to Validate Gateway interface {gateway_interface}.',
-        3013: f'3013: Failed to Validate Secondary interfaces {secondary_interfaces}.',
-        3021: f'3021: Failed to connect the Host {host} for payload copy_cloudimage',
-        3022: f'3022: Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{primary_storage}'
+        1000: f'Successfully created domain {domain} on Host {host}.',
+        3011: f'Gateway interface cannot be None.',
+        3012: f'Failed to Validate Gateway interface {gateway_interface}.',
+        3013: f'Failed to Validate Secondary interfaces {secondary_interfaces}.',
+        3021: f'Failed to connect the Host {host} for payload copy_cloudimage',
+        3022: f'Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{primary_storage}'
               f' on Host {host}.',
-        3023: f'3023: Failed to connect the Host {host} for payload resize_copied_file',
-        3024: f'3024: Failed to resize the copied storage image to {size}GB on Host {host}.',
-        3025: f'3025: Failed to connect the Host {host} for payload virt_install_cmd',
-        3026: f'3026: Failed to create domain {domain} on Host {host}.'
+        3023: f'Failed to connect the Host {host} for payload resize_copied_file',
+        3024: f'Failed to resize the copied storage image to {size}GB on Host {host}.',
+        3025: f'Failed to connect the Host {host} for payload virt_install_cmd',
+        3026: f'Failed to create domain {domain} on Host {host}.'
     }
 
     messages_list = []
@@ -157,13 +157,13 @@ def build(
 
     # validate gateway_interface
     if gateway_interface is None:
-        return False, messages[3011]
+        return False, f'3011: {messages[3011]}'
 
     controller = KVMInterface(gateway_interface)
     success, errs = controller()
     if success is False:
         validated = False
-        messages_list.append(f'{messages[3012]} {";".join(errs)}')
+        messages_list.append(f'3012: {messages[3012]} {";".join(errs)}')
 
     # validate secondary interfaces
     if secondary_interfaces is not None:
@@ -177,7 +177,7 @@ def build(
                 errors.extend(errs)
         if valid_interface is False:
             validated = False
-            messages_list.append(f'{messages[3013]} {";".join(errors)}')
+            messages_list.append(f'3013: {messages[3013]} {";".join(errors)}')
 
     if validated is False:
         return False, '; '.join(messages_list)
@@ -233,23 +233,23 @@ def build(
 
         ret = rcc.run(payloads['copy_cloudimage'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix+1}: {messages[prefix + 1]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix+2}: {messages[prefix + 2]}'), fmt.successful_payloads
         fmt.add_successful('copy_cloudimage', ret)
 
         ret = rcc.run(payloads['resize_copied_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, messages[prefix + 3]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix+3}: {messages[prefix + 3]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, messages[prefix + 4]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix+4}: {messages[prefix + 4]}'), fmt.successful_payloads
         fmt.add_successful('resize_copied_file', ret)
 
         ret = rcc.run(payloads['virt_install_cmd'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, messages[prefix + 5]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix+5}: {messages[prefix + 5]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, messages[prefix + 6]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix+6}: {messages[prefix + 6]}'), fmt.successful_payloads
         fmt.add_successful('virt_install_cmd', ret)
 
         return True, "", fmt.successful_payloads
@@ -258,4 +258,4 @@ def build(
     if status is False:
         return status, msg
 
-    return True, messages[1000]
+    return True, f'1000: {messages[1000]}'
