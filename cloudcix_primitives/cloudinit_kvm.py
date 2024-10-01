@@ -3,7 +3,7 @@ Primitive for Cloud-init VM on KVM hosts
 """
 
 # stdlib
-from typing import Tuple
+from typing import Any, Dict, List, Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
@@ -259,3 +259,92 @@ def build(
         return status, msg
 
     return True, f'1000: {messages[1000]}'
+
+
+def read(
+        domain: str,
+        host: str,
+) -> Tuple[bool, Dict[str, Any], List[str]]:
+    """
+    description: Gets the vm information
+
+    parameters:
+        domain:
+            description: Unique identification name for the Cloud-init VM on the KVM Host.
+            type: string
+            required: true
+        host:
+            description: The dns or ipadddress of the Host on which this storage image will be created
+            type: string
+            required: true
+    retrun:
+        description: |
+            A list with 3 items: (1) a boolean status flag indicating if the
+            read was successful, (2) a dict containing the data as read from
+            the both machine's current state and (3) the list of debug and or error messages.
+        type: tuple
+        items:
+          read:
+            description: True if all read operations were successful, False otherwise.
+            type: boolean
+          data:
+            type: object
+            description: |
+              file contents retrieved from Host. May be None if nothing
+              could be retrieved.
+            properties:
+              <host>:
+                description: read output data from machine <host>
+                  type: string
+          messages:
+            description: list of errors and debug messages collected before failure occurred
+            type: array
+            items:
+              <message>:
+                description: exact message of the step, either debug, info or error type
+                type: string
+    """
+    # Define message
+    messages = {
+        1200: f'Successfully read xml data of domain {domain} from host {host}',
+        3221: f'Failed to connect to the host {host} for payload domain_info',
+        3222: f'Failed to read data of domain {domain} from host {host}',
+    }
+
+    # set the outputs
+    data_dict = {}
+    message_list = []
+
+    def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
+
+        payloads = {
+            'read_domain_info': f'virsh dominfo {domain} ',
+        }
+
+        ret = rcc.run(payloads['read_domain_info'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+        else:
+            # Load the domain info(in XML) into dict
+            data_dict[host] = ret["payload_message"].strip()
+            fmt.add_successful('read_domain_info', ret)
+
+        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+
+    retval, msg_list, successful_payloads, data_dict = run_host(host, 3220, {})
+    message_list.extend(msg_list)
+
+    if not retval:
+        return retval, data_dict, message_list
+    else:
+        return True, data_dict, [messages[1200]]
