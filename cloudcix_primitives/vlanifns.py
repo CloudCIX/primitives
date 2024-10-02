@@ -103,25 +103,29 @@ def build(
         ret = rcc.run(payloads['vlanif_check'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
+        create_vlanif = True
         if ret["payload_code"] == SUCCESS_CODE:
             #If the interface already exists returns info and true state
-            return False, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
+            create_vlanif = False
+            fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
         fmt.add_successful('vlanif_check', ret)
 
         #STEP 1-4
-        ret = rcc.run(payloads['vlanif_add'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-        fmt.add_successful('vlanif_add', ret)
 
-        ret = rcc.run(payloads['vlanif_ns'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-        fmt.add_successful('vlanif_ns', ret)
+        if create_vlanif:
+           ret = rcc.run(payloads['vlanif_add'])
+           if ret["channel_code"] != CHANNEL_SUCCESS:
+               return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+           if ret["payload_code"] != SUCCESS_CODE:
+               return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+           fmt.add_successful('vlanif_add', ret)
+
+           ret = rcc.run(payloads['vlanif_ns'])
+           if ret["channel_code"] != CHANNEL_SUCCESS:
+               return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+           if ret["payload_code"] != SUCCESS_CODE:
+               return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+           fmt.add_successful('vlanif_ns', ret)
 
         ret = rcc.run(payloads['vlanif_up'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
