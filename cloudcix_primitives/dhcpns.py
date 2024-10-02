@@ -5,14 +5,12 @@ Primitive to Build, Read and Scrub dnsmasq for VRF name space DHCP on PodNet HA
 import jinja2
 # stdlib
 import json
-import ipaddress
 import os
-from pathlib import Path
-from textwrap import dedent
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CouldNotConnectException
+from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
+from cloudcix_primitives.utils import load_pod_config, SSHCommsWrapper, PodnetErrorFormatter
 
 
 __all__ = [
@@ -62,92 +60,46 @@ def build(
     # Define message
     messages = {
         1000: f'1000: Successfully created {dnsmasq_config_path} and started dnsmasq process on both PodNet nodes.',
-        2011: f'2011: Config file {config_file} loaded.',
-        3011: f'3011: Failed to load config file {config_file}, It does not exist.',
-        3012: f'3012: Failed to get `ipv6_subnet` from config file {config_file}',
-        3013: f'3013: Invalid value for `ipv6_subnet` from config file {config_file}',
-        3014: f'3014: Failed to get `podnet_a_enabled` from config file {config_file}',
-        3015: f'3015: Failed to get `podnet_b_enabled` from config file {config_file}',
-        3016: f'3016: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-        3017: f'3017: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-        3018: f'3018: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        3019: f'3019: Failed to render jinja2 template for {dnsmasq_conf_path}',
+        3019: f'3019: Failed to render jinja2 template for {dnsmasq_config_path}',
         3020: f'3020: Failed to render jinja2 template for {dnsmasq_hosts_path}',
-        3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for find_process_payload',
-        3022: f'3022: Failed to run find_process_payload on the enabled PodNet. Payload exited with status ',
-        3023: f'3023: Failed to connect to the enabled PodNet from the config file {config_file} for create_config_payload',
-        3024: f'3024: Failed to create config file {dnsmasq_config_path} on the enabled PodNet. Payload exited with status ',
-        3025: f'3025: Failed to connect to the enabled PodNet from the config file {config_file} for create_hosts_payload',
-        3026: f'3026: Failed to create config file {dnsmasq_hosts_path} on the enabled PodNet. Payload exited with status ',
-        3027: f'3027: Failed to connect to the enabled PodNet from the config file {config_file} for reload_dnsmasq_payload',
-        3028: f'3028: Failed to run reload_dnsmasq_payload on the enabled PodNet. Payload exited with status ',
-        3029: f'3029: Failed to connect to the enabled PodNet from the config file {config_file} for start_dnsmasq_payload',
-        3030: f'3030: Failed to start dnsmasq on the enabled PodNet. Payload exited with status ',
-        3041: f'3041: Failed to connect to the enabled PodNet from the config file {config_file} for find_process_payload',
-        3042: f'3042: Failed to run find_process_payload on the disabled PodNet. Payload exited with status ',
-        3043: f'3043: Successfully created {dnsmasq_config_path}, {dnsmasq_hosts_path} and started dnsmasq on enabled PodNet '
-              f'but failed to connect to the disabled PodNet from the config file {config_file} for create_config_payload.',
-        3044: f'3044: Successfully created {dnsmasq_config_path}, {dnsmasq_hosts_path} and started dnsmasq on enabled PodNet '
-              f'but failed to create {dnsmasq_config_path} on the disabled PodNet. Payload exited with status ',
-        3045: f'3045: Successfully created {dnsmasq_config_path} on both PodNets, {dnsmasq_hosts_path} on enabled PodNet '
-              f'and started dnsmasq on enabled PodNet but failed to connect to the disabled PodNet from the config file {config_file} '
-              f' for create_hosts_payload.',
-        3046: f'3046: Successfully created {dnsmasq_config_path} on both PodNets, {dnsmasq_hosts_path} on enabled PodNet '
-              f'and started dnsmasq on enabled PodNet but failed to create {dnsmasq_hosts_path}s on disabled PodNet from '
-              f'the config file {config_file}. Payload exited with status ',
-        3047: f'3047: Failed to connect to the disabled PodNet from the config file {config_file} for reload_dnsmasq_payload',
-        3048: f'3048: Failed to run reload_dnsmasq_payload on the disabled PodNet. Payload exited with status ',
-        3049: f'3049: Successfully created {dnsmasq_config_path} on both PodNet nodes and started dnsmasq on enabled PodNet but failed to connect '
-              f'to the disabled PodNet from the config file {config_file} for start_dnsmasq_payload.',
-        3050: f'3050: Successfully created {dnsmasq_config_path}s, {dnsmasq_hosts_path}s on both PodNet nodes and started dnsmasq on enabled PodNet '
-              f'but failed to start dnsmasq on the disabled PodNet. ',
+
+        3021: f'Failed to connect to the enabled PodNet for find_process payload: ',
+        3022: f'Failed to connect to the enabled PodNet for create_config payload: ',
+        3023: f'Failed to run create_config payload on the enabled PodNet. Payload exited with status ',
+        3024: f'Failed to connect to the enabled PodNet for create_hosts payload: ',
+        3025: f'Failed to run create_hosts payload on the enabled PodNet. Payload exited with status ',
+        3026: f'Failed to connect to the enabled PodNet for reload_dnsmasq payload: ',
+        3027: f'Failed to run reload_dnsmasq payload on the enabled PodNet. Payload exited with status ',
+        3028: f'Failed to connect to the enabled PodNet for start_dnsmasq payload: ',
+        3029: f'Failed to run start_dnsmasq payload on the enabled PodNet. Payload exited with status ',
+
+        3061: f'Failed to connect to the disabled PodNet for find_process payload: ',
+        3062: f'Failed to connect to the disabled PodNet for create_config payload: ',
+        3063: f'Failed to run create_config payload on the disabled PodNet. Payload exited with status ',
+        3064: f'Failed to connect to the disabled PodNet for create_hosts payload: ',
+        3065: f'Failed to run create_hosts payload on the disabled PodNet. Payload exited with status ',
+        3066: f'Failed to connect to the disabled PodNet for reload_dnsmasq payload: ',
+        3067: f'Failed to run reload_dnsmasq payload on the disabled PodNet. Payload exited with status ',
+        3068: f'Failed to connect to the disabled PodNet for start_dnsmasq payload: ',
+        3069: f'Failed to run start_dnsmasq payload on the disabled PodNet. Payload exited with status ',
+
     }
 
     # Default config_file if it is None
     if config_file is None:
         config_file = '/opt/robot/config.json'
 
-    # Get load config from config_file
-    if not Path(config_file).exists():
-        return False, messages[3011]
-    with Path(config_file).open('r') as file:
-        config = json.load(file)
+    status, config_data, msg = load_pod_config(config_file)
+    if not status:
+      if config_data['raw'] is None:
+          return False, msg
+      else:
+          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+              indent=2,
+              sort_keys=True)
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
 
-    # Get the ipv6_subnet from config_file
-    ipv6_subnet = config.get('ipv6_subnet', None)
-    if ipv6_subnet is None:
-        return False, messages[3012]
-    # Verify the ipv6_subnet value
-    try:
-        ipaddress.ip_network(ipv6_subnet)
-    except ValueError:
-        return False, messages[3013]
-
-    # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
-
-    # Get `podnet_a_enabled` and `podnet_b_enabled`
-    podnet_a_enabled = config.get('podnet_a_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3014]
-    podnet_b_enabled = config.get('podnet_b_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3015]
-
-    # First run on enabled PodNet
-    if podnet_a_enabled is True and podnet_b_enabled is False:
-        enabled = podnet_a
-        disabled = podnet_b
-    elif podnet_a_enabled is False and podnet_b_enabled is True:
-        enabled = podnet_b
-        disabled = podnet_a
-    elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, messages[3016]
-    elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, messages[3017]
-    else:
-        return False, messages[3018]
 
     try:
       jenv = jinja2.Environment(loader=jinja2.FileSystemLoader(
@@ -175,165 +127,92 @@ def build(
     except Exception as e:
       return False, messages[3020]
 
-    create_config_payload = "\n".join([
-        f'tee {dnsmasq_config_path}s <<EOF',
-        dnsmasq_conf,
-        "EOF"
-        ])
-
-    create_hosts_payload = "\n".join([
-        f'tee {dnsmasq_hosts_path}s <<EOF',
-        dnsmasq_hosts,
-        "EOF"
-        ])
-
-    # We need to check for existing process and SIGHUP its PID if one exist:
-    find_process_payload = "ps auxw | grep dnsmasq | grep {dnsmasq_config_path}s | awk '{print $2}'"
-    start_dnsmasq_payload = f'ip netns exec {namespace} dnsmasq --config {dnsmasq_conf_path}s'
-
-    # call rcc comms_ssh on enabled PodNet to find existing process
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=find_process_payload,
-            username='robot',
+    def run_podnet(podnet_node, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
+        fmt = PodnetErrorFormatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
         )
-    except CouldNotConnectException:
-        return False, messages[3021]
 
-    reload_dnsmasq_payload = None
-    if (exit_code == SUCCESS_CODE) and (stdout != ""):
-        reload_dnsmasq_payload = f'kill -HUP {stdout}s'
-    else:
-       return False, messages[3022] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        dnsmasq_config_path_grepsafe = dnsmasq_config_path.replace('.', '\.')
+        dnsmasq_hosts_path_grepsafe = dnsmasq_hosts_path.replace('.', '\.')
 
-    # call rcc comms_ssh on enabled PodNet to create config
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=create_config_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3023]
+        payloads = {
+            'create_config': "\n".join([
+                f'tee {dnsmasq_config_path} <<EOF',
+                dnsmasq_conf,
+                "EOF"
+            ]),
+            'create_hosts': "\n".join([
+                f'tee {dnsmasq_hosts_path} <<EOF',
+                dnsmasq_hosts,
+                "EOF"
+            ]),
+            'find_process': "ps auxw | grep dnsmasq | grep -v grep | grep '%s' | awk '{print $2}'" % dnsmasq_config_path_grepsafe,
+            'start_dnsmasq': f'ip netns exec {namespace} dnsmasq --conf-file={dnsmasq_config_path}',
+            'reload_dnsmasq': 'kill -HUP %s',
+        }
 
-    if exit_code != SUCCESS_CODE:
-        return False, messages[3024] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        ret = rcc.run(payloads['find_process'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
+        start_dnsmasq = True
+        if ret["payload_code"] == SUCCESS_CODE:
+            if ret["payload_message"] != "":
+                # No need to start dnsmasq if it runs already
+                start_dnsmasq = False
+                payloads['reload_dnsmasq'] = payloads['reload_dnsmasq'] % ret['payload_message'].strip()
+        fmt.add_successful('find_process', ret)
 
-    # call rcc comms_ssh on enabled PodNet to create config
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=create_hosts_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3025]
+        ret = rcc.run(payloads['create_config'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+        fmt.add_successful('create_config', ret)
 
-    if exit_code != SUCCESS_CODE:
-        return False, messages[3026] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        ret = rcc.run(payloads['create_hosts'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+        fmt.add_successful('create_hosts', ret)
 
-    if reload_dnsmasq_payload is not None:
-        # call rcc comms_ssh on enabled PodNet to SIGHUP existing process
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip=enabled,
-                payload=reload_dnsmasq_payload,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3027]
+        if start_dnsmasq:
+            ret = rcc.run(payloads['start_dnsmasq'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
+            fmt.add_successful('start_dnsmasq', ret)
+        else:
+            ret = rcc.run(payloads['reload_dnsmasq'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
+            fmt.add_successful('reload_dnsmasq', ret)
 
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3028]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-    else:
-        # call rcc comms_ssh on enabled PodNet
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip=enabled,
-                payload=start_dnsmasq_payload,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3029]
 
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3030]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        return True, "", fmt.successful_payloads
 
-    # call rcc comms_ssh on disabled PodNet to find existing process
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=find_process_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3041]
+    status, msg, successful_payloads = run_podnet(enabled, 3020, {})
+    if status == False:
+        return status, msg
 
-    reload_dnsmasq_payload = None
-    if (exit_code == SUCCESS_CODE) and (stdout != ""):
-        reload_dnsmasq_payload = f'kill -HUP {stdout}s'
-    else:
-       return False, messages[3042] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-
-    # call rcc comms_ssh on disabled PodNet to create config
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=create_config_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3043]
-
-    if exit_code != SUCCESS_CODE:
-        return False, messages[3044] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-
-    # call rcc comms_ssh on disabled PodNet to create config
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=create_hosts_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3045]
-
-    if exit_code != SUCCESS_CODE:
-        return False, messages[3046] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-
-    if reload_dnsmasq_payload is not None:
-        # call rcc comms_ssh on disabled PodNet to SIGHUP existing process
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip=disabled,
-                payload=reload_dnsmasq_payload,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3047]
-
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3048]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-    else:
-        # call rcc comms_ssh on disabled PodNet
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip=disabled,
-                payload=start_dnsmasq_payload,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3049]
-
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3050]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    status, msg, successful_payloads = run_podnet(disabled, 3060, successful_payloads)
+    if status == False:
+        return status, msg
 
     return True, messages[1000]
 
 
 def scrub(
         namespace: str,
+        config_file=None,
 ) -> Tuple[bool, str]:
     """
     description: |
@@ -357,178 +236,98 @@ def scrub(
     """
 
     dnsmasq_config_path = f'/etc/netns/{namespace}/dnsmasq.conf'
-    dnsmasq_hosts_path = f'/etc/netns/{namespace}/dnsmasq-hosts.conf'
+    dnsmasq_hosts_path = f'/etc/netns/{namespace}/dnsmasq.hosts'
     pidfile = f'/etc/netns/{namespace}/dnsmasq.pid'
 
     # Define message
     messages = {
-        1100: f'1100: Successfully stopped dnsmasq process and deleted {dnsmasq_config_path}s, {dnsmasq_hosts_path}s.',
-        2111: f'2111: Config file {config_file} loaded.',
-        3111: f'3111: Failed to load config file {config_file}, It does not exist.',
-        3112: f'3112: Failed to get `ipv6_subnet` from config file {config_file}',
-        3113: f'3113: Invalid value for `ipv6_subnet` from config file {config_file}',
-        3114: f'3114: Failed to get `podnet_a_enabled` from config file {config_file}',
-        3115: f'3115: Failed to get `podnet_b_enabled` from config file {config_file}',
-        3116: f'3116: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-        3117: f'3117: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-        3118: f'3118: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        3119: f'3119: Failed to connect to the enabled PodNet from the config file {config_file} for find_proces_payload',
-        3120: f'3120: Failed to find process on the enabled PodNet. Payload exited with status ',
-        3121: f'3121: Failed to connect to the enabled PodNet from the config file {config_file} for stop_dnsmasq_payload',
-        3122: f'3122: Failed to stop dnsmasq on the enabled PodNet. Payload exited with status ',
-        3123: f'3123: Failed to connect to the enabled PodNet from the config file {config_file} for remove_config_payload',
-        3124: f'3124: Failed to delete config files {dnsmasq_config_path}s, {dnsmasq_hosts_path}s on the enabled PodNet. Payload exited with status ',
-        3129: f'3129: Failed to run find_process_payload on the disabled PodNet. Payload exited with status ',
-        3130: f'3130: Successfully created {dnsmasq_config_path}, {dnsmasq_hosts_path} and started dnsmasq on enabled PodNet '
-              f'but failed to connect to the disabled PodNet from the config file {config_file} for find_process_payload.',
-        3131: f'3131: Successfully stopped dnsmasq and deleted {dnsmasq_config_path}, {dnsmasq_hosts_path} on enabled PodNet '
-              f'but failed to connect to the disabled PodNet from the config file {config_file} for stop_dnsmasq_payload.',
-        3132: f'3132: Successfully stopped dnsmasq and deleted {dnsmasq_config_path}, {dnsmasq_hosts_path}s on enabled PodNet '
-              f'but failed to stop dnsmasq on the disabled PodNet. Payload exited with status ',
-        3133: f'3133: Successfully stoppend dnsmasq and deleted {dnsmasq_config_path}, {dnsmasq_hosts_path}s on enabled PodNet '
-              f'but failed to connect to the disabled PodNet from the config file {config_file} for remove_config_payload.',
-        3134: f'3134: Successfully stopped dnsmasq on both PodNet nodes and deleted {dnsmasq_config_path}s, {dnsmasq_hosts_path} '
-              f'on enabled PodNet but failed to delete {dnsmasq_config_path}s, {dnsmasq_hosts_path} on the disabled PodNet. Payload '
-              f'exited with status ',
+        1100: f'Successfully stopped dnsmasq process and deleted {dnsmasq_config_path}, {dnsmasq_hosts_path}.',
+
+        3121: f'Failed to connect to the enabled PodNet for find_process payload: ',
+        3122: f'Failed to connect to the enabled PodNet for delete_config payload: ',
+        3123: f'Failed to run delete_config payload on the enabled PodNet. Payload exited with status ',
+        3124: f'Failed to connect to the enabled PodNet for stop_dnsmasq payload: ',
+        3125: f'Failed to run stop_dnsmasq payload on the enabled PodNet. Payload exited with status ',
+
+        3161: f'Failed to connect to the disabled PodNet for find_process payload: ',
+        3162: f'Failed to connect to the disabled PodNet for delete_config payload: ',
+        3163: f'Failed to run delete_config payload on the disabled PodNet. Payload exited with status ',
+        3164: f'Failed to connect to the disabled PodNet for stop_dnsmasq payload: ',
+        3165: f'Failed to run stop_dnsmasq payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
     if config_file is None:
         config_file = '/opt/robot/config.json'
 
-    # Load config from config_file
-    if not Path(config_file).exists():
-        return False, messages[3111]
-    with Path(config_file).open('r') as file:
-        config = json.load(file)
+    status, config_data, msg = load_pod_config(config_file)
+    if not status:
+      if config_data['raw'] is None:
+          return False, msg
+      else:
+          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+              indent=2,
+              sort_keys=True)
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
 
-    # Get the ipv6_subnet from config_file
-    ipv6_subnet = config.get('ipv6_subnet', None)
-    if ipv6_subnet is None:
-        return False, messages[3112]
-    # Verify the ipv6_subnet value
-    try:
-        ipaddress.ip_network(ipv6_subnet)
-    except ValueError:
-        return False, messages[3113]
-
-    # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
-
-    # Get `podnet_a_enabled` and `podnet_b_enabled`
-    podnet_a_enabled = config.get('podnet_a_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3114]
-    podnet_b_enabled = config.get('podnet_b_enabled', None)
-    if podnet_a_enabled is None:
-        return False, messages[3115]
-
-    # First run on enabled PodNet
-    if podnet_a_enabled is True and podnet_b_enabled is False:
-        enabled = podnet_a
-        disabled = podnet_b
-    elif podnet_a_enabled is False and podnet_b_enabled is True:
-        enabled = podnet_b
-        disabled = podnet_a
-    elif podnet_a_enabled is True and podnet_b_enabled is True:
-        return False, messages[3116]
-    elif podnet_a_enabled is False and podnet_b_enabled is False:
-        return False, messages[3117]
-    else:
-        return False, messages[3118]
-
-    # define payloads
-    find_process_payload = "ps auxw | grep dnsmasq | grep {dnsmasq_config_path}s | awk '{print $2}'"
-    delete_config_payload = f'rm -f {dnsmasq_config_path}s {dnsmasq_hosts_path}s'
-
-    # call rcc comms_ssh on enabled PodNet to find existing process
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=find_process_payload,
-            username='robot',
+    def run_podnet(podnet_node, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
+        fmt = PodnetErrorFormatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
         )
-    except CouldNotConnectException:
-        return False, messages[3119]
 
-    stop_dnsmasq_payload = None
-    if (exit_code == SUCCESS_CODE) and (stdout != ""):
-        stop_dnsmasq_payload = f'kill {stdout}s'
-    else:
-       return False, messages[3120] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        dnsmasq_config_path_grepsafe = dnsmasq_config_path.replace('.', '\.')
 
-    if stop_dnsmasq_payload is not None:
-        # call rcc comms_ssh on disabled PodNet to kill existing process
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip=disabled,
-                payload=stop_dnsmasq_payload,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3121]
+        # define payloads
+        payloads = {
+           'find_process': "ps auxw | grep dnsmasq | grep -v grep | grep %s | awk '{print $2}'" % dnsmasq_config_path_grepsafe,
+           'delete_config': f'rm -f {dnsmasq_config_path} {dnsmasq_hosts_path} {pidfile}',
+           'stop_dnsmasq': 'kill -TERM %s',
+        }
 
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3122]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        ret = rcc.run(payloads['find_process'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
+        stop_dnsmasq = False
+        if ret["payload_code"] == SUCCESS_CODE:
+            if ret["payload_message"] != "":
+                # No need to start dnsmasq if it runs already
+                stop_dnsmasq = True
+                payloads['stop_dnsmasq'] = payloads['stop_dnsmasq'] % ret['payload_message'].strip()
+        fmt.add_successful('find_process', ret)
 
-    # call rcc comms_ssh for dnsmasq config file removal on enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=delete_config_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3123]
+        ret = rcc.run(payloads['delete_config'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+        fmt.add_successful('delete_config', ret)
 
-    if exit_code != SUCCESS_CODE:
-        return False, messages[3124]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+        if stop_dnsmasq:
+            ret = rcc.run(payloads['stop_dnsmasq'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+            fmt.add_successful('stop_dnsmasq', ret)
 
-    # call rcc comms_ssh on disabled PodNet to find existing process
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=find_process_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3129]
+        return True, "", fmt.successful_payloads
 
-    stop_dnsmasq_payload = None
-    if (exit_code == SUCCESS_CODE) and (stdout != ""):
-        stop_dnsmasq_payload = f'kill {stdout}s'
-    else:
-       return False, messages[3130] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    status, msg, successful_payloads = run_podnet(enabled, 3120, {})
+    if status == False:
+        return status, msg
 
-    if stop_dnsmasq_payload is not None:
-        # call rcc comms_ssh on disabled PodNet to kill existing process
-        try:
-            exit_code, stdout, stderr = comms_ssh(
-                host_ip=disabled,
-                payload=stop_dnsmasq_payload,
-                username='robot',
-            )
-        except CouldNotConnectException:
-            return False, messages[3131]
-
-        if exit_code != SUCCESS_CODE:
-            return False, messages[3132]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
-
-    # call rcc comms_ssh for dnsmasq config file removal on disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=delete_config_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        return False, messages[3133]
-
-    if exit_code != SUCCESS_CODE:
-        return False, messages[3134]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}'
+    status, msg, successful_payloads = run_podnet(disabled, 3160, successful_payloads)
+    if status == False:
+        return status, msg
 
     return True, messages[1100]
+
 
 def read(
         namespace: str,
@@ -590,222 +389,133 @@ def read(
 
     dnsmasq_config_path = f'/etc/netns/{namespace}/dnsmasq.conf'
     dnsmasq_hosts_path = f'/etc/netns/{namespace}/dnsmasq.hosts'
-    pidfile= f'/etc/netns/{namespace}s/dnsmasq.pid'
+    pidfile= f'/etc/netns/{namespace}/dnsmasq.pid'
 
     # Define message
     messages = {
-        1200: f'1200: Successfully retrieved dnsmasq process status and {dnsmasq_config_path}s, {dnsmasq_hosts_path}s from both PodNet nodes.',
-        2211: f'2211: Config file {config_file} loaded.',
-        3211: f'3211: Failed to load config file {config_file}: ',
-        3212: f'3212: Failed to get `ipv6_subnet` from config file {config_file}',
-        3213: f'3213: Invalid value for `ipv6_subnet` from config file {config_file}',
-        3214: f'3214: Failed to get `podnet_a_enabled` from config file {config_file}',
-        3215: f'3215: Failed to get `podnet_b_enabled` from config file {config_file}',
-        3216: f'3216: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are True',
-        3217: f'3217: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, both are False',
-        3218: f'3218: Invalid values for `podnet_a_enabled` and `podnet_b_enabled`, one or both are non booleans',
-        3221: f'3221: Failed to connect to the enabled PodNet from the config file {config_file} for read_config_payload',
-        3222: f'3222: Failed to read config file {dnsmasq_config_path}s on the enabled PodNet. Payload exited with status ',
-        3223: f'3223: Failed to connect to the enabled PodNet from the config file {config_file} for read_hosts_payload',
-        3224: f'3224: Failed to read hosts file {dnsmasq_hosts_path}s on the enabled PodNet. Payload exited with status ',
-        3225: f'3225: Failed to connect to the enabled PodNet from the config file {config_file} for find_process_payload',
-        3226: f'3226: Failed to execute find_process_payload on the enabled PodNet node. Payload exited with status ',
-        3231: f'3231: Successfully retrieved dnsmasq process status and {dnsmasq_config_path}s, {dnsmasq_hosts_path}s from enabled PodNet '
-              f'but failed to connect to the disabled PodNet from the config file {config_file} for read_config_payload',
-        3232: f'3232: Successfully retrieved dnsmasq process status and {dnsmasq_config_path}s, {dnsmasq_hosts_path}s from enabled PodNet '
-              f'but failed to execute read_config_payload on the disabled PodNet. Payload exited with status ',
-        3233: f'3233: Successfully retrieved dnsmasq process status and {dnsmasq_config_path}s, {dnsmasq_hosts_path}s from enabled PodNet '
-              f'but failed to connect to the disabled PodNet from the config file {config_file} for read_hosts_payload',
-        3234: f'3234: Successfully retrieved dnsmasq process status and {dnsmasq_config_path}s, {dnsmasq_hosts_path}s from enabled PodNet '
-              f'but failed to execute read_hosts_payload on the disabled PodNet. Payload exited with status ',
-        3235: f'3235: Successfully retrieved dnsmasq process status and {dnsmasq_config_path}s, {dnsmasq_hosts_path}s from both PodNet '
-              f'nodes but failed to connect to the disabled PodNet from the config file {config_file} for find_process_payload.',
-        3236: f'3236: Successfully retrieved dnsmasq process status and {dnsmasq_config_file}s, {dnsmasq_hosts_path}s from both PodNet '
-              f'nodes but failed to execute find_process_payload on the disabled PodNet. Payload exited with status ',
-    }
+        1200: f'dnsmasq is running on both PodNet nodes.',
 
-    retval = True
-    data_dict = None
-    message_list = ()
+        3221: f'Failed to connect to the enabled PodNet for read_config payload: ',
+        3222: f'Failed to run read_config payload on the enabled PodNet. Payload exited with status ',
+        3223: f'Failed to connect to the enabled PodNet for read_hosts payload: ',
+        3224: f'Failed to run read_hosts payload on the enabled PodNet. Payload exited with status ',
+        3225: f'Failed to connect to the enabled PodNet for read_pidfile payload: ',
+        3226: f'Failed to run read_pidfile payload on the enabled PodNet. Payload exited with status ',
+        3227: f'Failed to connect to the enabled PodNet for find_process payload: ',
+        3228: f'Failed to execute find_process payload on the enabled PodNet node. Payload exited with status ',
+
+        3251: f'Failed to connect to the disabled PodNet for read_config payload: ',
+        3252: f'Failed to run read_config payload on the disabled PodNet. Payload exited with status ',
+        3253: f'Failed to connect to the disabled PodNet for read_hosts payload: ',
+        3254: f'Failed to run read_hosts payload on the disabled PodNet. Payload exited with status ',
+        3255: f'Failed to connect to the disabled PodNet for read_pidfile payload: ',
+        3256: f'Failed to run read_pidfile payload on the disabled PodNet. Payload exited with status ',
+        3257: f'Failed to connect to the disabled PodNet for find_process payload: ',
+        3258: f'Failed to execute find_process payload on the disabled PodNet node. Payload exited with status ',
+
+    }
 
     # Default config_file if it is None
     if config_file is None:
         config_file = '/opt/robot/config.json'
 
-    # Get load config from config_file
-    try:
-        with Path(config_file).open('r') as file:
-            config = json.load(file)
-    except Exception as e:
-        retval = False
-        message_list.append(messages[3211] + e.__str__())
-        return retval, data_dict, message_list
+    status, config_data, msg = load_pod_config(config_file)
+    if not status:
+      if config_data['raw'] is None:
+          return False, None, msg
+      else:
+          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+              indent=2,
+              sort_keys=True)
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
 
-    # Get the ipv6_subnet from config_file
-    ipv6_subnet = config.get('ipv6_subnet', None)
-    if ipv6_subnet is None:
-        retval = False
-        message_list.append(messages[3212])
-    # Verify the ipv6_subnet value
-    try:
-        ipaddress.ip_network(ipv6_subnet)
-    except ValueError:
-        retval = False
-        message_list.append(messages[3213])
+    def run_podnet(podnet_node, prefix, successful_payloads, data_dict):
+        retval = True
+        data_dict[podnet_node] = {}
 
-    # Get the PodNet Mgmt ips from ipv6_subnet
-    podnet_a = f'{ipv6_subnet.split("/")[0]}10:0:2'
-    podnet_b = f'{ipv6_subnet.split("/")[0]}10:0:3'
+        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
+        fmt = PodnetErrorFormatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
 
-    data_dict = {}
 
-    data_dict[podnet_a] = {
-        'process_status': None,
-        'config_file': None,
-        'hosts_file': None,
-    }
+        dnsmasq_config_path_grepsafe = dnsmasq_config_path.replace('.', '\.')
+        dnsmasq_hosts_path_grepsafe = dnsmasq_hosts_path.replace('.', '\.')
 
-    data_dict[podnet_b] = {
-        'process_status': None,
-        'config_file': None,
-        'hosts_file': None,
-    }
 
-    # Get `podnet_a_enabled` and `podnet_b_enabled`
-    podnet_a_enabled = config.get('podnet_a_enabled', None)
-    if podnet_a_enabled is None:
-        retval = False
-        message_list.append(messages[3214])
-    podnet_b_enabled = config.get('podnet_b_enabled', None)
-    if podnet_a_enabled is None:
-        retval = False
-        message_list.append(messages[3215])
+        # define payloads
 
-    # First run on enabled PodNet
-    if podnet_a_enabled is True and podnet_b_enabled is False:
-        enabled = podnet_a
-        disabled = podnet_b
-    elif podnet_a_enabled is False and podnet_b_enabled is True:
-        enabled = podnet_b
-        disabled = podnet_a
-    elif podnet_a_enabled is True and podnet_b_enabled is True:
-        retval = False
-        message_list.append(messages[3216])
-    elif podnet_a_enabled is False and podnet_b_enabled is False:
-        retval = False
-        message_list.append(messages[3217])
+        payloads = {
+          'read_config': f'cat {dnsmasq_config_path}',
+          'read_hosts': f'cat {dnsmasq_hosts_path}',
+          'read_pidfile': f'cat {pidfile}',
+          'find_process': "ps auxw | grep dnsmasq | grep -v grep | grep '%s' | awk '{print $2}'" % dnsmasq_config_path_grepsafe,
+        }
+
+        ret = rcc.run(payloads['read_config'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix+2])
+        else:
+            data_dict[podnet_node]['config'] = ret["payload_message"].strip()
+            fmt.add_successful('read_config', ret)
+
+        ret = rcc.run(payloads['read_hosts'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+3}: " + messages[prefix+3])
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+4}: " + messages[prefix+4])
+        else:
+            data_dict[podnet_node]['hosts'] = ret["payload_message"].strip()
+            fmt.add_successful('read_hosts', ret)
+
+        ret = rcc.run(payloads['read_pidfile'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+5}: " + messages[prefix+3])
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+6}: " + messages[prefix+4])
+        else:
+            data_dict[podnet_node]['pidfile'] = ret["payload_message"].strip()
+            fmt.add_successful('read_pidfile', ret)
+
+        ret = rcc.run(payloads['find_process'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+7}: " + messages[prefix+5])
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+8}: " + messages[prefix+6])
+        else:
+            pid = ret["payload_message"].strip()
+            if pid == "":
+                fmt.store_payload_error(ret, f"{prefix+8}: " + messages[prefix+6])
+            else:
+                data_dict[podnet_node]['pid'] = pid
+                fmt.add_successful('find_process', ret)
+
+        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+
+    retval_enabled, msg_list_enabled, successful_payloads, data_dict = run_podnet(enabled, 3220, {}, {})
+
+    retval_disabled, msg_list_disabled, successful_payloads, data_dict = run_podnet(disabled, 3250, successful_payloads, data_dict)
+
+    msg_list = list()
+    msg_list.extend(msg_list_enabled)
+    msg_list.extend(msg_list_disabled)
+
+    if not (retval_enabled and retval_disabled):
+        return False, data_dict, msg_list
     else:
-        message_list.append(messages[3218])
-
-    if retval == False:
-        return retval, data_dict, message_list
-
-    # define payloads
-    read_config_payload = f'cat {dnsmasq_config_path}s'
-    read_hosts_payload = f'cat {dnsmasq_hosts_path}s'
-    find_process_payload = f'ps auxw | grep dnsmasq | grep {dnsmasq_config_path}s'
-
-    # call rcc comms_ssh for config retrieval from enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=read_config_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        retval = False
-        message_list.append(messages[3221])
-
-    if exit_code != SUCCESS_CODE:
-        retval = False
-        message_list.append(messages[3222] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}')
-
-    data_dict[enabled]['config_file'] = stdout
-
-    # call rcc comms_ssh for hosts retrieval from enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=read_hosts_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        retval = False
-        message_list.append(messages[3223])
-
-    if exit_code != SUCCESS_CODE:
-        retval = False
-        message_list.append(messages[3224] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}')
-
-    data_dict[enabled]['hosts_file'] = stdout
-
-    # call rcc comms_ssh for process_status retrieval from enabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=enabled,
-            payload=find_process_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        retval = False
-        message_list.append(messages[3225])
-
-    if exit_code != SUCCESS_CODE:
-        retval = False
-        message_list.append(messages[3226]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}')
-
-    data_dict[enabled]['process_status'] = stdout
-
-    # call rcc comms_ssh for config retrieval from disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=read_config_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        retval = False
-        message_list.append(messages[3231])
-
-    if exit_code != SUCCESS_CODE:
-        retval = False
-        message_list.append(messages[3232] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}')
-
-    data_dict[disabled]['config_file'] = stdout
-
-    # call rcc comms_ssh for hosts retrieval from disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=read_hosts_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        retval = False
-        message_list.append(messages[3233])
-
-    if exit_code != SUCCESS_CODE:
-        retval = False
-        message_list.append(messages[3234] + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}')
-
-    data_dict[disabled]['hosts_file'] = stdout
-
-    # call rcc comms_ssh for process_status retrieval from disabled PodNet
-    try:
-        exit_code, stdout, stderr = comms_ssh(
-            host_ip=disabled,
-            payload=find_process_payload,
-            username='robot',
-        )
-    except CouldNotConnectException:
-        retval = False
-        message_list.append(messages[3235])
-
-    if exit_code != SUCCESS_CODE:
-        retval = False
-        message_list.append(messages[3236]  + f'{exit_code}s.\nSTDOUT: {stdout}\nSTDERR: {stderr}')
-
-    data_dict[disabled]['process_status'] = stdout
-
-    message_list.append(messages[1200])
-    return retval, data_dict, message_list
+       return True, data_dict, (messages[1200])
