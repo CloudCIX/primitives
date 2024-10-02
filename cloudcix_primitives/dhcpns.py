@@ -374,7 +374,7 @@ def read(
                     type: string
                     description: |
                       The contents of the nginx configuration file. May be
-                      None upon any read grrors.
+                      None upon any read errors.
                   config_file:
                     type: string
                     description: |
