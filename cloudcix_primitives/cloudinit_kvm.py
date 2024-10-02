@@ -277,7 +277,7 @@ def read(
             description: The dns or ipadddress of the Host on which this storage image will be created
             type: string
             required: true
-    retrun:
+    return:
         description: |
             A list with 3 items: (1) a boolean status flag indicating if the
             read was successful, (2) a dict containing the data as read from
@@ -330,10 +330,10 @@ def read(
         ret = rcc.run(payloads['read_domain_info'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+            fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+            fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         else:
             # Load the domain info(in XML) into dict
             data_dict[host] = ret["payload_message"].strip()
@@ -347,4 +347,4 @@ def read(
     if not retval:
         return retval, data_dict, message_list
     else:
-        return True, data_dict, [messages[1200]]
+        return True, data_dict, [f'1200: {messages[1200]}']
