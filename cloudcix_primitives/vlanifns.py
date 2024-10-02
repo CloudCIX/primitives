@@ -105,7 +105,7 @@ def build(
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] == SUCCESS_CODE:
             #If the interface already exists returns info and true state
-            return True, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
         fmt.add_successful('vlanif_check', ret)
 
         #STEP 1-4
