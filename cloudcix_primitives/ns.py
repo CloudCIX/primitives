@@ -423,7 +423,7 @@ def read(
         3232: f'Failed to run payload find_lo1. Payload exited with status ',
         3233: f'Failed to connect to the enabled PodNet for find_lo1_status payload: ',
         3234: f'Failed to run payload find_lo1_status. Payload exited with status ',
-        3235: f'Failed to connect to the enabled PodNet for find_lok_address payload: ',
+        3235: f'Failed to connect to the enabled PodNet for find_lo1_address payload: ',
         3236: f'Failed to run payload find_lo1_address. Payload exited with status ',
 
         3251: f'Failed to connect to the disabled PodNet for find_namespace_payload: ',
@@ -434,13 +434,13 @@ def read(
         3256: f'Failed to connect to the disabled PodNet for find_forwardv6_payload: ',
         3257: f'Failed to run find_forwardv6 payload on disabled PodNet. Payload exited with status ',
         3258: f'Unexpected value for sysctl net.ipv6.conf.all.forwarding on disabled PodNet: ',
-        3259: f'Failed to connect to the enabled PodNet for find_lo_status payload: ',
+        3259: f'Failed to connect to the disabled PodNet for find_lo_status payload: ',
         3260: f'Failed to run payload find_lo_status. Payload exited with status ',
-        3261: f'Failed to connect to the enabled PodNet for find_lo1 payload: ',
+        3261: f'Failed to connect to the disabled PodNet for find_lo1 payload: ',
         3262: f'Failed to run payload find_lo1. Payload exited with status ',
-        3263: f'Failed to connect to the enabled PodNet for find_lo1_status payload: ',
+        3263: f'Failed to connect to the disabled PodNet for find_lo1_status payload: ',
         3264: f'Failed to run payload find_lo1_status. Payload exited with status ',
-        3265: f'Failed to connect to the enabled PodNet for find_lok_address payload: ',
+        3265: f'Failed to connect to the disabled PodNet for find_lok_address payload: ',
         3266: f'Failed to run payload find_lo1_address. Payload exited with status ',
     }
 
@@ -570,11 +570,15 @@ def read(
 
         return retval, fmt.message_list, fmt.successful_payloads, data_dict
 
-    retval_a, msg_list, successful_payloads, data_dict = run_podnet(enabled, 3220, {}, {})
+    retval_enabled, msg_list_enabled, successful_payloads, data_dict = run_podnet(enabled, 3220, {}, {})
 
-    retval_b, msg_list, successful_payloads, data_dict = run_podnet(disabled, 3250, successful_payloads, data_dict)
+    retval_disabled, msg_list_disabled, successful_payloads, data_dict = run_podnet(disabled, 3250, successful_payloads, data_dict)
 
-    if not (retval_a and retval_b):
-        return (retval_a and retval_b), data_dict, msg_list
+    msg_list = list()
+    msg_list.extend(msg_list_enabled)
+    msg_list.extend(msg_list_disabled)
+
+    if not (retval_enabled and retval_disabled):
+        return False, data_dict, msg_list
     else:
        return True, data_dict, (messages[1200])
