@@ -1,22 +1,20 @@
 import sys
 import json
-from cloudcix_primitives import bridgeifns
+from cloudcix_primitives import routens
 
 # Fetch command and arguments
 cmd = sys.argv[1] if len(sys.argv) > 1 else None
-bridgename, namespace_name = "testbridge", "testns"
+destination, gateway, namespace = "test_destination", "test_gateway", "testns"
 
 if len(sys.argv) > 2:
-    bridgename = sys.argv[2]
+    destination = sys.argv[2]
 if len(sys.argv) > 3:
-    namespace_name = sys.argv[3]
+    gateway = sys.argv[3]
+if len(sys.argv) > 4:
+    namespace = sys.argv[4]
 
-status = None
-msg = None
-if len(sys.argv) > 2:
-    bridgename = sys.argv[2]
-if len(sys.argv) > 3:
-    namespace_name = sys.argv[3]
+route = {'destination':destination , 'gateway': gateway}
+
 
 status = None
 msg = None
@@ -24,11 +22,11 @@ data = None
 
 # Check and execute command
 if cmd == 'build':
-    status, msg = bridgeifns.build(bridgename, namespace_name, "/etc/cloudcix/pod/configs/config.json")
+    status, msg = routens.build(namespace, route, "/etc/cloudcix/pod/configs/config.json")
 elif cmd == 'scrub':
-    status, msg = bridgeifns.scrub(bridgename, namespace_name, "/etc/cloudcix/pod/configs/config.json")
+    status, msg = routens.scrub(namespace, route, "/etc/cloudcix/pod/configs/config.json")
 elif cmd == 'read':
-    status, data, msg = bridgeifns.read(bridgename, namespace_name,  "/etc/cloudcix/pod/configs/config.json")
+    status, data, msg = routens.read(namespace, route, "/etc/cloudcix/pod/configs/config.json")
 else:
    print(f"Unknown command: {cmd}")
    sys.exit(1)
