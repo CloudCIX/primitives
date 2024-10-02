@@ -21,6 +21,11 @@ ifname = 'private0'
 
 if len(sys.argv) > 2:
     namespace = sys.argv[2]
+if len(sys.argv) > 3:
+    vlan = sys.argv[3]
+if len(sys.argv) > 4:
+    ifname = sys.argv[4]
+    namespace = sys.argv[2]
 
 
 status = None
