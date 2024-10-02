@@ -41,7 +41,7 @@ def build(
 
     return:
         description: |
-            A tuple with a boolean flag indicating if the veth link creation was successful,
+            A tuple with a boolean flag indicating if the VLAN tagged interface creation was successful,
             and the output or error message.
         type: tuple
     """
@@ -168,7 +168,7 @@ def scrub(
 
     return:
         description: |
-            A tuple with a boolean flag indicating if the veth link creation was successful,
+            A tuple with a boolean flag indicating if the VLAN tagged interface deletion was successful,
             and the output or error message.
         type: tuple
     """
