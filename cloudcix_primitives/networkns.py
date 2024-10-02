@@ -94,8 +94,10 @@ def build(
         else:
           version = '-6'
 
+        address_range_grepsafe = address_range.replace('.', '\.')
+   
         payloads = {
-            'find_address_range' : f'ip netns exec {namespace} ip address show | grep {address_range}',
+            'find_address_range' : f'ip netns exec {namespace} ip address show | grep {address_range_grepsafe}',
             'address_range_add' : f'ip netns exec {namespace} ip {version} addr add {address_range} dev {device}',
         }
 
@@ -202,8 +204,10 @@ def scrub(
         else:
           version = '-6'
 
+        address_range_grepsafe = address_range.replace('.', '\.')
+
         payloads = {
-                'find_address_range': f'ip netns exec {namespace} ip address show | grep {address_range}',
+                'find_address_range': f'ip netns exec {namespace} ip address show | grep {address_range_grepsafe}',
                 'address_range_del':  f'ip netns exec {namespace} ip {version} addr del {address_range} dev {device}'
         }
 
