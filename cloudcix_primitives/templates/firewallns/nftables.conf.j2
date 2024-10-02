@@ -68,12 +68,24 @@ table inet {{ table }} {
 {% endfor %}
 {% endif %}
 {# ----------------------------------------------------------------------- #}
-{% if prerouting_rules|length > 0 %}
-    # Pre-Routing, Inbount NAT (DNAT), Only IPv4
-    chain prerouting {
+{% if dnat_rules|length > 0 %}
+    # Inbound NAT (DNAT), Only IPv4 at Pre Routing stage,
+    # for nat type chains default policy is accept because filtering not happens here
+    chain nat_prerouting {
         type nat hook prerouting priority {{ priority }}; policy accept;
         # Inbound destination NAT 1:1
-{% for rule in prerouting_rules %}
+{% for rule in dnat_rules %}
+        {{ rule }}
+{% endfor %}
+    }
+{% endif %}
+{# ----------------------------------------------------------------------- #}
+{% if prerouting_global_rules|length > 0 %}
+    # Global rules for incomming traffic, IPv4 and IPv6
+    chain filter_prerouting {
+        type filter hook prerouting priority {{ priority }}; policy {{ default_policy }};
+        # Inbound destination NAT 1:1
+{% for rule in rerouting_global_rules %}
         {{ rule }}
 {% endfor %}
     }
@@ -81,8 +93,8 @@ table inet {{ table }} {
 {# ----------------------------------------------------------------------- #}
 {% if input_rules|length > 0 %}
     # Traffic TO Namespace IPv4 and IPv6
-    chain input {
-        type filter hook input priority {{ priority }}; policy drop;
+    chain filter_input {
+        type filter hook input priority {{ priority }}; policy {{ default_policy }};
 {% for rule in input_rules %}
         {{ rule }}
 {% endfor %}
@@ -91,8 +103,8 @@ table inet {{ table }} {
 {# ---------------------------------------------------------------------- #}
 {% if forward_rules|length > 0 %}
     # Traffic TO and FROM VMs in Namespace Networks, IPv4 and IPv6
-    chain forward {
-        type filter hook forward priority {{ priority }}; policy drop;
+    chain filter_forward {
+        type filter hook forward priority {{ priority }}; policy {{ default_policy }};
 
 {% for rule in forward_rules %}
         {{ rule }}
@@ -103,21 +115,33 @@ table inet {{ table }} {
 {# ---------------------------------------------------------------------- #}
 {% if output_rules|length > 0 %}
     # Traffic FROM Namespace IPv4 and IPv6
-    chain output {
-        type filter hook output priority {{ priority }}; policy drop;
+    chain filter_output {
+        type filter hook output priority {{ priority }}; policy {{ default_policy }};
 {% for rule in output_rules %}
         {{ rule }}
 {% endfor %}
     }
 {% endif %}
 {# ---------------------------------------------------------------------- #}
-{% if postrouting_rules|length > 0 %}
-    # Post-Routing, Outbound NAT(SNAT), Only IPv4
-    chain postrouting {
+{% if snat_rules|length > 0 %}
+    # Outbound NAT(SNAT), Only IPv4 at Post-Routing stage, for nat type chains default policy is accept
+    chain nat_postrouting {
         type nat hook postrouting priority {{ priority }}; policy accept;
         # Source NAT 1:N
-    {% for nat in postrouting_rules %}
-        {{ nat }}
+    {% for snat in snat_rules %}
+        {{ snat }}
+    {% endfor %}
+    }
+{% endif %}
+{# ---------------------------------------------------------------------- #}
+{% if postrouting_global_rules|length > 0 %}
+    # Global rules just before leaving the namespace,
+    # at this stage, outgoing traffic is already controlled in previous stages/hooks so defaulting to accept.
+    # if set to drop then this will block the traffic allowed in filter_forward chain
+    chain filter_postrouting {
+        type filter hook postrouting priority {{ priority }}; policy {{ default_policy }};
+    {% for rule in postrouting_global_rules %}
+        {{ rule }}
     {% endfor %}
     }
 {% endif %}

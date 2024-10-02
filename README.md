@@ -27,7 +27,21 @@ supported verbs:
     - table: str
     - priority: int
     - config_file: optional str
-    - rules: optional array
+    - global_rules: optional array
+        - version: int
+          source: array
+            - str
+          destination: array
+            - str
+          protocol: str
+          port: array
+            - str
+          action: bool
+          log: bool
+          iiface: str
+          oiface: str
+          order: int
+    - user_rules: optional array
         - version: int
           source: array
             - str

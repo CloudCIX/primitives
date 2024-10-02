@@ -8,6 +8,7 @@ from cloudcix_primitives import firewallns
 namespace = "testns"
 table = 'firewall_123'
 priority = 2
+default_policy = 'drop'
 nats = {
     'dnats': [
         {'public': '185.49.60.116', 'private': '192.168.0.2', 'iface': 'testns.BM1'},
@@ -16,7 +17,7 @@ nats = {
         {'private': '192.168.0.0/24', 'public': '185.49.60.117', 'iface': 'testns.BM1'},
     ],
 }
-rules = [
+user_rules = [
     {
         'version': 4,
         'source': ['91.103.3.36', '91.20.3.0/24'],
@@ -53,6 +54,21 @@ rules = [
     },
 ]
 
+global_rules = [
+    {
+        'version': 4,
+        'source': ['@ie_ipv4'],
+        'destination': ['any'],
+        'protocol': 'any',
+        'port': [],
+        'action': 'accept',
+        'log': True,
+        'order': 1,
+        'iiface': 'testns.BM1',
+        'oiface': '',
+    }
+]
+
 sets = [
     {
         'name': 'ie_ipv4',
@@ -83,7 +99,10 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = firewallns.build(namespace, table, priority, config_file, nats=nats, sets=sets, rules=rules)
+    status, msg = firewallns.build(
+        default_policy, namespace, table, priority, config_file,
+        global_rules=global_rules, nats=nats, sets=sets, user_rules=user_rules,
+    )
 if cmd == 'scrub':
     status, msg = firewallns.scrub(namespace, table, config_file)
 if cmd == 'read':
