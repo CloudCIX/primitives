@@ -27,7 +27,7 @@ supported verbs:
     - table: str
     - priority: int
     - config_file: optional str
-    - global_rules: optional array
+    - prerouting_rules: optional array
         - version: int
           source: array
             - str
@@ -41,7 +41,7 @@ supported verbs:
           iiface: str
           oiface: str
           order: int
-    - user_rules: optional array
+    - forward_rules: optional array
         - version: int
           source: array
             - str
