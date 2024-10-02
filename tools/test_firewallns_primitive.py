@@ -100,8 +100,7 @@ data = None
 
 if cmd == 'build':
     status, msg = firewallns.build(
-        default_policy, namespace, table, priority, config_file,
-        global_rules=global_rules, nats=nats, sets=sets, user_rules=user_rules,
+        default_policy, namespace, table, priority, config_file, global_rules, nats, sets, user_rules,
     )
 if cmd == 'scrub':
     status, msg = firewallns.scrub(namespace, table, config_file)

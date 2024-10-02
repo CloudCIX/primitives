@@ -97,6 +97,7 @@ def validate_rules(rules, set_names, messages, msg_index):
     messages_list = []
     errors = []
     valid_rules = True
+    validated = True
     for rule in rules:
         controller = FirewallNamespace(rule)
         success, errs = controller()
@@ -136,6 +137,7 @@ def validate_nats(nats, messages, msg_index):
     messages_list = []
     errors = []
     valid_nats = True
+    validated = True
     nats_list = nats['dnats'] + nats['snats']
     for nat in nats_list:
         controller = FirewallNAT(nat)
@@ -153,6 +155,7 @@ def validate_sets(sets, messages, msg_index):
     messages_list = []
     set_names = []
     valid_sets = True
+    validated = True
     # first make sure set names are unique in the list
     set_names.extend([obj['name'] for obj in sets])
     if len(sets) != len(list(set(set_names))):
@@ -784,7 +787,7 @@ def build(
     if status is False:
         return status, msg
 
-    status, msg, successful_payloads = run_podnet(disabled, 3060, successful_payloads)
+    status, msg, successful_payloads = run_podnet(disabled, 3070, successful_payloads)
     if status is False:
         return status, msg
 

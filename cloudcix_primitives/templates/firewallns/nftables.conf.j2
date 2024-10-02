@@ -85,7 +85,7 @@ table inet {{ table }} {
     chain filter_prerouting {
         type filter hook prerouting priority {{ priority }}; policy {{ default_policy }};
         # Inbound destination NAT 1:1
-{% for rule in rerouting_global_rules %}
+{% for rule in prerouting_global_rules %}
         {{ rule }}
 {% endfor %}
     }
