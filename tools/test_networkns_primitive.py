@@ -35,7 +35,8 @@ if cmd == 'build':
     status, msg = networkns.build(address_range, device, namespace, "/etc/cloudcix/pod/configs/config.json")
 if cmd == 'scrub':
     status, msg = networkns.scrub(address_range, device, namespace, "/etc/cloudcix/pod/configs/config.json")
-
+if cmd == 'read':
+    status, data, msg = networkns.read(address_range, device, namespace, "/etc/cloudcix/pod/configs/config.json")
 
 print("Status: %s" %  status)
 print()
