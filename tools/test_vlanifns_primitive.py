@@ -35,6 +35,8 @@ if cmd == 'build':
     status, msg = vlanifns.build(vlan, ifname, namespace, "/etc/cloudcix/pod/configs/config.json")
 if cmd == 'scrub':
     status, msg = vlanifns.scrub(vlan, ifname, namespace, "/etc/cloudcix/pod/configs/config.json")
+if cmd == 'read':
+    status, data, msg = vlanifns.read(vlan, ifname, namespace, "/etc/cloudcix/pod/configs/config.json")
 
 
 print("Status: %s" %  status)
