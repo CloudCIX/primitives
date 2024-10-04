@@ -167,7 +167,9 @@ class InvalidSetName(BaseException):
         self.obj = obj
 
     def __str__(self):
-        return f'Invalid name field Value: {self.obj}, white spaces are not allowed in name field'
+        msg = f'Invalid "name" field Value: {self.obj}, "name" is required. "name" can only contain  uppercase letters,'
+        msg += ' lowercase letters, digits, a hypen (-) or an underscore (_) and the "name" must start with a letter.'
+        return msg
 
 
 class InvalidSetType(BaseException):

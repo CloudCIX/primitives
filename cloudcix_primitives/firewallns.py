@@ -26,14 +26,16 @@ __all__ = [
 SUCCESS_CODE = 0
 
 
-def complete_rule(rule, iiface, oiface, namespace, table):
+def complete_rule(rule, namespace, table):
     v = '' if str(rule['version']) == '4' else '6'
+    iiface = rule['iiface']
+    oiface = rule['oiface']
 
     # input interface line
-    iif = f'iifname {iiface}' if iiface not in [None, 'any'] else ''
+    iif = f'iifname {iiface}' if iiface not in [None, '', 'none', 'any'] else ''
 
     # output interface line
-    oif = f'oifname {oiface}' if oiface not in [None, 'any'] else ''
+    oif = f'oifname {oiface}' if oiface not in [None, '', 'none', 'any'] else ''
 
     # sort the `destination` rule format
     if 'any' in rule['destination']:
@@ -93,98 +95,13 @@ def snat_rule(nat):
     return rule_line
 
 
-def validate_rules(rules, set_names, messages, msg_index):
-    messages_list = []
-    errors = []
-    valid_rules = True
-    validated = True
-    for rule in rules:
-        controller = FirewallNamespace(rule)
-        success, errs = controller()
-        if success is False:
-            valid_rules = False
-            errors.extend(errs)
-    if valid_rules is False:
-        validated = False
-        messages_list.append(f'{messages[msg_index]} {";".join(errors)}')
-
-    # check if the rule has any sets in source, destination or ports,
-    # if so then check that set is defined in sets
-    errors = []
-    valid_set_elements = True
-    for rule in rules:
-        rule_sets = []
-        # collect the sets from the rules that starts with `@`
-        if type(rule['source']) is list:
-            rule_sets.extend([item.strip('@') for item in rule['source'] if '@' in item])
-        if type(rule['destination']) is list:
-            rule_sets.extend([item.strip('@') for item in rule['destination'] if '@' in item])
-        if type(rule['port']) is list:
-            rule_sets.extend([item.strip('@') for item in rule['port'] if '@' in item])
-        # now check if each rule_set is supplied in sets(set_names)
-        for rule_set in rule_sets:
-            if rule_set not in set_names:
-                valid_set_elements = False
-                errors.append(f'{rule_set} not found in the supplied sets')
-    if valid_set_elements is False:
-        validated = False
-        messages_list.append(f'{messages[msg_index + 1]} {";".join(errors)}')
-
-    return validated, messages_list
-
-
-def validate_nats(nats, messages, msg_index):
-    messages_list = []
-    errors = []
-    valid_nats = True
-    validated = True
-    nats_list = nats['dnats'] + nats['snats']
-    for nat in nats_list:
-        controller = FirewallNAT(nat)
-        success, errs = controller()
-        if success is False:
-            valid_nats = False
-            errors.extend(errs)
-    if valid_nats is False:
-        validated = False
-        messages_list.append(f'{messages[msg_index]} {";".join(errors)}')
-    return validated, messages_list
-
-
-def validate_sets(sets, messages, msg_index):
-    messages_list = []
-    set_names = []
-    valid_sets = True
-    validated = True
-    # first make sure set names are unique in the list
-    set_names.extend([obj['name'] for obj in sets])
-    if len(sets) != len(list(set(set_names))):
-        valid_sets = False
-        messages_list.append(messages[msg_index])
-    errors = []
-    for obj in sets:
-        controller = FirewallSet(obj)
-        success, errs = controller()
-        if success is False:
-            valid_sets = False
-            errors.extend(errs)
-    if valid_sets is False:
-        validated = False
-        messages_list.append(f'{messages[msg_index + 1]} {";".join(errors)}')
-
-    return validated, messages_list, set_names
-
-
 def build(
-        default_policy: str,
         namespace: str,
         table: str,
-        priority: int,
+        chains=None,
         config_file=None,
-        global_rules=None,
         nats=None,
         sets=None,
-        user_rules=None,
 ) -> Tuple[bool, str]:
     """
     description: |
@@ -204,191 +121,326 @@ def build(
             description: Name of the table in nftables, a table per domains like firewall, nats, vpns2s and vpndyn
             type: string
             required: true
-        priority:
+        chains:
             description: |
-                The priority in an nftables chain definition determines the order in which chains are processed
-                by the packet filter when multiple chains are attached to the same hook (e.g., input, output, forward).
-                It helps specify the execution order of the rules in different chains,
-                allowing some rules to be evaluated before others.
-                Lower values: Higher priority (processed first).
-                Higher values: Lower priority (processed later).
-            type: integer
-            required: true
+                - A chain is a set of rules are meant to apply at a specific stage in the traffic flow.
+                - There are two chain types of nftables used to implement firewall on the namespace.
+                  1. nat (chain type used for conversions such dnat and snat)
+                  2. filter (chain type used for filtering packets)
+                  nftables support other chain types, but are not used by CloudCIX.
+                - Every traffic passes through different stages until it matches to a rule either to accept or to drop.
+                - There are 5 stages in the network packet flow, such as:
+                  1. prerouting
+                  2. input
+                  3. forward
+                  4. output
+                  5. postrouting
+
+                This is a object with different stages data in the following form
+                chains = {
+                    'prerouting': {
+                        'priority': -999999999,
+                        'policy': 'accept',
+                        'rules': [
+                            {
+                                'version': '4',
+                                'source': ['@ie_ipv4'],
+                                'destination': ['any'],
+                                'protocol': 'any',
+                                'port': [],
+                                'action': 'accept',
+                                'log': True,
+                                'iiface': 'VRF123.BM45',
+                                'oiface': '',
+                                'order': 0,
+                            }
+                        ]
+                    },
+                    'input': {
+                        'priority': ,
+                        'policy': '',
+                        'rules': [{},{}...]
+                    },
+                    'output': None,
+                    'forward': {
+                        'priority': ,
+                        'policy': '',
+                        'rules': [{},{}...]
+                    },
+                    'postrouting': {
+                        'priority': ,
+                        'policy': '',
+                        'rules': [{},{}...]
+                    },
+                }
+            properties:
+                prerouting:
+                    description: |
+                        - this stage comes first when a traffic is incoming to namespace
+                        - at this stage `NAT conversions`, `default prerouting` rules, `geo_a` and `geo_b`
+                          rules are applied
+                    type: dict
+                    required: false
+                    properties:
+                        priority:
+                            description: |
+                                - The priority in an nftables chain definition determines the order in which chains
+                                  are processed by the packet filter when multiple chains are attached to the same hook
+                                  (e.g., input, output, forward).
+                                - It helps specify the execution order of the rules in different chains,
+                                  allowing some rules to be evaluated before others.
+                                - priority is an integer number (negative or zero or positive)
+                                - Lower values: Higher priority (processed first).
+                                  Higher values: Lower priority (processed later).
+                            type: integer
+                            required: true
+                        policy:
+                            description: |
+                                - Every nftable chain has a default policy either to `drop` or `accept` for the traffic
+                                  that doesn't belong to any rule in the chain.
+                                - When it is set to `drop` then the rules must be of action = `accept` and
+                                  if it `accept` then the rules must be of action = `drop`.
+                                - Usually it is set to `drop` as a part of zero trust policy and all rules supplied
+                                  are for allow.
+                            type: string
+                            required: true
+                        rules:
+                            description: list of all the rules applied at prerouting stage.
+                            type: array
+                            required: false
+                            items:
+                                type: dict
+                                properties:
+                                    version:
+                                        description: version of IP ie 4 or 6
+                                        type: string
+                                        required: true
+                                    source:
+                                        description: |
+                                            - list of ipaddresses (all must be either private or public but not mixed)
+                                              OR
+                                            - set can be used but only one set in source list is allowed and a set
+                                              should start with `@` sign before the set name ie for
+                                              set['name'] = 'us_ipv4' then the source = ['@us_ipv4'],
+                                              if a set is used in source or destination of a rule then a set for
+                                              the same name must be supplied in sets.
+                                              OR
+                                            - `any` can be used to mention for all the IPAddresses
+                                               if used then only `any` should be in the list ie source = ['any'].
+                                        type: array
+                                        items:
+                                            type: string
+                                        required: true
+                                    destination:
+                                        description: |
+                                            - list of ipaddresses (all must be either private or public but not mixed)
+                                              OR
+                                            - a set can be used but only one set in destination list is allowed and a
+                                              set should start with `@` sign before the set name ie for
+                                              set['name'] = 'us_ipv4' then the destination = ['@us_ipv4'], if a set is
+                                              used in source or destination of a rule then a set for the same name must
+                                              be supplied in sets.
+                                              OR
+                                            - `any` can be used to mention for all the IPAddresses
+                                              if used then only `any` should be in the list ie source = ['any'].
+                                        type: array
+                                        items:
+                                            type: string
+                                        required: true
+                                    protocol:
+                                        description: name of the protocol, e.g `tcp`, `udp`, `icmp` or `any`
+                                        type: string
+                                        required: true
+                                    port:
+                                        description: |
+                                            - list of ports, a port is a number in range [0, 65535], should be mentioned in
+                                              string format ie port = ['3', '22', '45-600']
+                                              OR
+                                            - `*` can be used to specify any port ie port = ['*']
+                                              OR
+                                            - An empty list can be used when protocol is `any` ie port = [] if protocol = 'any'
+                                              OR
+                                            - a set can be used but only one set in port list is allowed and a set should start
+                                              with `@` sign before the set name ie for set['name'] = 'myports' then the
+                                              port = ['@myports'], if a set is used in port of a rule then
+                                              a set for the same name must be supplied in sets.
+                                        type: array
+                                        items:
+                                            type: string
+                                        required: true
+                                    action:
+                                        description: can take either `accept` or `drop`
+                                        type: string
+                                        required: true
+                                    log:
+                                        description: to log the rule, this has to be True otherwise False
+                                        type: boolean
+                                        required: true
+                                    iiface:
+                                        description: |
+                                            the input interface, entry point of a traffic in the network namespace
+                                            e.g 'VRF123.BM90', 'private0.1004', 'none'
+                                        type: string
+                                        required: true
+                                    oiface:
+                                        description: |
+                                            the output interface, exit point of a traffic from the network namespace
+                                            e.g 'VRF123.BM90', 'private0.1004', 'none'
+                                        type: string
+                                        required: true
+
+                'input': same object like 'prerouting'
+                    description: |
+                        - just after prerouting stage traffic goes through Routing decision which decides to go either
+                          input stage or forward stage
+                        - traffic that is destined to the namespace are directed to input stage
+                        - at this stage `default input` rules are applied
+                'forward': same object like 'prerouting'
+                    description: |
+                        - Routing decision transfers the traffic to this stage if it is not destined to the namespace
+                        - at this stage `project` rules and `vpn` rules are applied
+                'output': same object like 'prerouting'
+                    description: |
+                        - The traffic that originates from the namespace goes through this phase first
+                        - at this stage `default output` rules are applied
+                'postrouting': same object like 'prerouting'
+                    description: |
+                        - Finally when the traffic flows through this stage before it leaves the namespace
+
         config_file:
             description: |
                 Location of the json file with hardware settings. If one is not provided, the default path will be used
             required: false
             type: string
-        default_policy:
-            description: |
-                Every nftable chain has a default policy either to `drop` or `accept` for the traffic that doesn't
-                belong to any rule in the chain.
-                When it is set to `drop` then the rules must be of action = `accept` and if it `accept` then the rules
-                must be of action = `drop`.
-                Usually it is set to `drop` as a part of zero trust policy and all rules are for allow only.
-            required: true
-            type: string
-        global_rules:
-            description: |
-                containing list of global firewall rules in the following format
-                rule = {
-                    'version': '4',
-                    'source': ['@ie_ipv4'],
-                    'destination': ['any'],
-                    'protocol': 'any',
-                    'port': [],
-                    'action': 'accept',
-                    'log': True,
-                    'iiface': 'VRF123.BM45',
-                    'oiface': '',
-                    'order': 0,
-                }
-            type: array
-            items:
-                type: dict
-                properties:
-                    version:
-                        description: version of IP ie 4 or 6
-                        type: string
-                        required: true
-                    source:
-                        description: |
-                            - list of ipaddresses (all must be either private or public but not mixed)
-                               OR
-                            - set can be used but only one set in source list is allowed and a set should start with `@`
-                              sign before the set name ie for set['name'] = 'us_ipv4' then the source = ['@us_ipv4'],
-                              if a set is used in source or destination of a rule then a set for
-                              the same name must be supplied in sets.
-                              OR
-                            - `any` can be used to mention for all the IPAddresses
-                               if used then only `any` should be in the list ie source = ['any'].
-                        type: array
-                        items:
-                            type: string
-                        required: true
-                    destination:
-                        description: |
-                            - list of ipaddresses (all must be either private or public but not mixed)
-                               OR
-                            - a set can be used but only one set in destination list is allowed and a set should start
-                              with `@` sign before the set name ie for set['name'] = 'us_ipv4' then the
-                              destination = ['@us_ipv4'], if a set is used in source or destination of a rule then
-                              a set for the same name must be supplied in sets.
-                              OR
-                            - `any` can be used to mention for all the IPAddresses
-                               if used then only `any` should be in the list ie source = ['any'].
-                        type: array
-                        items:
-                            type: string
-                        required: true
-                    protocol:
-                        description: name of the protocol, e.g `tcp`, `udp`, `icmp` or `any`
-                        type: string
-                        required: true
-                    port:
-                        description: |
-                            - list of ports, a port is a number in range [0, 65535], should be mentioned in
-                              string format ie port = ['3', '22', '45-600']
-                              OR
-                            - `*` can be used to specify any port ie port = ['*']
-                              OR
-                            - An empty list can be used when protocol is `any` ie port = [] if protocol = 'any'
-                              OR
-                            - a set can be used but only one set in port list is allowed and a set should start
-                              with `@` sign before the set name ie for set['name'] = 'myports' then the
-                              port = ['@myports'], if a set is used in port of a rule then
-                              a set for the same name must be supplied in sets.
-                        type: array
-                        items:
-                            type: string
-                        required: true
-                    action:
-                        description: can take either `accept` or `drop`
-                        type: string
-                        required: true
-                    log:
-                        description: to log the rule, this has to be True otherwise False
-                        type: boolean
-                        required: true
-                    iiface:
-                        description: |
-                            the input interface, entry point of a traffic in the network namespace
-                            e.g 'VRF123.BM90', 'private0.1004', 'none'
-                        type: string
-                        required: true
-                    oiface:
-                        description: |
-                            the output interface, exit point of a traffic from the network namespace
-                            e.g 'VRF123.BM90', 'private0.1004', 'none'
-                        type: string
-                        required: true
-            required: false
         nats:
             description: |
                 NAT object with dnats and snats Private IP and its Public IP or defaulted to None
                 nats = {
-                    'dnats': [
-                        {
-                            'public': '91.103.3.36',
-                            'private': '192.168.0.2',
-                            'iface': 'VRF123.BM45'
-                        },
-                    ]
-                    'snats': [
-                        {
-                            'public': '91.103.3.1',
-                            'private': '192.168.0.1/24',
-                            'iface': 'VRF123.BM45'
-                        },
-                    ]
+                    'prerouting': {
+                        'priority': -999999998,
+                        'policy': 'accept',
+                        'conversions': [
+                            {
+                                'public': '91.103.3.36',
+                                'private': '192.168.0.2',
+                                'iface': 'VRF123.BM45'
+                            },
+                        ]
+                    },
+                    'postrouting': {
+                        'priority': -999999998,
+                        'policy': 'accept',
+                        'conversions': [
+                            {
+                                'public': '91.103.3.1',
+                                'private': '192.168.0.1/24',
+                                'iface': 'VRF123.BM45'
+                            },
+                        ],
+                    },
                 }
             required: false
             type: array
             items:
                 type: dict
                 properties:
-                    dnats:
-                        description: list of dnat pairs
-                        type: array
-                        items:
-                            type: dict
-                            properties:
-                                public:
-                                    description: destination address, it should be a Public IP
-                                    type: string
-                                    required: true
-                                private:
-                                    description: destination nat address, it should be a Private IP
-                                    type: string
-                                    required: true
-                                iface:
-                                    description: |
-                                        the input interface, entry point of a traffic in the network namespace
-                                        e.g 'VRF123.BM90'
-                                    type: string
-                                    required: true
+                    prerouting:
+                        description: at prerouting stage dnats are applied
+                        type: dict
                         required: false
-                    snats:
-                        description: list of snat pairs
-                        type: array
-                        items:
-                            type: dict
-                            properties:
-                                public:
-                                    description: source nat address, it should be a Public IP
-                                    type: string
-                                    required: true
-                                private:
-                                    description: source address, it should be a Private address or address range
-                                    type: string
-                                    required: true
-                                iface:
-                                    description: |
-                                        the output interface, exit point of a traffic from the network namespace
-                                        e.g 'VRF123.BM90'
-                                    type: string
-                                    required: true
+                        properties:
+                            priority:
+                                description: |
+                                    - The priority in an nftables chain definition determines the order in which chains
+                                      are processed by the packet filter when multiple chains are attached to the same
+                                      hook (e.g., input, output, forward).
+                                    - It helps specify the execution order of the rules in different chains,
+                                      allowing some rules to be evaluated before others.
+                                    - priority is an integer number (negative or zero or positive)
+                                    - Lower values: Higher priority (processed first).
+                                      Higher values: Lower priority (processed later).
+                                type: integer
+                                required: true
+                            policy:
+                                description: |
+                                    - Every nftable chain has a default policy either to `drop` or `accept` for the
+                                      traffic that doesn't belong to any rule in the chain.
+                                    - When it is set to `drop` then the rules must be of action = `accept` and
+                                      if it `accept` then the rules must be of action = `drop`.
+                                    - Usually it is set to `drop` as a part of zero trust policy and all rules supplied
+                                      are for allow.
+                                type: string
+                                required: false
+                            conversions:
+                                description: public to private conversion also called as dnats
+                                type: array
+                                required: true
+                                items:
+                                    type: dict
+                                    properties:
+                                        public:
+                                            description: destination address, it should be a Public IP
+                                            type: string
+                                            required: true
+                                        private:
+                                            description: destination nat address, it should be a Private IP
+                                            type: string
+                                            required: true
+                                        iface:
+                                            description: |
+                                                the input interface, entry point of a traffic in the network namespace
+                                                e.g 'VRF123.BM90'
+                                            type: string
+                                            required: true
+
+                    postrouting:
+                        description: at postrouting stage snats are applied
+                        type: dict
                         required: false
+                        properties:
+                            priority:
+                                description: |
+                                    - The priority in an nftables chain definition determines the order in which chains
+                                      are processed by the packet filter when multiple chains are attached to the same
+                                      hook (e.g., input, output, forward).
+                                    - It helps specify the execution order of the rules in different chains,
+                                      allowing some rules to be evaluated before others.
+                                    - priority is an integer number (negative or zero or positive)
+                                    - Lower values: Higher priority (processed first).
+                                      Higher values: Lower priority (processed later).
+                                type: integer
+                                required: true
+                            policy:
+                                description: |
+                                    - Every nftable chain has a default policy either to `drop` or `accept` for the
+                                      traffic that doesn't belong to any rule in the chain.
+                                    - When it is set to `drop` then the rules must be of action = `accept` and
+                                      if it `accept` then the rules must be of action = `drop`.
+                                    - Usually it is set to `drop` as a part of zero trust policy and all rules supplied
+                                      are for allow.
+                                type: string
+                                required: false
+                            conversions:
+                                description: private to public conversion also called as snats
+                                type: array
+                                required: true
+                                items:
+                                    type: dict
+                                    properties:
+                                        public:
+                                            description: destination address, it should be a Public IP
+                                            type: string
+                                            required: true
+                                        private:
+                                            description: destination nat address, it should be a Private IP
+                                            type: string
+                                            required: true
+                                        iface:
+                                            description: |
+                                                the input interface, entry point of a traffic in the network namespace
+                                                e.g 'VRF123.BM90'
+                                            type: string
+                                            required: true
         sets:
             description: |
                 List of objects, each defined for a collection of elements
@@ -426,102 +478,6 @@ def build(
                         items:
                             type: string
                             required: true
-        user_rules:
-            description: |
-                containing list of user firewall rules in the following format
-                rule = {
-                    'version': '4',
-                    'source': ['91.103.3.36'],
-                    'destination': ['10.0.0.2'],
-                    'protocol': 'tcp',
-                    'port': ['22'],
-                    'action': 'accept',
-                    'log': True,
-                    'iiface': 'VRF123.BM45',
-                    'oiface': 'private0.1000',
-                    'order': 0,
-                }
-            type: array
-            items:
-                type: dict
-                properties:
-                    version:
-                        description: version of IP ie 4 or 6
-                        type: string
-                        required: true
-                    source:
-                        description: |
-                            - list of ipaddresses (all must be either private or public but not mixed)
-                               OR
-                            - set can be used but only one set in source list is allowed and a set should start with `@`
-                              sign before the set name ie for set['name'] = 'us_ipv4' then the source = ['@us_ipv4'],
-                              if a set is used in source or destination of a rule then a set for
-                              the same name must be supplied in sets.
-                              OR
-                            - `any` can be used to mention for all the IPAddresses
-                               if used then only `any` should be in the list ie source = ['any'].
-                        type: array
-                        items:
-                            type: string
-                        required: true
-                    destination:
-                        description: |
-                            - list of ipaddresses (all must be either private or public but not mixed)
-                               OR
-                            - a set can be used but only one set in destination list is allowed and a set should start
-                              with `@` sign before the set name ie for set['name'] = 'us_ipv4' then the
-                              destination = ['@us_ipv4'], if a set is used in source or destination of a rule then
-                              a set for the same name must be supplied in sets.
-                              OR
-                            - `any` can be used to mention for all the IPAddresses
-                               if used then only `any` should be in the list ie source = ['any'].
-                        type: array
-                        items:
-                            type: string
-                        required: true
-                    protocol:
-                        description: name of the protocol, e.g `tcp`, `udp`, `icmp` or `any`
-                        type: string
-                        required: true
-                    port:
-                        description: |
-                            - list of ports, a port is a number in range [0, 65535], should be mentioned in
-                              string format ie port = ['3', '22', '45-600']
-                              OR
-                            - `*` can be used to specify any port ie port = ['*']
-                              OR
-                            - An empty list can be used when protocol is `any` ie port = [] if protocol = 'any'
-                              OR
-                            - a set can be used but only one set in port list is allowed and a set should start
-                              with `@` sign before the set name ie for set['name'] = 'myports' then the
-                              port = ['@myports'], if a set is used in port of a rule then
-                              a set for the same name must be supplied in sets.
-                        type: array
-                        items:
-                            type: string
-                        required: true
-                    action:
-                        description: can take either `accept` or `drop`
-                        type: string
-                        required: true
-                    log:
-                        description: to log the rule, this has to be True otherwise False
-                        type: boolean
-                        required: true
-                    iiface:
-                        description: |
-                            the input interface, entry point of a traffic in the network namespace
-                            e.g 'VRF123.BM90', 'private0.1004', 'none'
-                        type: string
-                        required: true
-                    oiface:
-                        description: |
-                            the output interface, exit point of a traffic from the network namespace
-                            e.g 'VRF123.BM90', 'private0.1004', 'none'
-                        type: string
-                        required: true
-            required: false
-
     return:
         description: |
             A tuple with a boolean flag stating the build was successful or not and
@@ -536,18 +492,16 @@ def build(
         1000: f'Successfully created nftables {table} in namespace {namespace}',
         3000: f'Failed to create nftables {table} in namespace {namespace}',
         # Validating params
-        2020: f'All the supplied parameters are validated.',
-        3020: f'Errors occurred in validating supplied parameters.',
-        3021: f'Failed to validate Sets. One or more sets have same names. Name must be unique in the Sets',
-        3022: f'Failed to validate Sets. Errors occurred while validating sets. Errors: ',
-        3023: f'Failed to validate User Rules. One or more rules have invalid values. Errors: ',
-        3024: f'Failed to validate User Rules. Sets used in User rules are not found in supplied Sets. Errors: ',
-        3025: f'Failed to validate NATs. One or more NATs are invalid. Errors: ',
-        3026: f'Failed to validate Global Rules. One or more Global Rules are invalid. Errors: ',
-        3027: f'Failed to validate Global Rules. Sets used in Global rules are not found in supplied Sets. Errors: ',
-        3028: f'Failed to validate default_policy. It has to been either `accept` or `drop`',
-        3030: f'One of the user rule is Invalid, Both `iiface` and `oiface` cannot be None in a rule object',
-        3031: f'One of the global rule is Invalid, Only either `iiface` or `oiface` supplied in a rule object',
+        2020: 'All the supplied parameters are validated.',
+        3020: 'Errors occurred in validating supplied parameters.',
+        3021: 'Failed to validate Sets. One or more sets have same names. Name must be unique in the Sets',
+        3022: 'Failed to validate Sets. Errors occurred while validating sets. Errors: ',
+        3023: 'Failed to validate NATs. One or more NATs are invalid. Errors: ',
+        3024: 'Failed to validate %s Chain. Invalid Chains `priority` value, It must be an integer value',
+        3025: 'Failed to validate %s Chain. Invalid Chains `policy` value, It can to been either `accept` or `drop` ',
+        3026: 'Failed to validate %s Chain. One or more Chain rules have invalid values. Errors: ',
+        3027: 'Failed to validate %s Chain. Sets used in Chain rules are not found in supplied Sets. Errors: ',
+        # Template
         3040: f'Failed to verify nftables.conf.j2 template data, One or more template fields are None',
         # Enabled PodNet
         3051: f'Failed to connect to the Enabled PodNet for payload create_nftables_file',
@@ -593,99 +547,175 @@ def build(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
-    # Block 02: Validate, sets, rules and default_policy
+    # Validations
     validated = True
     messages_list = []
-    set_names = []
 
     # validate sets
+    # collect set names, used later to check in rules to make sure rule with sets are supplied in param sets
+    set_names = []
+
+    def validate_sets(sets, msg_index):
+        valid_sets = True
+        errors = []
+
+        # first make sure set names are unique in the list
+        set_names.extend([obj['name'] for obj in sets])
+        if len(sets) != len(list(set(set_names))):
+            valid_sets = False
+            messages_list.append(f'{msg_index}: {messages[msg_index]}')
+
+        # validate each set
+        for obj in sets:
+            controller = FirewallSet(obj)
+            success, errs = controller()
+            if success is False:
+                valid_sets = False
+                errors.extend(errs)
+
+        if valid_sets is False:
+            messages_list.append(f'{messages[msg_index + 1]} {";".join(errors)}')
+        return valid_sets
+
     if sets:
-        validated, msgs, names = validate_sets(sets, messages, 3021)
-        messages_list.extend(msgs)
-        set_names.extend(names)
+        validated = validate_sets(sets, 3021)
 
-    # validate user rules
-    if user_rules:
-        validated, msgs = validate_rules(user_rules, set_names, messages, 3023)
-        messages_list.extend(msgs)
+    # Validate nats
+    def validate_nats(nats, msg_index):
+        errors = []
+        valid_nats = True
 
-    # validate nats
+        dnats = nats.get('prerouting', None)
+        if dnats is not None:
+            # priority
+            priority = dnats.get('priority', None)
+            if type(priority) is not int:
+                valid_nats = False
+                errors.append(f'Invalid priority: {priority} for prerouting')
+            # conversions
+            dnats['lines'] = []
+            for conversion in dnats['conversions']:
+                controller = FirewallNAT(conversion)
+                success, errs = controller()
+                if success is False:
+                    valid_nats = False
+                    errors.extend(errs)
+                else:  # compile the nat conversion line here
+                    dnats['lines'].append(dnat_rule(conversion))
+
+        snats = nats.get('postrouting', None)
+        if snats is not None:
+            # priority
+            priority = snats.get('priority', None)
+            if type(priority) is not int:
+                valid_nats = False
+                errors.append(f'Invalid priority: {priority} for postrouting')
+            # conversions
+            snats['lines'] = []
+            for conversion in snats['conversions']:
+                controller = FirewallNAT(conversion)
+                success, errs = controller()
+                if success is False:
+                    valid_nats = False
+                    errors.extend(errs)
+                else:  # compile the nat conversion line here
+                    snats['lines'].append(snat_rule(conversion))
+
+        if len(errors) > 0:
+            messages_list.append(f'{messages[msg_index]} {";".join(errors)}')
+        return valid_nats, dnats, snats
+
+    nat_prerouting, nat_postrouting = None, None
     if nats:
-        validated, msgs = validate_nats(nats, messages, 3025)
-        messages_list.extend(msgs)
+        validated, nat_prerouting, nat_postrouting = validate_nats(nats, 3023)
 
-    # validate global rules
-    if global_rules:
-        validated, msgs = validate_rules(global_rules, set_names, messages, 3026)
-        messages_list.extend(msgs)
+    # Collect applications(for protocols = icmp, dns, vpn, dhcp) if any
+    applications: List[str] = []
 
-    # validate default_policy
-    if default_policy not in ['accept', 'drop']:
-        validated = False
-        messages_list.append(f'3027: {messages[3027]}')
+    # Validate Chains
+    def validate_chain(chain, chain_name, msg_index):
+        errors = []
+        valid_chain = True
+
+        # validate priority
+        priority = chain.get('priority', None)
+        if priority is None:
+            valid_chain = False
+            errors.append(f'{msg_index}: {messages[msg_index].format(chain_name)}')
+
+        # validate policy
+        policy = chain.get('policy', None)
+        if policy is None:
+            valid_chain = False
+            errors.append(f'{msg_index + 1}: {messages[msg_index + 1].format(chain_name)}')
+
+        # compile rule lines
+        chain['rule_lines'] = []
+
+        # validate rules and
+        rules = chain.get('rules', None)
+        if rules is not None:
+            for rule in sorted(rules, key=lambda fw: fw['order']):
+                controller = FirewallNamespace(rule)
+                success, errs = controller()
+                if success is False:
+                    valid_chain = False
+                    errors.extend(errs)
+                else:  # compile rule line here since it is valid
+                    rule_line, application = complete_rule(rule, namespace, table)
+                    chain['rule_lines'].append(rule_line)
+                    applications.append(application)
+
+        if valid_chain is False:
+            messages_list.append(f'{msg_index + 2}: {messages[msg_index + 2].format(chain_name)} {";".join(errors)}')
+
+        # check if the rule has any sets in source, destination or ports,
+        # if so then check that set is defined in sets
+        errors = []
+        valid_set_elements = True
+        if rules is not None:
+            for rule in rules:
+                rule_sets = []
+                # collect the sets from the rules that starts with `@`
+                if type(rule['source']) is list:
+                    rule_sets.extend([item.strip('@') for item in rule['source'] if '@' in item])
+                if type(rule['destination']) is list:
+                    rule_sets.extend([item.strip('@') for item in rule['destination'] if '@' in item])
+                if type(rule['port']) is list:
+                    rule_sets.extend([item.strip('@') for item in rule['port'] if '@' in item])
+                # now check if each rule_set is supplied in sets(set_names)
+                for rule_set in rule_sets:
+                    if rule_set not in set_names:
+                        valid_set_elements = False
+                        errors.append(f'{rule_set} not found in the supplied sets')
+
+        if valid_set_elements is False:
+            messages_list.append(f'{msg_index + 3}: {messages[msg_index + 3].format(chain_name)} {";".join(errors)}')
+
+        return valid_chain and valid_set_elements
+
+    prerouting = chains.get('prerouting', None)
+    if prerouting is not None:
+        validated = validate_chain(prerouting, 'Pre-Routing', 3024)
+
+    input = chains.get('input', None)
+    if input is not None:
+        validated = validate_chain(input, 'Input', 3024)
+
+    forward = chains.get('forward', None)
+    if forward is not None:
+        validated = validate_chain(forward, 'Forward', 3024)
+
+    output = chains.get('output', None)
+    if output is not None:
+        validated = validate_chain(output, 'Output', 3024)
+
+    postrouting = chains.get('postrouting', None)
+    if postrouting is not None:
+        validated = validate_chain(postrouting, 'Post-Routing', 3024)
 
     if validated is False:
         return False, f'3020: {messages[3020]} {"; ".join(messages_list)}'
-
-    # Block 03: Prepare Firewall rules
-    # DNAT and SNAT rules
-    dnat_rules: List[str] = []
-    snat_rules: List[str] = []
-    if nats is not None:
-        dnats = nats.get('dnats', [])
-        snats = nats.get('snats', [])
-        for dnat in dnats:
-            dnat_rules.append(dnat_rule(dnat))
-        for snat in snats:
-            snat_rules.append(snat_rule(snat))
-
-    # applications
-    applications: List[str] = []
-    # input_rules
-    input_rules: Deque[str] = deque()
-    # forward_rules
-    forward_rules: Deque[str] = deque()
-    # output_rules
-    output_rules: Deque[str] = deque()
-
-    for rule in sorted(user_rules, key=lambda fw: fw['order']):
-        # sort traffic direction ie inbound, outbound and forward
-        iiface = rule['iiface'] if rule['iiface'] not in [None, '', 'none'] else None
-        oiface = rule['oiface'] if rule['oiface'] not in [None, '', 'none'] else None
-        if iiface is not None and oiface is None:
-            input_rule, application = complete_rule(rule, iiface, None, namespace, table)
-            input_rules.append(input_rule)
-            applications.append(application)
-        elif iiface is None and oiface is not None:
-            output_rule, application = complete_rule(rule, None, oiface, namespace, table)
-            output_rules.append(output_rule)
-            applications.append(application)
-        elif iiface is not None and oiface is not None:
-            forward_rule, application = complete_rule(rule, iiface, oiface, namespace, table)
-            forward_rules.append(forward_rule)
-            applications.append(application)
-        else:
-            return False, f'3030: {messages[3030]}'
-
-    # prerouting global rules
-    prerouting_global_rules: Deque[str] = deque()
-    # postrouting global rules
-    postrouting_global_rules: Deque[str] = deque()
-
-    for rule in sorted(global_rules, key=lambda fw: fw['order']):
-        # sort traffic direction ie inbound, outbound and forward
-        iiface = rule['iiface'] if rule['iiface'] not in [None, '', 'none'] else None
-        oiface = rule['oiface'] if rule['oiface'] not in [None, '', 'none'] else None
-        if iiface is not None and oiface is None:
-            prerouting_global_rule, application = complete_rule(rule, iiface, None, namespace, table)
-            prerouting_global_rules.append(prerouting_global_rule)
-            applications.append(application)
-        elif iiface is None and oiface is not None:
-            postrouting_global_rule, application = complete_rule(rule, None, oiface, namespace, table)
-            postrouting_global_rules.append(postrouting_global_rule)
-            applications.append(application)
-        else:
-            return False, f'3031: {messages[3031]}'
 
     # remove the duplicates in applications
     applications = list(set(applications))
@@ -694,15 +724,13 @@ def build(
     # template data
     template_data = {
         'applications': applications,
-        'default_policy': default_policy,
-        'dnat_rules': dnat_rules,
-        'forward_rules': forward_rules,
-        'input_rules': input_rules,
-        'output_rules': output_rules,
-        'postrouting_global_rules': postrouting_global_rules,
-        'prerouting_global_rules': prerouting_global_rules,
-        'priority': priority,
-        'snat_rules': snat_rules,
+        'forward': forward,
+        'input': input,
+        'nat_postrouting': nat_postrouting,
+        'nat_prerouting': nat_prerouting,
+        'output': output,
+        'postrouting': postrouting,
+        'prerouting': prerouting,
         'sets': sets,
         'table': table,
     }

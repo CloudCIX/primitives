@@ -7,17 +7,23 @@ from cloudcix_primitives import firewallns
 
 namespace = "testns"
 table = 'firewall_123'
-priority = 2
-default_policy = 'drop'
 nats = {
-    'dnats': [
-        {'public': '185.49.60.116', 'private': '192.168.0.2', 'iface': 'testns.BM1'},
-    ],
-    'snats': [
-        {'private': '192.168.0.0/24', 'public': '185.49.60.117', 'iface': 'testns.BM1'},
-    ],
+    'prerouting': {
+        'priority': -999999998,
+        'policy': 'accept',
+        'conversions': [
+            {'public': '185.49.60.116', 'private': '192.168.0.2', 'iface': 'testns.BM1'},
+        ],
+    },
+    'postrouting': {
+        'priority': -999999998,
+        'policy': 'accept',
+        'conversions': [
+            {'private': '192.168.0.0/24', 'public': '185.49.60.117', 'iface': 'testns.BM1'},
+        ],
+    },
 }
-user_rules = [
+project_rules = [
     {
         'version': 4,
         'source': ['91.103.3.36', '91.20.3.0/24'],
@@ -54,7 +60,7 @@ user_rules = [
     },
 ]
 
-global_rules = [
+geo_rules = [
     {
         'version': 4,
         'source': ['@ie_ipv4'],
@@ -81,6 +87,19 @@ sets = [
     },
 ]
 
+chains = {
+    'prerouting': {
+        'priority': -999999997,
+        'policy': 'accept',
+        'rules': geo_rules,
+    },
+    'forward': {
+        'priority': 0,
+        'policy': 'accept',
+        'rules': project_rules,
+    },
+}
+
 config_file = "/etc/cloudcix/pod/configs/config.json"
 
 cmd = sys.argv[1]
@@ -99,9 +118,7 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = firewallns.build(
-        default_policy, namespace, table, priority, config_file, global_rules, nats, sets, user_rules,
-    )
+    status, msg = firewallns.build(namespace, table, chains, config_file, nats, sets)
 if cmd == 'scrub':
     status, msg = firewallns.scrub(namespace, table, config_file)
 if cmd == 'read':

@@ -51,6 +51,16 @@ table inet {{ table }} {
         # Allow IPSec esp protocol
         ip protocol esp drop
     }
+{% elif application == 'dhcp_accept' %}
+    # dhcp allow
+    chain dhcp_accept {
+        meta l4proto {tcp, udp} th dport 67 accept
+    }
+{% elif application == 'dhcp_drop' %}
+    # dhcp block
+    chain dhcp_drop {
+        meta l4proto {tcp, udp} th dport 67 drop
+    }
 {% endif %}
 {% endfor %}
 {% endif %}
@@ -67,80 +77,76 @@ table inet {{ table }} {
     }
 {% endfor %}
 {% endif %}
-{# ----------------------------------------------------------------------- #}
-{% if dnat_rules|length > 0 %}
+{# ---------------------NAT Pre Routing---------------------------------- #}
+{% if nat_prerouting is not None and nat_prerouting['lines']|length > 0 %}
     # Inbound NAT (DNAT), Only IPv4 at Pre Routing stage,
-    # for nat type chains default policy is accept because filtering not happens here
+    # for nat type chains default policy is accept
     chain nat_prerouting {
-        type nat hook prerouting priority {{ priority }}; policy accept;
+        type nat hook prerouting priority {{ nat_prerouting['priority'] }}; policy accept;
         # Inbound destination NAT 1:1
-{% for rule in dnat_rules %}
-        {{ rule }}
+{% for line in nat_prerouting['lines'] %}
+        {{ line }}
 {% endfor %}
     }
 {% endif %}
-{# ----------------------------------------------------------------------- #}
-{% if prerouting_global_rules|length > 0 %}
-    # Global rules for incomming traffic, IPv4 and IPv6
-    chain filter_prerouting {
-        type filter hook prerouting priority {{ priority }}; policy {{ default_policy }};
-        # Inbound destination NAT 1:1
-{% for rule in prerouting_global_rules %}
-        {{ rule }}
-{% endfor %}
-    }
-{% endif %}
-{# ----------------------------------------------------------------------- #}
-{% if input_rules|length > 0 %}
-    # Traffic TO Namespace IPv4 and IPv6
-    chain filter_input {
-        type filter hook input priority {{ priority }}; policy {{ default_policy }};
-{% for rule in input_rules %}
-        {{ rule }}
-{% endfor %}
-    }
-{% endif %}
-{# ---------------------------------------------------------------------- #}
-{% if forward_rules|length > 0 %}
-    # Traffic TO and FROM VMs in Namespace Networks, IPv4 and IPv6
-    chain filter_forward {
-        type filter hook forward priority {{ priority }}; policy {{ default_policy }};
-
-{% for rule in forward_rules %}
-        {{ rule }}
-{% endfor %}
-
-    }
-{% endif %}
-{# ---------------------------------------------------------------------- #}
-{% if output_rules|length > 0 %}
-    # Traffic FROM Namespace IPv4 and IPv6
-    chain filter_output {
-        type filter hook output priority {{ priority }}; policy {{ default_policy }};
-{% for rule in output_rules %}
-        {{ rule }}
-{% endfor %}
-    }
-{% endif %}
-{# ---------------------------------------------------------------------- #}
-{% if snat_rules|length > 0 %}
-    # Outbound NAT(SNAT), Only IPv4 at Post-Routing stage, for nat type chains default policy is accept
+{# ---------------------NAT Post Routing--------------------------------- #}
+{% if nat_postrouting is not None and nat_postrouting['lines']|length > 0 %}
+    # Outbound NAT(SNAT), Only IPv4 at Post-Routing stage,
+    # for nat type chains default policy is accept
     chain nat_postrouting {
-        type nat hook postrouting priority {{ priority }}; policy accept;
+        type nat hook postrouting priority {{ nat_postrouting['priority'] }}; policy accept;
         # Source NAT 1:N
-    {% for snat in snat_rules %}
-        {{ snat }}
+    {% for line in nat_postrouting['lines'] %}
+        {{ line }}
     {% endfor %}
     }
 {% endif %}
-{# ---------------------------------------------------------------------- #}
-{% if postrouting_global_rules|length > 0 %}
-    # Global rules just before leaving the namespace,
-    # at this stage, outgoing traffic is already controlled in previous stages/hooks so defaulting to accept.
-    # if set to drop then this will block the traffic allowed in filter_forward chain
+{# ----------------------Filter Pre Routing------------------------------ #}
+{% if prerouting is not None and prerouting['rules']|length > 0 %}
+    chain filter_prerouting {
+        type filter hook prerouting priority {{ prerouting['priority'] }}; policy {{ prerouting['policy'] }};
+{% for rule in prerouting['rules'] %}
+        {{ rule }}
+{% endfor %}
+    }
+{% endif %}
+{# ----------------------Filter Input----------------------------------- #}
+{% if input is not None and input['rules']|length > 0 %}
+    # Traffic TO Namespace IPv4 and IPv6
+    chain filter_input {
+        type filter hook input priority {{ input['priority'] }}; policy {{ input['policy'] }};
+{% for rule in input['rules'] %}
+        {{ rule }}
+{% endfor %}
+    }
+{% endif %}
+{# ----------------------Filter Forward--------------------------------- #}
+{% if forward is not None and forward['rules']|length > 0 %}
+    # Traffic TO and FROM VMs in Namespace Networks, IPv4 and IPv6
+    chain filter_forward {
+        type filter hook forward priority {{ forward['priority'] }}; policy {{ forward['policy'] }};
+{% for rule in forward['rules'] %}
+        {{ rule }}
+{% endfor %}
+
+    }
+{% endif %}
+{# ----------------------Filter Output--------------------------------- #}
+{% if output is not None and output['rules']|length > 0 %}
+    # Traffic FROM Namespace IPv4 and IPv6
+    chain filter_output {
+        type filter hook output priority {{ output['priority'] }}; policy {{ output['policy'] }};
+{% for rule in output['rules'] %}
+        {{ rule }}
+{% endfor %}
+    }
+{% endif %}
+
+{# ----------------------Filter Post Routing--------------------------- #}
+{% if postrouting is not None and postrouting['rules']|length > 0 %}
     chain filter_postrouting {
-        type filter hook postrouting priority {{ priority }}; policy {{ default_policy }};
-    {% for rule in postrouting_global_rules %}
+        type filter hook postrouting priority {{ postrouting['priority'] }}; policy {{ postrouting['policy'] }};
+    {% for rule in postrouting['rules'] %}
         {{ rule }}
     {% endfor %}
     }
