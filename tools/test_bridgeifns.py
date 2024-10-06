@@ -1,6 +1,8 @@
 import sys
 import json
 from cloudcix_primitives import bridgeifns
+# Create namespace with ns.py build verb
+# At the moment manually create global bridge
 
 # Fetch command and arguments
 cmd = sys.argv[1] if len(sys.argv) > 1 else None

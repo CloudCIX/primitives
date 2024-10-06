@@ -1,4 +1,4 @@
-# stdlib
+#stdlib
 import json
 import ipaddress
 from pathlib import Path
@@ -22,7 +22,7 @@ def build(
     bridgename: str,
     namespace: str,
     config_file=None
-) -> Tuple[bool, str]:
+    ) -> Tuple[bool, str]:
     """
     description:
         Creates a veth link on the main namespace and connects it to a bridge.
@@ -76,12 +76,12 @@ def build(
 
     status, config_data, msg = load_pod_config(config_file)
     if not status:
-      if config_data['raw'] is None:
-          return False, msg
-      else:
-          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
-              indent=2,
-              sort_keys=True)
+        if config_data['raw'] is None:
+            return False, msg
+    else:
+        return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+                                                                               indent=2,
+                                                                               sort_keys=True)
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
@@ -122,6 +122,13 @@ def build(
             return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
         fmt.add_successful('interface_add', ret)
 
+        ret = rcc.run(payloads['interface_main'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+        fmt.add_successful('interface_main', ret)
+
         ret = rcc.run(payloads['interface_ns'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
@@ -129,12 +136,6 @@ def build(
             return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
         fmt.add_successful('interface_ns', ret)
 
-        ret = rcc.run(payloads['interface_main'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-        fmt.add_successful('interface_main', ret)
 
         ret = rcc.run(payloads['interface_up'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
@@ -159,7 +160,7 @@ def scrub(
     bridgename: str,
     namespace: str,
     config_file=None
-) -> Tuple[bool, str]:
+    ) -> Tuple[bool, str]:
     """
     description:
         Removes the specified veth interface from the given namespace.
@@ -201,15 +202,15 @@ def scrub(
 
     status, config_data, msg = load_pod_config(config_file)
     if not status:
-      if config_data['raw'] is None:
-          return False, msg
-      else:
-          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
-              indent=2,
-              sort_keys=True)
+        if config_data['raw'] is None:
+            return False, msg
+    else:
+        return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+                                                                               indent=2,
+                                                                               sort_keys=True)
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
-    
+
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
         fmt = PodnetErrorFormatter(
@@ -221,8 +222,8 @@ def scrub(
         )
 
         payloads = {
-                'interface_check': f'sudo ip netns exec {namespace} ip link show dev {namespace}.{bridgename}',
-                'interface_del':  f'sudo ip netns exec {namespace} ip link del {namespace}.{bridgename}'
+            'interface_check': f'sudo ip netns exec {namespace} ip link show dev {namespace}.{bridgename}',
+            'interface_del':  f'sudo ip netns exec {namespace} ip link del {namespace}.{bridgename}'
         }
 
         ret = rcc.run(payloads['interface_check'])
@@ -258,7 +259,7 @@ def read(
     bridgename: str,
     namespace: str,
     config_file=None
-) -> Tuple[bool, dict, str]:
+    ) -> Tuple[bool, dict, str]:
     """
     description:
         reads a namespace.bridgename interface from namespace.
@@ -300,12 +301,12 @@ def read(
 
     status, config_data, msg = load_pod_config(config_file)
     if not status:
-      if config_data['raw'] is None:
-          return False, None, msg
-      else:
-          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
-              indent=2,
-              sort_keys=True)
+        if config_data['raw'] is None:
+            return False, None, msg
+    else:
+        return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+                                                                               indent=2,
+                                                                               sort_keys=True)
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
@@ -325,7 +326,7 @@ def read(
         )
 
         payloads = {
-                    'interface_show': f'ip netns exec {namespace} ip link show | grep --word "{namespace}.{bridgename}"'
+            'interface_show': f'ip netns exec {namespace} ip link show | grep --word "{namespace}.{bridgename}"'
         }
 
         ret = rcc.run(payloads['interface_show'])
@@ -348,4 +349,4 @@ def read(
     if not (retval_a and retval_b):
         return (retval_a and retval_b), data_dict, msg_list
     else:
-       return True, data_dict, (messages[1200])
+        return True, data_dict, (messages[1200])
