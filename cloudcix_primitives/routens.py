@@ -88,6 +88,8 @@ def build(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
+    destination_grepsafe = route["destination"].replace('.', '\.')
+
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
         fmt = PodnetErrorFormatter(
@@ -99,7 +101,7 @@ def build(
         )
 
         payloads = {
-            'routens_show': f'ip netns exec {namespace} ip {v} route | grep --word "{route["destination"]}"',
+            'routens_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
             'routens_add' : f'ip netns exec {namespace} ip {v} route add {route["destination"]} via {route["gateway"]} metric {metric}'
             }
 
@@ -158,11 +160,16 @@ def scrub(
         type: tuple
     """
 
-    if isinstance(route["destination"], ipaddress.IPv4Address):
+    try:
+        dest = ipaddress.ip_address(route["destination"])
+    except:
+        return False, f'{route["destination"]} is not a valid IP address.'
+
+    if isinstance(dest, ipaddress.IPv4Address):
         v = ''
         version = 4
         metric = 512
-    elif isinstance(route["destination"], ipaddress.IPv6Address):
+    elif isinstance(dest, ipaddress.IPv6Address):
         v = '-6'
         version = 6
         metric = 1024
@@ -174,10 +181,12 @@ def scrub(
         1100: f'1100: Successfully deleted IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} with metric {metric}',
         1101: f'1101: IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} already does not exist.',
 
+        3120: f'3120: Failed to run routens_show payload on the enabled PodNet. Payload exited with ',
         3121: f'3121: Failed to connect to the enabled PodNet from the config file {config_file} for payload routens_show:  ',
         3122: f'3122: Failed to connect to the enabled PodNet from the config file {config_file} for payload routens_del:  ',
         3123: f'3123: Failed to run routens_del payload on the enabled PodNet. Payload exited with status ',
 
+        3150: f'3150: Failed to run routens_show payload on the disabled PodNet. Payload exited with ',
         3151: f'3151: Failed to connect to the disabled PodNet from the config file {config_file} for payload routens_show:  ',
         3152: f'3152: Failed to connect to the disabled PodNet from the config file {config_file} for payload routens_del:  ',
         3153: f'3153: Failed to run routens_del payload on the disabled PodNet. Payload exited with status ',
@@ -199,6 +208,8 @@ def scrub(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
+    destination_grepsafe = route["destination"].replace('.', '\.')
+
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
         fmt = PodnetErrorFormatter(
@@ -210,7 +221,7 @@ def scrub(
         )
 
         payloads = {
-            'routens_show': f'ip netns exec {namespace} ip {v} route | grep --word "{route["destination"]}"',
+            'routens_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
             'routens_del' : f'ip netns exec {namespace} ip {v} route del {route["destination"]} via {route["gateway"]}'
             }
 
@@ -218,11 +229,21 @@ def scrub(
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            #If the interface already does not exists returns info and true state
-            return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+0}: " + messages[prefix+0]), fmt.successful_payloads
         fmt.add_successful('routens_show', ret)
 
-        return True, "", fmt.successful_payloads
+        if ret["payload_message"] == "":
+            #If the interface already does not exists returns info and true state
+            return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
+        else:
+            ret = rcc.run(payloads['routens_del'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+            fmt.add_successful('routens_del', ret)
+
+            return True, "", fmt.successful_payloads
 
     status, msg, successful_payloads = run_podnet(enabled,3220,{})
     if status == False:
@@ -261,11 +282,16 @@ def read(
         type: tuple
     """
 
-    if isinstance(route["destination"], ipaddress.IPv4Address):
+    try:
+        dest = ipaddress.ip_address(route["destination"])
+    except:
+        return False, {}, f'{route["destination"]} is not a valid IP address.'
+
+    if isinstance(dest, ipaddress.IPv4Address):
         v = ''
         version = 4
         metric = 512
-    elif isinstance(route["destination"], ipaddress.IPv6Address):
+    elif isinstance(dest, ipaddress.IPv6Address):
         v = '-6'
         version = 6
         metric = 1024
@@ -299,6 +325,7 @@ def read(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
+    destination_grepsafe = route["destination"].replace('.', '\.')
     # Define payload
 
     def run_podnet(podnet_node, prefix, successful_payloads, data_dict):
@@ -315,7 +342,7 @@ def read(
         )
 
         payloads = {
-            'routens_show': f'ip netns exec {namespace} ip {v} route | grep --word "{route["destination"]}"',
+            'routens_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
         }
 
         ret = rcc.run(payloads['routens_show'])

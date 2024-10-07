@@ -49,6 +49,7 @@ def build(
         1000: f'1000: Successfully created interface {namespace}.{bridgename} inside namespace {namespace}',
         1001: f'1001: Interface {namespace}.{bridgename} already exists inside namespace {namespace}',
 
+        3020: f'3020: Failed to run interface_check payload on the enabled PodNet. Payload exited with status ',
         3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check:  ',
         3022: f'3022: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_add:  ',
         3023: f'3023: Failed to run interface_add payload on the enabled PodNet. Payload exited with status ',
@@ -58,8 +59,8 @@ def build(
         3027: f'3027: Failed to run interface_ns payload on the enabled PodNet. Payload exited with status ',
         3028: f'3028: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_up:  ',
         3029: f'3029: Failed to run interface_up payload on the enabled PodNet. Payload exited with status ',
-        3030: f'3030: Failed to run interface_check payload on the enabled PodNet. Payload exited with status ',
 
+        3050: f'3050: Failed to run interface_check payload on the disabled PodNet. Payload exited with status ',
         3051: f'3051: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_check:  ',
         3052: f'3052: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_add:  ',
         3053: f'3053: Failed to run interface_add payload on the disabled PodNet. Payload exited with status ',
@@ -69,7 +70,6 @@ def build(
         3057: f'3057: Failed to run interface_ns payload on the disabled PodNet. Payload exited with status ',
         3058: f'3058: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_up:  ',
         3059: f'3059: Failed to run interface_up payload on the disabled PodNet. Payload exited with status ',
-        3060: f'3060: Failed to run interface_check payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
@@ -109,7 +109,7 @@ def build(
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.channel_error(ret, f"{prefix+10}: " + messages[prefix+10]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+0}: " + messages[prefix+0]), fmt.successful_payloads
         fmt.add_successful('interface_check', ret)
 
         if ret["payload_message"] == "":
@@ -330,6 +330,9 @@ def read(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
+
+    name_grepsafe = f"{namespace}.{bridgename}".replace('.', '\.')
+
     # Define payload
 
     def run_podnet(podnet_node, prefix, successful_payloads, data_dict):
@@ -346,7 +349,7 @@ def read(
         )
 
         payloads = {
-            'interface_show': f'ip netns exec {namespace} ip link show | grep --word "{namespace}.{bridgename}"'
+            'interface_show': f'ip netns exec {namespace} ip link show | grep --word "{name_grepsafe}"'
         }
 
         ret = rcc.run(payloads['interface_show'])
