@@ -318,7 +318,6 @@ def build(
                 nats = {
                     'prerouting': {
                         'priority': -999999998,
-                        'policy': 'accept',
                         'conversions': [
                             {
                                 'public': '91.103.3.36',
@@ -329,7 +328,6 @@ def build(
                     },
                     'postrouting': {
                         'priority': -999999998,
-                        'policy': 'accept',
                         'conversions': [
                             {
                                 'public': '91.103.3.1',
@@ -361,16 +359,6 @@ def build(
                                       Higher values: Lower priority (processed later).
                                 type: integer
                                 required: true
-                            policy:
-                                description: |
-                                    - Every nftable chain has a default policy either to `drop` or `accept` for the
-                                      traffic that doesn't belong to any rule in the chain.
-                                    - When it is set to `drop` then the rules must be of action = `accept` and
-                                      if it `accept` then the rules must be of action = `drop`.
-                                    - Usually it is set to `drop` as a part of zero trust policy and all rules supplied
-                                      are for allow.
-                                type: string
-                                required: false
                             conversions:
                                 description: public to private conversion also called as dnats
                                 type: array
@@ -410,16 +398,6 @@ def build(
                                       Higher values: Lower priority (processed later).
                                 type: integer
                                 required: true
-                            policy:
-                                description: |
-                                    - Every nftable chain has a default policy either to `drop` or `accept` for the
-                                      traffic that doesn't belong to any rule in the chain.
-                                    - When it is set to `drop` then the rules must be of action = `accept` and
-                                      if it `accept` then the rules must be of action = `drop`.
-                                    - Usually it is set to `drop` as a part of zero trust policy and all rules supplied
-                                      are for allow.
-                                type: string
-                                required: false
                             conversions:
                                 description: private to public conversion also called as snats
                                 type: array
@@ -494,13 +472,16 @@ def build(
         # Validating params
         2020: 'All the supplied parameters are validated.',
         3020: 'Errors occurred in validating supplied parameters.',
-        3021: 'Failed to validate Sets. One or more sets have same names. Name must be unique in the Sets',
-        3022: 'Failed to validate Sets. Errors occurred while validating sets. Errors: ',
-        3023: 'Failed to validate NATs. One or more NATs are invalid. Errors: ',
-        3024: 'Failed to validate %s Chain. Invalid Chains `priority` value, It must be an integer value',
-        3025: 'Failed to validate %s Chain. Invalid Chains `policy` value, It can to been either `accept` or `drop` ',
-        3026: 'Failed to validate %s Chain. One or more Chain rules have invalid values. Errors: ',
-        3027: 'Failed to validate %s Chain. Sets used in Chain rules are not found in supplied Sets. Errors: ',
+        3021: 'Failed to validate Sets. The `sets` input must of a list type object',
+        3022: 'Failed to validate Sets. One or more sets have same names. Name must be unique in the Sets',
+        3023: 'Failed to validate Sets. Errors occurred while validating sets. Errors: ',
+        3024: 'Failed to validate NATs. The `nats` input must of a dictionary type object',
+        3025: 'Failed to validate NATs. One or more NATs are invalid. Errors: ',
+        3026: 'Failed to validate %s Chain. A Chain must of a dictionary object',
+        3027: 'Failed to validate %s Chain. Invalid Chains `priority` value, It must be an integer value',
+        3028: 'Failed to validate %s Chain. Invalid Chains `policy` value, It can to been either `accept` or `drop` ',
+        3029: 'Failed to validate %s Chain. One or more Chain rules have invalid values. Errors: ',
+        3030: 'Failed to validate %s Chain. Sets used in Chain rules are not found in supplied Sets. Errors: ',
         # Template
         3040: f'Failed to verify nftables.conf.j2 template data, One or more template fields are None',
         # Enabled PodNet
@@ -559,11 +540,16 @@ def build(
         valid_sets = True
         errors = []
 
+        # validate sets object type
+        if type(sets) is not list:
+            messages_list.append(f'{msg_index}: {messages[msg_index]}')
+            return False
+
         # first make sure set names are unique in the list
         set_names.extend([obj['name'] for obj in sets])
         if len(sets) != len(list(set(set_names))):
             valid_sets = False
-            messages_list.append(f'{msg_index}: {messages[msg_index]}')
+            messages_list.append(f'{msg_index + 1}: {messages[msg_index + 1]}')
 
         # validate each set
         for obj in sets:
@@ -574,7 +560,7 @@ def build(
                 errors.extend(errs)
 
         if valid_sets is False:
-            messages_list.append(f'{messages[msg_index + 1]} {";".join(errors)}')
+            messages_list.append(f'{msg_index + 2}: {messages[msg_index + 2]} {";".join(errors)}')
         return valid_sets
 
     if sets:
@@ -585,15 +571,20 @@ def build(
         errors = []
         valid_nats = True
 
-        dnats = nats.get('prerouting', None)
-        if dnats is not None:
+        # validate nats object type
+        if type(nats) is not dict:
+            messages_list.append(f'{msg_index}: {messages[msg_index]}')
+            return False
+
+        dnats = nats.get('prerouting', {})
+        if dnats:
             # priority
             priority = dnats.get('priority', None)
             if type(priority) is not int:
                 valid_nats = False
                 errors.append(f'Invalid priority: {priority} for prerouting')
             # conversions
-            dnats['lines'] = []
+            dnats['nat_lines'] = []
             for conversion in dnats['conversions']:
                 controller = FirewallNAT(conversion)
                 success, errs = controller()
@@ -601,17 +592,17 @@ def build(
                     valid_nats = False
                     errors.extend(errs)
                 else:  # compile the nat conversion line here
-                    dnats['lines'].append(dnat_rule(conversion))
+                    dnats['nat_lines'].append(dnat_rule(conversion))
 
-        snats = nats.get('postrouting', None)
-        if snats is not None:
+        snats = nats.get('postrouting', {})
+        if snats:
             # priority
             priority = snats.get('priority', None)
             if type(priority) is not int:
                 valid_nats = False
                 errors.append(f'Invalid priority: {priority} for postrouting')
             # conversions
-            snats['lines'] = []
+            snats['nat_lines'] = []
             for conversion in snats['conversions']:
                 controller = FirewallNAT(conversion)
                 success, errs = controller()
@@ -619,15 +610,15 @@ def build(
                     valid_nats = False
                     errors.extend(errs)
                 else:  # compile the nat conversion line here
-                    snats['lines'].append(snat_rule(conversion))
+                    snats['nat_lines'].append(snat_rule(conversion))
 
         if len(errors) > 0:
-            messages_list.append(f'{messages[msg_index]} {";".join(errors)}')
+            messages_list.append(f'{msg_index + 1}: {messages[msg_index + 1]} {";".join(errors)}')
         return valid_nats, dnats, snats
 
-    nat_prerouting, nat_postrouting = None, None
+    nat_prerouting, nat_postrouting = [], []
     if nats:
-        validated, nat_prerouting, nat_postrouting = validate_nats(nats, 3023)
+        validated, nat_prerouting, nat_postrouting = validate_nats(nats, 3024)
 
     # Collect applications(for protocols = icmp, dns, vpn, dhcp) if any
     applications: List[str] = []
@@ -637,24 +628,29 @@ def build(
         errors = []
         valid_chain = True
 
+        # validate chain object
+        if type(chain) is not dict:
+            messages_list.append(f'{msg_index}: {messages[msg_index].format(chain_name)}')
+            return False
+
         # validate priority
         priority = chain.get('priority', None)
-        if priority is None:
-            valid_chain = False
-            errors.append(f'{msg_index}: {messages[msg_index].format(chain_name)}')
-
-        # validate policy
-        policy = chain.get('policy', None)
-        if policy is None:
+        if type(priority) is not int:
             valid_chain = False
             errors.append(f'{msg_index + 1}: {messages[msg_index + 1].format(chain_name)}')
 
+        # validate policy
+        policy = chain.get('policy', None)
+        if policy not in ('accept', 'drop'):
+            valid_chain = False
+            errors.append(f'{msg_index + 2}: {messages[msg_index + 2].format(chain_name)}')
+
         # compile rule lines
-        chain['rule_lines'] = []
+        chain['rule_lines']: Deque[str] = deque()  # deque for FIFO
 
         # validate rules and
-        rules = chain.get('rules', None)
-        if rules is not None:
+        rules = chain.get('rules', [])
+        if rules:
             for rule in sorted(rules, key=lambda fw: fw['order']):
                 controller = FirewallNamespace(rule)
                 success, errs = controller()
@@ -667,13 +663,13 @@ def build(
                     applications.append(application)
 
         if valid_chain is False:
-            messages_list.append(f'{msg_index + 2}: {messages[msg_index + 2].format(chain_name)} {";".join(errors)}')
+            messages_list.append(f'{msg_index + 3}: {messages[msg_index + 3].format(chain_name)} {";".join(errors)}')
 
         # check if the rule has any sets in source, destination or ports,
         # if so then check that set is defined in sets
         errors = []
         valid_set_elements = True
-        if rules is not None:
+        if rules:
             for rule in rules:
                 rule_sets = []
                 # collect the sets from the rules that starts with `@`
@@ -690,29 +686,29 @@ def build(
                         errors.append(f'{rule_set} not found in the supplied sets')
 
         if valid_set_elements is False:
-            messages_list.append(f'{msg_index + 3}: {messages[msg_index + 3].format(chain_name)} {";".join(errors)}')
+            messages_list.append(f'{msg_index + 4}: {messages[msg_index + 4].format(chain_name)} {";".join(errors)}')
 
         return valid_chain and valid_set_elements
 
-    prerouting = chains.get('prerouting', None)
-    if prerouting is not None:
-        validated = validate_chain(prerouting, 'Pre-Routing', 3024)
+    prerouting = chains.get('prerouting', {})
+    if prerouting:
+        validated = validate_chain(prerouting, 'Pre-Routing', 3026)
 
-    input = chains.get('input', None)
-    if input is not None:
-        validated = validate_chain(input, 'Input', 3024)
+    in_put = chains.get('input', {})
+    if in_put:
+        validated = validate_chain(in_put, 'Input', 3026)
 
-    forward = chains.get('forward', None)
-    if forward is not None:
-        validated = validate_chain(forward, 'Forward', 3024)
+    forward = chains.get('forward', {})
+    if forward:
+        validated = validate_chain(forward, 'Forward', 3026)
 
-    output = chains.get('output', None)
-    if output is not None:
-        validated = validate_chain(output, 'Output', 3024)
+    output = chains.get('output', {})
+    if output:
+        validated = validate_chain(output, 'Output', 3026)
 
-    postrouting = chains.get('postrouting', None)
-    if postrouting is not None:
-        validated = validate_chain(postrouting, 'Post-Routing', 3024)
+    postrouting = chains.get('postrouting', {})
+    if postrouting:
+        validated = validate_chain(postrouting, 'Post-Routing', 3026)
 
     if validated is False:
         return False, f'3020: {messages[3020]} {"; ".join(messages_list)}'
@@ -725,7 +721,7 @@ def build(
     template_data = {
         'applications': applications,
         'forward': forward,
-        'input': input,
+        'input': in_put,
         'nat_postrouting': nat_postrouting,
         'nat_prerouting': nat_prerouting,
         'output': output,
