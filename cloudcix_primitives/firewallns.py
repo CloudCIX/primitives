@@ -754,7 +754,7 @@ def build(
         payloads = {
             'create_nftables_file': f'echo "{nftables_config}" > {nftables_file}',
             'validate_nftables_file': f'ip netns exec {namespace} nft --check --file {nftables_file}',
-            'read_table': f'ip netns exec {namespace} nft list tables | grep --word "inet {table_grepsafe} "',
+            'read_table': f'ip netns exec {namespace} nft list tables | grep --word "inet {table_grepsafe}"',
             'flush_table': f'ip netns exec {namespace} nft delete table inet {table} ',
             'apply_nftables_file': f'ip netns exec {namespace} nft --file {nftables_file}',
             'remove_nftables_file': f'rm --force {nftables_file}',
