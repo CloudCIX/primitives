@@ -22,7 +22,7 @@ def build(
     bridgename: str,
     namespace: str,
     config_file=None
-    ) -> Tuple[bool, str]:
+) -> Tuple[bool, str]:
     """
     description:
         Creates a veth link on the main namespace and connects it to a bridge.
@@ -58,6 +58,7 @@ def build(
         3027: f'3027: Failed to run interface_ns payload on the enabled PodNet. Payload exited with status ',
         3028: f'3028: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_up:  ',
         3029: f'3029: Failed to run interface_up payload on the enabled PodNet. Payload exited with status ',
+        3030: f'3030: Failed to run interface_check payload on the enabled PodNet. Payload exited with status ',
 
         3051: f'3051: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_check:  ',
         3052: f'3052: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_add:  ',
@@ -68,6 +69,7 @@ def build(
         3057: f'3057: Failed to run interface_ns payload on the disabled PodNet. Payload exited with status ',
         3058: f'3058: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_up:  ',
         3059: f'3059: Failed to run interface_up payload on the disabled PodNet. Payload exited with status ',
+        3060: f'3060: Failed to run interface_check payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
@@ -84,7 +86,6 @@ def build(
                                                                                sort_keys=True)
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
-
 
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
@@ -107,44 +108,65 @@ def build(
         ret = rcc.run(payloads['interface_check'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
-        if ret["payload_code"] == SUCCESS_CODE:
-            #If the interface already exists returns info and true state
-            print(f"yooo {ret}")
-            return True, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.channel_error(ret, f"{prefix+10}: " + messages[prefix+10]), fmt.successful_payloads
         fmt.add_successful('interface_check', ret)
 
-        #STEP 1-4
-        ret = rcc.run(payloads['interface_add'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            print(f"yo its interface add {ret}")
-            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-        fmt.add_successful('interface_add', ret)
+        if ret["payload_message"] == "":
+            #If the interface does not already exists then create and prepare the interface then activate it.
+            ret = rcc.run(payloads['interface_add'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+            fmt.add_successful('interface_add', ret)
 
-        ret = rcc.run(payloads['interface_main'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-        fmt.add_successful('interface_main', ret)
+            ret = rcc.run(payloads['interface_main'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+            fmt.add_successful('interface_main', ret)
 
-        ret = rcc.run(payloads['interface_ns'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
-        fmt.add_successful('interface_ns', ret)
+            ret = rcc.run(payloads['interface_ns'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
+            fmt.add_successful('interface_ns', ret)
 
+            ret = rcc.run(payloads['interface_up'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
+            fmt.add_successful('interface_up', ret)
 
-        ret = rcc.run(payloads['interface_up'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
-        fmt.add_successful('interface_up', ret)
+            return True, "", fmt.successful_payloads
+        else:
+            #If the interface already exists then set-up the interface once again. These payloads are idempotent.
+            ret = rcc.run(payloads['interface_main'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+            fmt.add_successful('interface_main', ret)
 
-        return True, "", fmt.successful_payloads
+            ret = rcc.run(payloads['interface_ns'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
+            fmt.add_successful('interface_ns', ret)
+
+            ret = rcc.run(payloads['interface_up'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
+            fmt.add_successful('interface_up', ret)
+
+            return True, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
 
     status, msg, successful_payloads = run_podnet(enabled,3020,{})
     if status == False:
@@ -160,7 +182,7 @@ def scrub(
     bridgename: str,
     namespace: str,
     config_file=None
-    ) -> Tuple[bool, str]:
+) -> Tuple[bool, str]:
     """
     description:
         Removes the specified veth interface from the given namespace.
@@ -259,7 +281,7 @@ def read(
     bridgename: str,
     namespace: str,
     config_file=None
-    ) -> Tuple[bool, dict, str]:
+) -> Tuple[bool, dict, str]:
     """
     description:
         reads a namespace.bridgename interface from namespace.
@@ -304,9 +326,7 @@ def read(
         if config_data['raw'] is None:
             return False, None, msg
     else:
-        return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
-                                                                               indent=2,
-                                                                               sort_keys=True)
+        return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],indent=2,sort_keys=True)
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 

@@ -43,12 +43,16 @@ def build(
             and the ouput or error message.
         type: tuple
     """
+    try:
+        dest = ipaddress.ip_address(route["destination"])
+    except:
+        return False, f'{route["destination"]} is not a valid IP address.'
 
-    if isinstance(route["destination"], ipaddress.IPv4Address):
+    if isinstance(dest, ipaddress.IPv4Address):
         v = ''
         version = 4
         metric = 512
-    elif isinstance(route["destination"], ipaddress.IPv6Address):
+    elif isinstance(dest, ipaddress.IPv6Address):
         v = '-6'
         version = 6
         metric = 1024
