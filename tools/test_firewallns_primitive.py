@@ -9,14 +9,14 @@ namespace = "testns"
 table = 'firewall_123'
 nats = {
     'prerouting': {
-        'priority': -999999998,
+        'priority': -100,
         'policy': 'accept',
         'conversions': [
             {'public': '185.49.60.116', 'private': '192.168.0.2', 'iface': 'testns.BM1'},
         ],
     },
     'postrouting': {
-        'priority': -999999998,
+        'priority': 100,
         'policy': 'accept',
         'conversions': [
             {'private': '192.168.0.0/24', 'public': '185.49.60.117', 'iface': 'testns.BM1'},
@@ -89,7 +89,7 @@ sets = [
 
 chains = {
     'prerouting': {
-        'priority': -999999997,
+        'priority': 0,
         'policy': 'accept',
         'rules': geo_rules,
     },
