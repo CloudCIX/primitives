@@ -80,8 +80,8 @@ def build(
     if not status:
         if config_data['raw'] is None:
             return False, msg
-    else:
-        return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+        else:
+            return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
                                                                                indent=2,
                                                                                sort_keys=True)
     enabled = config_data['processed']['enabled']
@@ -226,8 +226,8 @@ def scrub(
     if not status:
         if config_data['raw'] is None:
             return False, msg
-    else:
-        return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+        else:
+            return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
                                                                                indent=2,
                                                                                sort_keys=True)
     enabled = config_data['processed']['enabled']
@@ -325,8 +325,9 @@ def read(
     if not status:
         if config_data['raw'] is None:
             return False, None, msg
-    else:
-        return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],indent=2,sort_keys=True)
+        else:
+            return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],indent=2,sort_keys=True)
+
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 

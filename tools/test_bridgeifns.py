@@ -15,13 +15,6 @@ if len(sys.argv) > 3:
 
 status = None
 msg = None
-if len(sys.argv) > 2:
-    bridgename = sys.argv[2]
-if len(sys.argv) > 3:
-    namespace_name = sys.argv[3]
-
-status = None
-msg = None
 data = None
 
 # Check and execute command
