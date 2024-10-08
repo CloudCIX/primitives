@@ -26,7 +26,7 @@ template_path = os.path.join(os.path.dirname(__file__), 'templates', __name__.sp
 def build(
         host: str,
         vlan: int,
-        ifname: list,
+        ifname: str,
 ) -> Tuple[bool, str]:
     """
     description:
