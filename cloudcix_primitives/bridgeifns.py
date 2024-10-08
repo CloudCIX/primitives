@@ -47,7 +47,6 @@ def build(
     # Define message
     messages = {
         1000: f'1000: Successfully created interface {namespace}.{bridgename} inside namespace {namespace}',
-        1001: f'1001: Interface {namespace}.{bridgename} already exists inside namespace {namespace}',
 
         3020: f'3020: Failed to run interface_check payload on the enabled PodNet. Payload exited with status ',
         3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check:  ',
@@ -108,38 +107,34 @@ def build(
         ret = rcc.run(payloads['interface_check'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
+        add_interface = True
         if ret["payload_code"] == SUCCESS_CODE:
-            ret = rcc.run(payloads['interface_up'])
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
-            if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
-            fmt.add_successful('interface_up', ret)
-
-            return True, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
+            # No need to add this bidge space to the namespace if it exists already
+            add_interface = False
         fmt.add_successful('interface_check', ret)
 
-        #If the interface does not already exists then create and prepare the interface then activate it.
-        ret = rcc.run(payloads['interface_add'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-        fmt.add_successful('interface_add', ret)
+        if add_interface:
+            # If the interface does not already exists then create and prepare the interface then activate it.
+            ret = rcc.run(payloads['interface_add'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+            fmt.add_successful('interface_add', ret)
 
-        ret = rcc.run(payloads['interface_main'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-        fmt.add_successful('interface_main', ret)
+            ret = rcc.run(payloads['interface_main'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+            fmt.add_successful('interface_main', ret)
 
-        ret = rcc.run(payloads['interface_ns'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
-        fmt.add_successful('interface_ns', ret)
+            ret = rcc.run(payloads['interface_ns'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
+            fmt.add_successful('interface_ns', ret)
 
         ret = rcc.run(payloads['interface_up'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
