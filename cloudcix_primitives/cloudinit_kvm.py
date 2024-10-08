@@ -140,47 +140,50 @@ def build(
     # Define message
     messages = {
         1000: f'Successfully created domain {domain} on Host {host}',
+        # validations
         3011: 'Invalid "gateway_interface", The "gateway_interface" cannot be None',
         3012: 'Invalid "gateway_interface", The "gateway_interface" must be a dictionary object',
-        3013: f'Failed to validate "gateway_interface" {gateway_interface}, one of the field is invalid',
+        3013: 'Invalid "gateway_interface", one of the field is invalid, Errors: ',
         3014: 'Invalid "primary_storage", The "primary_storage" is required',
         3015: 'Invalid "primary_storage", The "primary_storage" is must be a string type',
         3016: 'Invalid "primary_storage", The "primary_storage" must be a name of the storage file with extension',
         3017: 'Invalid "primary_storage", The "primary_storage" can only be either .img or .qcow2 file formats',
-
-        3013: f'Failed to validate "secondary_interfaces" {secondary_interfaces}',
-        3021: f'Failed to connect the Host {host} for payload copy_cloudimage',
-        3022: f'Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{primary_storage}'
+        3018: 'Invalid "secondary_interfaces", The "secondary_interfaces" must be a list object',
+        3019: 'Invalid "secondary_interfaces", one of the field is invalid, Errors: ',
+        3020: 'Invalid "secondary_storages", every item in "secondary_storages" must be of string type',
+        3021: 'Invalid "secondary_storages", one or more items are invalid, Errors: ',
+        # payload execution
+        3031: f'Failed to connect the Host {host} for payload copy_cloudimage',
+        3032: f'Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{primary_storage}'
               f' on Host {host}.',
-        3023: f'Failed to connect the Host {host} for payload resize_copied_file',
-        3024: f'Failed to resize the copied storage image to {size}GB on Host {host}',
-        3025: f'Failed to connect the Host {host} for payload virt_install_cmd',
-        3026: f'Failed to create domain {domain} on Host {host}'
+        3033: f'Failed to connect the Host {host} for payload resize_copied_file',
+        3034: f'Failed to resize the copied storage image to {size}GB on Host {host}',
+        3035: f'Failed to connect the Host {host} for payload virt_install_cmd',
+        3036: f'Failed to create domain {domain} on Host {host}'
     }
 
     messages_list = []
     validated = True
 
     # validate gateway_interface
-    def validate_gateway_interface(gi, msg_index):
-        valid_gi = True
-        if gi is None:
+    def validate_gateway_interface(gif, msg_index):
+        valid_gif = True
+        if gif is None:
             messages_list.append(f'{messages[msg_index]}: {messages[msg_index]}')
             return False
 
-        if type(gi) is not dict:
+        if type(gif) is not dict:
             messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]}')
             return False
 
-        controller = KVMInterface(gi)
+        controller = KVMInterface(gif)
         success, errs = controller()
         if success is False:
-            valid_gi = False
+            valid_gif = False
             messages_list.append(f'{messages[msg_index + 2]}: {messages[msg_index + 2]} {";".join(errs)}')
-        return valid_gi
+        return valid_gif
 
     validated = validate_gateway_interface(gateway_interface, 3011)
-
 
     # validate primary_storage
     def validate_primary_storage(ps, msg_index):
@@ -203,24 +206,63 @@ def build(
     validated = validate_primary_storage(primary_storage, 3014)
 
     # validate secondary interfaces
-    def validate_secondary_interface(sis, msg_indes):
+    def validate_secondary_interfaces(sifs, msg_index):
+        if type(sifs) is not list:
+            messages_list.append(f'{messages[msg_index]}: {messages[msg_index]}')
+            return False
 
-
-    if secondary_interfaces and type(secondary_interfaces) is not list:
-
-    if secondary_interfaces and type(secondary_interfaces) is list:
         errors = []
-        valid_interface = True
+        valid_sifs = True
         for interface in secondary_interfaces:
             controller = KVMInterface(interface)
             success, errs = controller()
             if success is False:
-                valid_interface = False
+                valid_sifs = False
                 errors.extend(errs)
-        if valid_interface is False:
-            validated = False
-            messages_list.append(f'3013: {messages[3013]} {";".join(errors)}')
+        if valid_sifs is False:
+            messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]} {";".join(errors)}')
 
+        return valid_sifs
+
+    if secondary_interfaces:
+        validated = validate_secondary_interfaces(secondary_interfaces, 3018)
+    else:
+        secondary_interfaces = []
+
+    # validate secondary storages
+    def validate_secondary_storages(sstgs, msg_index):
+        if type(sstgs) is not list:
+            messages_list.append(f'{messages[msg_index]}: {messages[msg_index]}')
+            return False
+
+        errors = []
+        valid_sstgs = True
+        for storage in secondary_storages:
+            if type(storage) is not str:
+                errors.append(f'Invalid secondary_storage {storage}, it must be string type')
+                valid_sstgs = False
+            else:
+                stg_items = storage.split('.')
+                if len(stg_items) != 2:
+                    errors.append(
+                        f'Invalid secondary_storage {storage}, it must be the name of the storage file with extension',
+                    )
+                    valid_sstgs = False
+                elif stg_items[1] not in ('img', 'qcow2'):
+                    errors.append(
+                        f'Invalid secondary_storage {storage}, it can only be either .img or .qcow2 file format',
+                    )
+                    valid_sstgs = False
+
+        if valid_sstgs is False:
+            messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]} {";".join(errors)}')
+
+        return valid_sstgs
+
+    if secondary_storages:
+        validated = validate_secondary_storages(secondary_storages, 3020)
+    else:
+        secondary_storages = []
 
     if validated is False:
         return False, '; '.join(messages_list)
@@ -297,7 +339,7 @@ def build(
 
         return True, "", fmt.successful_payloads
 
-    status, msg, successful_payloads = run_host(host, 3020, {})
+    status, msg, successful_payloads = run_host(host, 3030, {})
     if status is False:
         return status, msg
 

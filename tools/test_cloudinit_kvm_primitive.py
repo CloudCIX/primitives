@@ -50,6 +50,8 @@ if cmd == 'build':
         cloudimage=cloudimage, cpu=cpu, ram=ram, osvariant=osvariant, gateway_interface=gateway_interface,
 
     )
+if cmd == 'read':
+    status, data, msg = cloudinit_kvm.read(domain=domain, host=host)
 
 print("Status: %s" % status)
 print()
