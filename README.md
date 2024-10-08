@@ -25,28 +25,41 @@ supported verbs:
 - build:
     - namespace: str
     - table: str
-    - priority: int
     - config_file: optional str
-    - rules: optional array
-        - version: int
-          source: array
-            - str
-          destination: array
-            - str
-          protocol: str
-          port: array
-            - str
-          action: bool
-          log: bool
-          iiface: str
-          oiface: str
-          order: int
+    - chains: optional dict
+      - prerouting: optional dict
+        - priority: int
+        - policy: string
+        - rules: optional array
+          - version: int
+            source: array
+              - str
+            destination: array
+              - str
+            protocol: str
+            port: array
+              - str
+            action: bool
+            log: bool
+            iiface: str
+            oiface: str
+            order: int
+      - input: optional dict, dict object same as prerouting
+      - forward: optional dict, dict object same as prerouting
+      - output: optional dict, dict object same as prerouting
+      - postrouting: optional dict, dict object same as prerouting
     - nats: optional dict
-        dnats: optional array
+        - prerouting: optional dict
+          - priority: int
+          - policy: optional string
+          - rules: optional array        
             - public: str
               private: str
               iiface: str
-        snats: optional array
+        - postrouting: optional array
+          - priority: int
+          - policy: optional string
+          - rules: optional array 
             - public: str
               private: str
               oiface: str
