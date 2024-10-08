@@ -155,8 +155,7 @@ def build(
         3021: 'Invalid "secondary_storages", one or more items are invalid, Errors: ',
         # payload execution
         3031: f'Failed to connect to the host {host} for the payload read_storage_file',
-        3032: f'Invalid cloudinit_kvm vm build request, as primary storage {domain_path}{primary_storage} '
-              f'already exists on Host {host}.',
+        3032: f'Failed to create domain, the requested domain {domain} already exists on the Host {host}',
         3033: f'Failed to connect the Host {host} for the payload copy_cloudimage',
         3034: f'Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{primary_storage}'
               f' on Host {host}.',
@@ -315,21 +314,21 @@ def build(
             cmd += f'--network bridge={interface["vlan_bridge"]},model=virtio,mac={interface["mac_address"]}'
 
         payloads = {
-            # check if primary storage exists already
-            'read_storage_file': f'qemu-img info {domain_path}{primary_storage}',
+            # check if vm exists already
+            'read_domain_info': f'virsh dominfo {domain} ',
             'copy_cloudimage': f'cp {cloudimage} {domain_path}{primary_storage}',
             'resize_copied_file': f'qemu-img resize {domain_path}{primary_storage} {size}G',
             'virt_install_cmd': cmd,
         }
 
-        ret = rcc.run(payloads['read_storage_file'])
+        ret = rcc.run(payloads['read_domain_info'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
         if ret["payload_code"] == SUCCESS_CODE:
-            # if primary storage drive exists already then we should not build vm as it already exists,
+            # if vm exists already then we should not build it again,
             # by mistake same vm is requested to build again so return with error
             return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
-        fmt.add_successful('read_storage_file', ret)
+        fmt.add_successful('read_domain_info', ret)
 
         ret = rcc.run(payloads['copy_cloudimage'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
