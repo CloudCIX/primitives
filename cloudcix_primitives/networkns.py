@@ -1,6 +1,7 @@
 # stdlib
 import json
 from typing import Tuple
+import ipaddress
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 from cloudcix_primitives.utils import load_pod_config, SSHCommsWrapper, PodnetErrorFormatter
@@ -17,55 +18,48 @@ SUCCESS_CODE = 0
 
 
 def build(
-    vlan: int,
-    ifname: str,
+    address_range: str,
+    device: str,
     namespace: str,
     config_file=None
 ) -> Tuple[bool, str]:
     """
     description:
-        Creates a vlan tagged interface. The it moves the interface to the namespace and bring it up
+        Add IP address range to an interface inside a namespace
 
     parameters:
-        vlan:
-            description: VLAN id assigned to the interface.
-            type: integer
-            required: true
-        ifname:
-            description: Interface name.
-            type: string
-            required: true
         namespace:
             description: The VRF network namespace identifier, such as 'VRF123'.
             type: string
             required: true
+        address_range:
+            description: IP address range to be added
+            type: string
+            required: true
+        device:
+            description: Device to assign the IP address range to.
+            type: string
+            required: true
+
 
     return:
         description: |
-            A tuple with a boolean flag indicating if the VLAN tagged interface creation was successful,
+            A tuple with a boolean flag indicating if the IP address range assignment was successful,
             and the output or error message.
         type: tuple
     """
     # Define message
     messages = {
-        1000: f'Successfully created interface {ifname}.{vlan} inside namespace {namespace} ',
-        1001: f'Interface {ifname}.{vlan} already exists inside namespace {namespace} ',
+        1000: f'Successfully added {address_range} to {device} inside namespace {namespace} ',
+        1001: f'Address range {address_range} already exists inside namespace {namespace} ',
 
-        3021: f'Failed to connect to the enabled PodNet for vlanif_check payload:  ',
-        3022: f'Failed to connect to the enabled PodNet for vlanif_add payload:  ',
-        3023: f'Failed to run vlanif_add payload on the enabled PodNet. Payload exited with status ',
-        3024: f'Failed to connect to the enabled PodNet for vlanif_ns payload:  ',
-        3025: f'Failed to run vlanif_ns payload on the enabled PodNet. Payload exited with status ',
-        3026: f'Failed to connect to the enabled PodNet for vlanif_up payload:  ',
-        3027: f'Failed to run vlanif_up payload on the enabled PodNet. Payload exited with status ',
+        3021: f'Failed to connect to the enabled PodNet for find_address_range payload:  ',
+        3022: f'Failed to connect to the enabled PodNet for address_range_add payload:  ',
+        3023: f'Failed to run address_range_add payload on the enabled PodNet. Payload exited with status ',
 
-        3051: f'Failed to connect to the disabled PodNet for vlanif_check payload:  ',
-        3052: f'Failed to connect to the disabled PodNet for vlanif_add payload:  ',
-        3053: f'Failed to run vlanif_add payload on the disabled PodNet. Payload exited with status ',
-        3054: f'Failed to connect to the disabled PodNet for vlanif_ns payload:  ',
-        3055: f'Failed to run vlanif_ns payload on the disabled PodNet. Payload exited with status ',
-        3056: f'Failed to connect to the disabled PodNet for vlanif_up payload:  ',
-        3057: f'Failed to run vlanif_up payload on the disabled PodNet. Payload exited with status ',
+        3051: f'Failed to connect to the disabled PodNet for find_address_range payload:  ',
+        3052: f'Failed to connect to the disabled PodNet for address_range_add payload:  ',
+        3053: f'Failed to run address_range_add payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
@@ -94,46 +88,34 @@ def build(
             successful_payloads
         )
 
+
+        ip_ver = ipaddress.ip_interface(address_range)
+        if ip_ver.version == 4:
+          version = ''
+        else:
+          version = '-6'
+
+        address_range_grepsafe = address_range.replace('.', '\.')
+   
         payloads = {
-            'vlanif_check' : f'ip netns exec {namespace} ip link show {ifname}.{vlan}',
-            'vlanif_add' : f'ip link add link {ifname} name {ifname}.{vlan} type vlan id {vlan}',
-            'vlanif_ns': f'ip link set dev {ifname}.{vlan} netns {namespace}',
-            'vlanif_up' : f'ip netns exec {namespace} ip link set dev {ifname}.{vlan} up',
+            'find_address_range' : f'ip netns exec {namespace} ip address show | grep {address_range_grepsafe}',
+            'address_range_add' : f'ip netns exec {namespace} ip {version} addr add {address_range} dev {device}',
         }
 
-        ret = rcc.run(payloads['vlanif_check'])
+        ret = rcc.run(payloads['find_address_range'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
-        create_vlanif = True
         if ret["payload_code"] == SUCCESS_CODE:
-            #If the interface already exists returns info and true state
-            create_vlanif = False
-            fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
-        fmt.add_successful('vlanif_check', ret)
+            #If the address_range already exists returns info and true state
+            return True, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
+        fmt.add_successful('find_address_range', ret)
 
-        #STEP 1-4
-
-        if create_vlanif:
-           ret = rcc.run(payloads['vlanif_add'])
-           if ret["channel_code"] != CHANNEL_SUCCESS:
-               return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
-           if ret["payload_code"] != SUCCESS_CODE:
-               return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-           fmt.add_successful('vlanif_add', ret)
-
-           ret = rcc.run(payloads['vlanif_ns'])
-           if ret["channel_code"] != CHANNEL_SUCCESS:
-               return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
-           if ret["payload_code"] != SUCCESS_CODE:
-               return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-           fmt.add_successful('vlanif_ns', ret)
-
-        ret = rcc.run(payloads['vlanif_up'])
+        ret = rcc.run(payloads['address_range_add'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
-        fmt.add_successful('vlanif_up', ret)
+            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+        fmt.add_successful('address_range_add', ret)
 
         return True, "", fmt.successful_payloads
 
@@ -148,47 +130,48 @@ def build(
     return True, messages[1000]
 
 def scrub(
-    vlan: int,
-    ifname: str,
+    address_range: str,
+    device: str,
     namespace: str,
     config_file=None
 ) -> Tuple[bool, str]:
     """
     description:
-        Creates a vlan tagged interface. The it moves the interface to the namespace and bring it up
+        Remove IP address range from an interface inside a namespace
 
     parameters:
-        vlan:
-            description: VLAN id assigned to the interface.
-            type: integer
-            required: true
-        ifname:
-            description: Interface name.
-            type: string
-            required: true
         namespace:
             description: The VRF network namespace identifier, such as 'VRF123'.
             type: string
             required: true
+        address_range:
+            description: IP address range to be removed
+            type: string
+            required: true
+        device:
+            description: Device to remove the IP address range from.
+            type: string
+            required: true
+
 
     return:
         description: |
-            A tuple with a boolean flag indicating if the VLAN tagged interface deletion was successful,
+            A tuple with a boolean flag indicating if the IP address range removal was successful,
             and the output or error message.
         type: tuple
     """
     # Define message
     messages = {
-        1100: f'Successfully removed vlanif {ifname}.{vlan} inside namespace {namespace} ',
-        1101: f'vlanif {ifname}.{vlan} does not exist ',
+        1100: f'Successfully removed address_range {address_range} inside namespace {namespace} ',
+        1101: f'Address range {address_range} does not exist ',
 
-        3121: f'Failed to connect to the enabled PodNet for vlanif_check payload:  ',
-        3122: f'Failed to connect to the enabled PodNet for vlanif_del payload:  ',
-        3123: f'Failed to run vlanif_del payload on the enabled PodNet. Payload exited with status ',
+        3121: f'Failed to connect to the enabled PodNet for find_address_range payload:  ',
+        3122: f'Failed to connect to the enabled PodNet for address_range_del payload:  ',
+        3123: f'Failed to run address_range_del payload on the enabled PodNet. Payload exited with status ',
 
-        3151: f'Failed to connect to the disabled PodNet for vlanif_check payload:  ',
-        3152: f'Failed to connect to the disabled PodNet for vlanif_del payload:  ',
-        3153: f'Failed to run vlanif_del payload on the disabled PodNet. Payload exited with status ',
+        3151: f'Failed to connect to the disabled PodNet for find_address_range payload:  ',
+        3152: f'Failed to connect to the disabled PodNet for address_range_del payload:  ',
+        3153: f'Failed to run address_range_del payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
@@ -216,26 +199,34 @@ def scrub(
             successful_payloads
         )
 
+        ip_ver = ipaddress.ip_interface(address_range)
+        if ip_ver.version == 4:
+          version = ''
+        else:
+          version = '-6'
+
+        address_range_grepsafe = address_range.replace('.', '\.')
+
         payloads = {
-                'vlanif_check': f'ip netns exec {namespace} ip link show {ifname}.{vlan}',
-                'vlanif_del':  f'ip netns exec {namespace} ip link del {ifname}.{vlan}'
+                'find_address_range': f'ip netns exec {namespace} ip address show | grep {address_range_grepsafe}',
+                'address_range_del':  f'ip netns exec {namespace} ip {version} addr del {address_range} dev {device}'
         }
 
 
-        ret = rcc.run(payloads['vlanif_check'])
+        ret = rcc.run(payloads['find_address_range'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            #If the vlanif already does NOT exists returns info and true state
+            #If the address_range already does NOT exists returns info and true state
             return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
-        fmt.add_successful('vlanif_check', ret)
+        fmt.add_successful('find_address_range', ret)
 
-        ret = rcc.run(payloads['vlanif_del'])
+        ret = rcc.run(payloads['address_range_del'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-        fmt.add_successful('vlanif_del', ret)
+        fmt.add_successful('address_range_del', ret)
 
         return True, "", fmt.successful_payloads
 
@@ -250,32 +241,29 @@ def scrub(
     return True, messages[1100]
 
 def read(
-    vlan: int,
-    ifname: str,
+    address_range: str,
+    device: str,
     namespace: str,
     config_file=None
 ) -> Tuple[bool, dict, str]:
     """
     description:
-        Checks for a vlan interface in a VRF namespace on the PodNet node.
+        Checks for an IP address range in a VRF namespace on the PodNet node.
 
     parameters:
-        vlan:
-            description: Vlan ID
-            type: integer
-            required: true
-        ifname:
-            description: Interface name
-            type: string
-            required: true
         namespace:
-            description: VRF network name space's identifier, such as 'VRF453
+            description: The VRF network namespace identifier, such as 'VRF123'.
             type: string
             required: true
-        config_file:
-            description: path to the config.json file
+        address_range:
+            description: IP address range to be removed
             type: string
-            required: false
+            required: true
+        device:
+            description: Device to remove the IP address range from.
+            type: string
+            required: true
+
     return:
         description: |
             A tuple with a boolean flag stating if the build was successful or not and
@@ -319,13 +307,13 @@ def read(
 
     # Define message
     messages = {
-        1200: f'vlan interface is present on both PodNet nodes.',
+        1200: f'Address range interface is present on both PodNet nodes.',
 
-        3221: f'Failed to connect to the enabled PodNet for read_vlanif payload: ',
-        3222: f'Failed to run read_vlanif payload on the enabled PodNet. Payload exited with status ',
+        3221: f'Failed to connect to the enabled PodNet for read_address_range payload: ',
+        3222: f'Failed to run read_address_range payload on the enabled PodNet. Payload exited with status ',
 
-        3251: f'Failed to connect to the disabled PodNet for read_vlanif payload: ',
-        3252: f'Failed to run read_vlanif payload on the disabled PodNet. Payload exited with status ',
+        3251: f'Failed to connect to the disabled PodNet for read_address_range payload: ',
+        3252: f'Failed to run read_address_range payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
@@ -356,13 +344,15 @@ def read(
             successful_payloads
         )
 
+        address_range_grepsafe = address_range.replace('.', '\.')
+
         # define payloads
 
         payloads = {
-          'read_vlanif': f'ip netns exec {namespace} ip link show {ifname}.{vlan}'
+          'read_address_range': f'ip netns exec {namespace} ip address show {device} | grep -A 1 {address_range_grepsafe}'
         }
 
-        ret = rcc.run(payloads['read_vlanif'])
+        ret = rcc.run(payloads['read_address_range'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
             fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
@@ -371,7 +361,7 @@ def read(
             fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix+2])
         else:
             data_dict[podnet_node]['config'] = ret["payload_message"].strip()
-            fmt.add_successful('read_vlanif', ret)
+            fmt.add_successful('read_address_range', ret)
 
         return retval, fmt.message_list, fmt.successful_payloads, data_dict
 
