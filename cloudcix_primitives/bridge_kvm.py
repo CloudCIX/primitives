@@ -336,7 +336,7 @@ def read(
 
     # Define message
     messages = {
-        1200: f'Successfully scrubbed bridge_kvm_br{vlan}.service on kvm {host}.',
+        1200: f'Successfully read bridge_kvm_br{vlan}.service on kvm {host}.',
         1201: f'bridge_kvm_br{vlan}.service does not exists on kvm {host}',
 
         3221: f'Failed to connect to the host {host} for find_service payload: ',
