@@ -139,34 +139,76 @@ def build(
     """
     # Define message
     messages = {
-        1000: f'Successfully created domain {domain} on Host {host}.',
-        3011: f'Gateway interface cannot be None.',
-        3012: f'Failed to Validate Gateway interface {gateway_interface}.',
-        3013: f'Failed to Validate Secondary interfaces {secondary_interfaces}.',
+        1000: f'Successfully created domain {domain} on Host {host}',
+        3011: 'Invalid "gateway_interface", The "gateway_interface" cannot be None',
+        3012: 'Invalid "gateway_interface", The "gateway_interface" must be a dictionary object',
+        3013: f'Failed to validate "gateway_interface" {gateway_interface}, one of the field is invalid',
+        3014: 'Invalid "primary_storage", The "primary_storage" is required',
+        3015: 'Invalid "primary_storage", The "primary_storage" is must be a string type',
+        3016: 'Invalid "primary_storage", The "primary_storage" must be a name of the storage file with extension',
+        3017: 'Invalid "primary_storage", The "primary_storage" can only be either .img or .qcow2 file formats',
+
+        3013: f'Failed to validate "secondary_interfaces" {secondary_interfaces}',
         3021: f'Failed to connect the Host {host} for payload copy_cloudimage',
         3022: f'Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{primary_storage}'
               f' on Host {host}.',
         3023: f'Failed to connect the Host {host} for payload resize_copied_file',
-        3024: f'Failed to resize the copied storage image to {size}GB on Host {host}.',
+        3024: f'Failed to resize the copied storage image to {size}GB on Host {host}',
         3025: f'Failed to connect the Host {host} for payload virt_install_cmd',
-        3026: f'Failed to create domain {domain} on Host {host}.'
+        3026: f'Failed to create domain {domain} on Host {host}'
     }
 
     messages_list = []
     validated = True
 
     # validate gateway_interface
-    if gateway_interface is None:
-        return False, f'3011: {messages[3011]}'
+    def validate_gateway_interface(gi, msg_index):
+        valid_gi = True
+        if gi is None:
+            messages_list.append(f'{messages[msg_index]}: {messages[msg_index]}')
+            return False
 
-    controller = KVMInterface(gateway_interface)
-    success, errs = controller()
-    if success is False:
-        validated = False
-        messages_list.append(f'3012: {messages[3012]} {";".join(errs)}')
+        if type(gi) is not dict:
+            messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]}')
+            return False
+
+        controller = KVMInterface(gi)
+        success, errs = controller()
+        if success is False:
+            valid_gi = False
+            messages_list.append(f'{messages[msg_index + 2]}: {messages[msg_index + 2]} {";".join(errs)}')
+        return valid_gi
+
+    validated = validate_gateway_interface(gateway_interface, 3011)
+
+
+    # validate primary_storage
+    def validate_primary_storage(ps, msg_index):
+        if ps is None:
+            messages_list.append(f'{messages[msg_index]}: {messages[msg_index]}')
+            return False
+        if type(primary_storage) is not str:
+            messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]}')
+            return False
+
+        ps_items = ps.split('.')
+        if len(ps_items) != 2:
+            messages_list.append(f'{messages[msg_index + 2]}: {messages[msg_index + 2]}')
+            return False
+        elif ps_items[1] not in ('img', 'qcow2'):
+            messages_list.append(f'{messages[msg_index + 3]}: {messages[msg_index + 3]}')
+            return False
+        return True
+
+    validated = validate_primary_storage(primary_storage, 3014)
 
     # validate secondary interfaces
-    if secondary_interfaces is not None:
+    def validate_secondary_interface(sis, msg_indes):
+
+
+    if secondary_interfaces and type(secondary_interfaces) is not list:
+
+    if secondary_interfaces and type(secondary_interfaces) is list:
         errors = []
         valid_interface = True
         for interface in secondary_interfaces:
@@ -178,6 +220,7 @@ def build(
         if valid_interface is False:
             validated = False
             messages_list.append(f'3013: {messages[3013]} {";".join(errors)}')
+
 
     if validated is False:
         return False, '; '.join(messages_list)
