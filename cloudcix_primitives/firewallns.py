@@ -71,6 +71,9 @@ def complete_rule(rule, namespace, table):
     elif rule['protocol'] == 'dns':
         proto_port = f'jump dns_{rule["action"]}'
         application = f'dns_{rule["action"]}'
+    elif rule['protocol'] == 'dhcp':
+        proto_port = f'jump dhcp_{rule["action"]}'
+        application = f'dhcp_{rule["action"]}'
     elif rule['protocol'] == 'vpn':
         proto_port = f'jump vpn_{rule["action"]}'
         application = f'vpn_{rule["action"]}'
