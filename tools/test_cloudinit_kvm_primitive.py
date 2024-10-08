@@ -8,24 +8,21 @@ from cloudcix_primitives import cloudinit_kvm
 cmd = sys.argv[1]
 
 
-gateway_interface: dict,
-primary_storage: str,
-secondary_interfaces = None,
-secondary_storages = None,
-
-
-
-
 host = None
 domain = '123_234'
 domain_path = '/var/lib/libvirt/images/'
-cloudimage = '/var/lib/libvirt/ISOs/KVM/IMGs/'
+cloudimage = '/var/lib/libvirt/ISOs/KVM/IMGs/noble-server-cloudimg-amd64-cloudcix.img'
 cpu = 2
 ram = 2048  # must be in MBs
-storage = '123_234_HDD_568.img'
+primary_storage = '123_234_HDD_568.img'
 size = 20
 osvariant = 'generic'
-
+gateway_interface = {
+    'mac_address': 'aa:bb:cc:dd:ee:f0',
+    'vlan_bridge': 'br1000',
+}
+secondary_interfaces = None,
+secondary_storages = None,
 
 if len(sys.argv) > 2:
     host = sys.argv[2]
@@ -48,17 +45,11 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = storage_kvm.build(
-        host=host, domain_path=domain_path, storage=storage, size=size
+    status, msg = cloudinit_kvm.build(
+        host=host, domain_path=domain_path, domain=domain, size=size, primary_storage=primary_storage,
+        cloudimage=cloudimage, cpu=cpu, ram=ram, osvariant=osvariant, gateway_interface=gateway_interface,
+
     )
-if cmd == 'update':
-    status, msg = storage_kvm.update(
-        host=host, domain_path=domain_path, storage=storage, size=update_size
-    )
-if cmd == 'scrub':
-    status, msg = storage_kvm.scrub(host=host, domain_path=domain_path, storage=storage)
-if cmd == 'read':
-    status, data, msg = storage_kvm.read(host=host, domain_path=domain_path, storage=storage)
 
 print("Status: %s" % status)
 print()
