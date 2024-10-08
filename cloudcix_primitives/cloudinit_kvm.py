@@ -5,6 +5,7 @@ Primitive for Cloud-init VM on KVM hosts
 # stdlib
 from typing import Any, Dict, List, Tuple
 # lib
+import re
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
 from .controllers import KVMInterface
@@ -153,13 +154,16 @@ def build(
         3020: 'Invalid "secondary_storages", every item in "secondary_storages" must be of string type',
         3021: 'Invalid "secondary_storages", one or more items are invalid, Errors: ',
         # payload execution
-        3031: f'Failed to connect the Host {host} for payload copy_cloudimage',
-        3032: f'Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{primary_storage}'
+        3031: f'Failed to connect to the host {host} for the payload read_storage_file',
+        3032: f'Invalid cloudinit_kvm vm build request, as primary storage {domain_path}{primary_storage} '
+              f'already exists on Host {host}.',
+        3033: f'Failed to connect the Host {host} for the payload copy_cloudimage',
+        3034: f'Failed to copy cloud image {cloudimage} to the domain directory {domain_path}{primary_storage}'
               f' on Host {host}.',
-        3033: f'Failed to connect the Host {host} for payload resize_copied_file',
-        3034: f'Failed to resize the copied storage image to {size}GB on Host {host}',
-        3035: f'Failed to connect the Host {host} for payload virt_install_cmd',
-        3036: f'Failed to create domain {domain} on Host {host}'
+        3035: f'Failed to connect the Host {host} for the payload resize_copied_file',
+        3036: f'Failed to resize the copied storage image to {size}GB on Host {host}',
+        3037: f'Failed to connect the Host {host} for the payload virt_install_cmd',
+        3038: f'Failed to create domain {domain} on Host {host}'
     }
 
     messages_list = []
@@ -311,30 +315,41 @@ def build(
             cmd += f'--network bridge={interface["vlan_bridge"]},model=virtio,mac={interface["mac_address"]}'
 
         payloads = {
+            # check if primary storage exists already
+            'read_storage_file': f'qemu-img info {domain_path}{primary_storage}',
             'copy_cloudimage': f'cp {cloudimage} {domain_path}{primary_storage}',
             'resize_copied_file': f'qemu-img resize {domain_path}{primary_storage} {size}G',
             'virt_install_cmd': cmd,
         }
 
+        ret = rcc.run(payloads['read_storage_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        if ret["payload_code"] == SUCCESS_CODE:
+            # if primary storage drive exists already then we should not build vm as it already exists,
+            # by mistake same vm is requested to build again so return with error
+            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+        fmt.add_successful('read_storage_file', ret)
+
         ret = rcc.run(payloads['copy_cloudimage'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix+1}: {messages[prefix + 1]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix+2}: {messages[prefix + 2]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
         fmt.add_successful('copy_cloudimage', ret)
 
         ret = rcc.run(payloads['resize_copied_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix+3}: {messages[prefix + 3]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix+4}: {messages[prefix + 4]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
         fmt.add_successful('resize_copied_file', ret)
 
         ret = rcc.run(payloads['virt_install_cmd'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix+5}: {messages[prefix + 5]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix+6}: {messages[prefix + 6]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
         fmt.add_successful('virt_install_cmd', ret)
 
         return True, "", fmt.successful_payloads
@@ -401,6 +416,7 @@ def read(
     message_list = []
 
     def run_host(host, prefix, successful_payloads):
+        retval = True
         rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
         fmt = HostErrorFormatter(
             host,
