@@ -493,26 +493,24 @@ def build(
         3053: f'Failed to connect to the Enabled PodNet for payload validate_nftables_file',
         3054: f'Failed to validate nftables file {nftables_file} on the Enabled PodNet',
         3055: f'Failed to connect to the Enabled PodNet for payload read_table',
-        3056: f'Failed to read table {table} on the Enabled PodNet',
-        3057: f'Failed to connect to the Enabled PodNet for payload flush_table',
-        3058: f'Failed to flush table {table} on the Enabled PodNet',
-        3059: f'Failed to connect to the Enabled PodNet for payload apply_nftables_file',
-        3060: f'Failed to apply nftables file {nftables_file} on the Enabled PodNet',
-        3061: f'Failed to connect to the Enabled PodNet for payload remove_nftables_file',
-        3062: f'Failed to remove nftables file {nftables_file} on the Enabled PodNet',
+        3056: f'Failed to connect to the Enabled PodNet for payload flush_table',
+        3057: f'Failed to flush table {table} on the Enabled PodNet',
+        3058: f'Failed to connect to the Enabled PodNet for payload apply_nftables_file',
+        3059: f'Failed to apply nftables file {nftables_file} on the Enabled PodNet',
+        3060: f'Failed to connect to the Enabled PodNet for payload remove_nftables_file',
+        3061: f'Failed to remove nftables file {nftables_file} on the Enabled PodNet',
         # Disable PodNet
         3071: f'Failed to connect to the Disabled PodNet for payload create_nftables_file',
         3072: f'Failed to create nftables file {nftables_file} on the Disabled PodNet',
         3073: f'Failed to connect to the Disabled PodNet for payload validate_nftables_file',
         3074: f'Failed to validate nftables file {nftables_file} on the Disabled PodNet',
         3075: f'Failed to connect to the Disabled PodNet for payload read_table',
-        3076: f'Failed to read table {table} on the Disabled PodNet',
-        3077: f'Failed to connect to the Disabled PodNet for payload flush_table',
-        3078: f'Failed to flush table {table} on the Disabled PodNet',
-        3079: f'Failed to connect to the Disabled PodNet for payload apply_nftables_file',
-        3080: f'Failed to apply nftables file {nftables_file} on the Disabled PodNet',
-        3081: f'Failed to connect to the Disabled PodNet for payload remove_nftables_file',
-        3082: f'Failed to apply nftables file {nftables_file} on the Disabled PodNet',
+        3076: f'Failed to connect to the Disabled PodNet for payload flush_table',
+        3077: f'Failed to flush table {table} on the Disabled PodNet',
+        3078: f'Failed to connect to the Disabled PodNet for payload apply_nftables_file',
+        3079: f'Failed to apply nftables file {nftables_file} on the Disabled PodNet',
+        3080: f'Failed to connect to the Disabled PodNet for payload remove_nftables_file',
+        3081: f'Failed to apply nftables file {nftables_file} on the Disabled PodNet',
     }
 
     # Block 01: Get the PodNets IPs
@@ -789,23 +787,23 @@ def build(
         if flush_table:
             ret = rcc.run(payloads['flush_table'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
             fmt.add_successful('flush_table', ret)
 
         ret = rcc.run(payloads['apply_nftables_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 10}: {messages[prefix + 10]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
         fmt.add_successful('apply_nftables_file', ret)
 
         ret = rcc.run(payloads['remove_nftables_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 11}: {messages[prefix + 11]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 10}: {messages[prefix + 10]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 12}: {messages[prefix + 12]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 11}: {messages[prefix + 11]}'), fmt.successful_payloads
         fmt.add_successful('remove_nftables_file', ret)
 
         return True, "", fmt.successful_payloads
@@ -848,13 +846,11 @@ def scrub(
         1100: f'Successfully removed nftables {table} in namespace {namespace}',
         3100: f'Failed to remove nftables table {table} in namespace {namespace}',
         3121: f'Failed to connect to the Enabled PodNet for payload read_table',
-        3122: f'Failed to read table {table} on the Enabled PodNet',
-        3123: f'Failed to connect to the Enabled PodNet for payload flush_table',
-        3124: f'Failed to flush table {table} on the Enabled PodNet',
+        3122: f'Failed to connect to the Enabled PodNet for payload flush_table',
+        3123: f'Failed to flush table {table} on the Enabled PodNet',
         3131: f'Failed to connect to the Disabled PodNet for payload read_table',
-        3132: f'Failed to read table {table} on the Disabled PodNet',
-        3133: f'Failed to connect to the Disabled PodNet for payload flush_table',
-        3134: f'Failed to flush table {table} on the Disabled PodNet',
+        3132: f'Failed to connect to the Disabled PodNet for payload flush_table',
+        3133: f'Failed to flush table {table} on the Disabled PodNet',
     }
 
     # Block 01: Get the PodNets IPs
@@ -901,9 +897,9 @@ def scrub(
         if flush_table:
             ret = rcc.run(payloads['flush_table'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
             fmt.add_successful('flush_table', ret)
 
         return True, "", fmt.successful_payloads
@@ -965,7 +961,6 @@ def read(
     # Define message
     messages = {
         1200: f'Successfully read nftables {table} in namespace {namespace}',
-        3200: f'Failed to read nftables {table} in namespace {namespace}',
         3221: f'Failed to connect to the Enabled PodNet for payload read_table',
         3222: f'Failed to read table {table} from the Enabled PodNet',
         3231: f'Failed to connect to the Disabled PodNet for payload read_table',
