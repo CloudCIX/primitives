@@ -54,13 +54,13 @@ if cmd == 'read':
     status, data, msg = cloudinit_kvm.read(domain=domain, host=host)
 
 if cmd == 'quiesce':
-    status, data, msg = cloudinit_kvm.quiesce(domain=domain, host=host)
+    status, msg = cloudinit_kvm.quiesce(domain=domain, host=host)
 
 if cmd == 'restart':
-    status, data, msg = cloudinit_kvm.restart(domain=domain, host=host)
+    status, msg = cloudinit_kvm.restart(domain=domain, host=host)
 
 if cmd == 'scrub':
-    status, data, msg = cloudinit_kvm.scrub(
+    status, msg = cloudinit_kvm.scrub(
         domain=domain, host=host, domain_path=domain_path, primary_storage=primary_storage,
     )
 

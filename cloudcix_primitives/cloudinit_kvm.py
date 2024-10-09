@@ -364,6 +364,114 @@ def build(
     return True, f'1000: {messages[1000]}'
 
 
+def quiesce(domain: str, host: str) -> Tuple[bool, str]:
+    """
+    description: Shutdown the VM
+
+    parameters:
+        domain:
+            description: Unique identification name for the Cloud-init VM on the KVM Host.
+            type: string
+            required: true
+        host:
+            description: The dns or ipadddress of the Host on which the domain is built
+            type: string
+            required: true
+    return:
+        description: |
+            A tuple with a boolean flag stating the build was successful or not and
+            the output or error message.
+        type: tuple
+    """
+    # Define message
+    messages = {
+        1400: f'Successfully quiesced domain {domain} on host {host}',
+        3421: f'Failed to connect to the host {host} for payload shutdown_domain',
+        3422: f'Failed to quiesce domain {domain} on host {host}',
+        3423: f'Failed to connect to the host {host} for payload read_domstate',
+        3424: f'Failed to read domain {domain} state from host {host}',
+        3425: f'Failed to connect to the host {host} for payload destroy_domain',
+        3426: f'Failed to destroy domain {domain} on host {host}',
+    }
+
+    def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
+
+        payloads = {
+            'read_domstate_0': f'virsh domstate {domain} ',
+            'shutdown_domain': f'virsh shutdown {domain} ',
+            'read_domstate_x': f'virsh domstate {domain} ',
+            'destroy_domain': f'virsh destroy {domain} ',  # force shutdown = destroy
+        }
+
+        # first read the state before shutdown the domain
+        ret = rcc.run(payloads['read_domstate_0'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        quiesced = False
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+        else:
+            if 'shut off' in ret["payload_message"].strip():
+                quiesced = True
+        fmt.add_successful('read_domstate_0', ret)
+
+        if quiesced is True:
+            return True, "", fmt.successful_payloads
+
+        ret = rcc.run(payloads['shutdown_domain'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+        fmt.add_successful('shutdown_domain', ret)
+
+        # Since shutdown is run make sure it is in shutoff state, so read the state until it is shutoff
+        # for max 300 seconds
+        start = 0
+        shutoff = False
+        while start < 300 and shutoff is False:
+            ret = rcc.run(payloads['read_domstate'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                fmt.channel_error(
+                    ret, f'Attempt at {start} seconds: {prefix + 3}: {messages[prefix + 3]}'
+                ), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                fmt.payload_error(
+                    ret, f'Attempt at {start} seconds: {prefix + 4}: {messages[prefix + 4]}'
+                ), fmt.successful_payloads
+            else:
+                if 'shut off' in ret["payload_message"].strip():
+                    shutoff = True
+                else:
+                    # wait interval is 0.5 seconds
+                    time.sleep(0.5)
+                    start += 0.5
+            fmt.add_successful('read_domstate', ret)
+
+        # After 300 seconds still domain is not shut off then force off it
+        if shutoff is False:
+            ret = rcc.run(payloads['destroy_domain'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+            fmt.add_successful('destroy_domain', ret)
+
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(host, 3420, {})
+    if status is False:
+        return status, msg
+
+    return True, f'1400: {messages[1400]}'
+
+
 def read(
         domain: str,
         host: str,
@@ -452,97 +560,6 @@ def read(
         return retval, data_dict, message_list
     else:
         return True, data_dict, [f'1200: {messages[1200]}']
-
-
-def quiesce(
-        domain: str,
-        host: str,
-) -> Tuple[bool, str]:
-    """
-    description: Shutdown the VM
-
-    parameters:
-        domain:
-            description: Unique identification name for the Cloud-init VM on the KVM Host.
-            type: string
-            required: true
-        host:
-            description: The dns or ipadddress of the Host on which the domain is built
-            type: string
-            required: true
-    return:
-        description: |
-            A tuple with a boolean flag stating the build was successful or not and
-            the output or error message.
-        type: tuple
-    """
-    # Define message
-    messages = {
-        1400: f'Successfully quiesced domain {domain} on host {host}',
-        3421: f'Failed to connect to the host {host} for payload shutdown_domain',
-        3422: f'Failed to quiesce domain {domain} on host {host}',
-        3423: f'Failed to connect to the host {host} for payload read_domstate',
-        3424: f'Failed to read domain {domain} state from host {host}',
-        3425: f'Failed to connect to the host {host} for payload destroy_domain',
-        3426: f'Failed to destroy domain {domain} on host {host}',
-    }
-
-    def run_host(host, prefix, successful_payloads):
-        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
-        fmt = HostErrorFormatter(
-            host,
-            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
-            successful_payloads
-        )
-
-        payloads = {
-            'shutdown_domain': f'virsh shutdown {domain} ',
-            'read_domstate': f'virsh domstate {domain} ',
-            'destroy_domain': f'virsh destroy {domain} ',  # force shutdown = destroy
-        }
-
-        ret = rcc.run(payloads['shutdown_domain'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
-        fmt.add_successful('shutdown_domain', ret)
-
-        # Since shutdown is run make sure it is in shutoff state, so read the state until it is shutoff
-        # for max 300 seconds
-        start = 0
-        shutoff = False
-        while start < 300 and shutoff is False:
-            ret = rcc.run(payloads['read_domstate'])
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                fmt.channel_error(ret, f'Attempt at {start} seconds: {prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
-            if ret["payload_code"] != SUCCESS_CODE:
-                fmt.payload_error(ret, f'Attempt at {start} seconds: {prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
-            else:
-                if 'shut off' in ret["payload_message"].strip():
-                    shutoff = True
-                else:
-                    # wait interval is 0.5 seconds
-                    time.sleep(0.5)
-                    start += 0.5
-            fmt.add_successful('read_domstate', ret)
-
-        # After 300 seconds still domain is not shut off then force off it
-        if shutoff is False:
-            ret = rcc.run(payloads['destroy_domain'])
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
-            if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
-            fmt.add_successful('destroy_domain', ret)
-
-        return True, "", fmt.successful_payloads
-
-    status, msg, successful_payloads = run_host(host, 3420, {})
-    if status is False:
-        return status, msg
-
-    return True, f'1400: {messages[1400]}'
 
 
 def restart(
