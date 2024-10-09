@@ -124,3 +124,20 @@ supported verbs:
     - secondary_interfaces: optional list
     - secondary_storages: optional list
 
+- read:
+    - domain: str
+    - host: str
+
+- quiesce:
+    - domain: str
+    - host: str
+
+- restart:
+    - domain: str
+    - host: str
+
+- scrub:
+    - domain: str
+    - domain_path: str
+    - host: str
+    - primary_storage: str
