@@ -734,6 +734,9 @@ def scrub(
             fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
         shutoff = False
         if ret["payload_code"] != SUCCESS_CODE:
+            # check if already undefined/remove
+            if f'failed to get domain \'{domain}\'' in ret["payload_error"].strip():
+                return True, "", fmt.successful_payloads
             fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         else:
             if 'shut off' in ret["payload_message"].strip():
