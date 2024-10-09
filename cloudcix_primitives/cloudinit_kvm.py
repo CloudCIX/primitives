@@ -725,7 +725,7 @@ def scrub(
         payloads = {
             'read_domstate': f'virsh domstate {domain} ',
             'destroy_domain': f'virsh destroy {domain} ',
-            'undefine_domain': f'virsh undefine {domain} ',
+            'undefine_domain': f'virsh undefine {domain} --nvram ',
             'remove_primary_storage': f'rm --force {domain_path}{primary_storage}'
         }
 
