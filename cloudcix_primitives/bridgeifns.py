@@ -48,7 +48,6 @@ def build(
     messages = {
         1000: f'1000: Successfully created interface {namespace}.{bridgename} inside namespace {namespace}',
 
-        3020: f'3020: Failed to run interface_check payload on the enabled PodNet. Payload exited with status ',
         3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check:  ',
         3022: f'3022: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_add:  ',
         3023: f'3023: Failed to run interface_add payload on the enabled PodNet. Payload exited with status ',
@@ -59,7 +58,6 @@ def build(
         3028: f'3028: Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_up:  ',
         3029: f'3029: Failed to run interface_up payload on the enabled PodNet. Payload exited with status ',
 
-        3050: f'3050: Failed to run interface_check payload on the disabled PodNet. Payload exited with status ',
         3051: f'3051: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_check:  ',
         3052: f'3052: Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_add:  ',
         3053: f'3053: Failed to run interface_add payload on the disabled PodNet. Payload exited with status ',
@@ -226,15 +224,18 @@ def scrub(
             'interface_del':  f'sudo ip netns exec {namespace} ip link del {namespace}.{bridgename}'
         }
 
+        interface_exists = True
+
         ret = rcc.run(payloads['interface_check'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             #If the interface already does NOT exists returns info and true state
-            return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
+            interface_exists = False
         fmt.add_successful('interface_check', ret)
 
-
+        if not interface_exists:
+            return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
 
         ret = rcc.run(payloads['interface_del'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
