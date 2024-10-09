@@ -405,7 +405,7 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
         payloads = {
             'read_domstate_0': f'virsh domstate {domain} ',
             'shutdown_domain': f'virsh shutdown {domain} ',
-            'read_domstate_x': f'virsh domstate {domain} ',
+            'read_domstate_n': f'virsh domstate {domain} ',
             'destroy_domain': f'virsh destroy {domain} ',  # force shutdown = destroy
         }
 
@@ -436,7 +436,7 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
         start = 0
         shutoff = False
         while start < 300 and shutoff is False:
-            ret = rcc.run(payloads['read_domstate'])
+            ret = rcc.run(payloads['read_domstate_n'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 fmt.channel_error(
                     ret, f'Attempt at {start} seconds: {prefix + 3}: {messages[prefix + 3]}'
@@ -452,7 +452,7 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
                     # wait interval is 0.5 seconds
                     time.sleep(0.5)
                     start += 0.5
-            fmt.add_successful('read_domstate', ret)
+            fmt.add_successful('read_domstate_n', ret)
 
         # After 300 seconds still domain is not shut off then force off it
         if shutoff is False:
@@ -603,7 +603,7 @@ def restart(
         )
 
         payloads = {
-            'restart_domain': f'virsh restart {domain} ',
+            'restart_domain': f'virsh start {domain} ',
             'read_domstate': f'virsh domstate {domain} ',
         }
 
