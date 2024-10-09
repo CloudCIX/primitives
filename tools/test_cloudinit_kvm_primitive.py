@@ -28,7 +28,7 @@ if len(sys.argv) > 2:
     host = sys.argv[2]
 
 if len(sys.argv) > 3:
-    storage = sys.argv[3]
+    domain = sys.argv[3]
 
 if len(sys.argv) > 4:
     size = sys.argv[4]
@@ -48,10 +48,21 @@ if cmd == 'build':
     status, msg = cloudinit_kvm.build(
         host=host, domain_path=domain_path, domain=domain, size=size, primary_storage=primary_storage,
         cloudimage=cloudimage, cpu=cpu, ram=ram, osvariant=osvariant, gateway_interface=gateway_interface,
-
     )
+
 if cmd == 'read':
     status, data, msg = cloudinit_kvm.read(domain=domain, host=host)
+
+if cmd == 'quiesce':
+    status, data, msg = cloudinit_kvm.quiesce(domain=domain, host=host)
+
+if cmd == 'restart':
+    status, data, msg = cloudinit_kvm.restart(domain=domain, host=host)
+
+if cmd == 'scrub':
+    status, data, msg = cloudinit_kvm.scrub(
+        domain=domain, host=host, domain_path=domain_path, primary_storage=primary_storage,
+    )
 
 print("Status: %s" % status)
 print()

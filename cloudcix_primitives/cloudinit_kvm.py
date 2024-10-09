@@ -3,9 +3,9 @@ Primitive for Cloud-init VM on KVM hosts
 """
 
 # stdlib
+import time
 from typing import Any, Dict, List, Tuple
 # lib
-import re
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
 from .controllers import KVMInterface
@@ -16,6 +16,10 @@ from cloudcix_primitives.utils import (
 
 __all__ = [
     'build',
+    'quiesce',
+    'read',
+    'restart',
+    'scrub',
 ]
 
 SUCCESS_CODE = 0
@@ -77,7 +81,7 @@ def build(
                     type: string
                     required: true
         host:
-            description: The dns or ipadddress of the Host on which this storage image will be created
+            description: The dns or ipadddress of the Host on which the domain is built
             type: string
             required: true
         primary_storage:
@@ -373,7 +377,7 @@ def read(
             type: string
             required: true
         host:
-            description: The dns or ipadddress of the Host on which this storage image will be created
+            description: The dns or ipadddress of the Host on which the domain is built
             type: string
             required: true
     return:
@@ -448,3 +452,283 @@ def read(
         return retval, data_dict, message_list
     else:
         return True, data_dict, [f'1200: {messages[1200]}']
+
+
+def quiesce(
+        domain: str,
+        host: str,
+) -> Tuple[bool, str]:
+    """
+    description: Shutdown the VM
+
+    parameters:
+        domain:
+            description: Unique identification name for the Cloud-init VM on the KVM Host.
+            type: string
+            required: true
+        host:
+            description: The dns or ipadddress of the Host on which the domain is built
+            type: string
+            required: true
+    return:
+        description: |
+            A tuple with a boolean flag stating the build was successful or not and
+            the output or error message.
+        type: tuple
+    """
+    # Define message
+    messages = {
+        1400: f'Successfully quiesced domain {domain} on host {host}',
+        3421: f'Failed to connect to the host {host} for payload shutdown_domain',
+        3422: f'Failed to quiesce domain {domain} on host {host}',
+        3423: f'Failed to connect to the host {host} for payload read_domstate',
+        3424: f'Failed to read domain {domain} state from host {host}',
+        3425: f'Failed to connect to the host {host} for payload destroy_domain',
+        3426: f'Failed to destroy domain {domain} on host {host}',
+    }
+
+    def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
+
+        payloads = {
+            'shutdown_domain': f'virsh shutdown {domain} ',
+            'read_domstate': f'virsh domstate {domain} ',
+            'destroy_domain': f'virsh destroy {domain} ',  # force shutdown = destroy
+        }
+
+        ret = rcc.run(payloads['shutdown_domain'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+        fmt.add_successful('shutdown_domain', ret)
+
+        # Since shutdown is run make sure it is in shutoff state, so read the state until it is shutoff
+        # for max 300 seconds
+        start = 0
+        shutoff = False
+        while start < 300 and shutoff is False:
+            ret = rcc.run(payloads['read_domstate'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                fmt.channel_error(ret, f'Attempt at {start} seconds: {prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                fmt.payload_error(ret, f'Attempt at {start} seconds: {prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
+            else:
+                if 'shut off' in ret["payload_message"].strip():
+                    shutoff = True
+                else:
+                    # wait interval is 0.5 seconds
+                    time.sleep(0.5)
+                    start += 0.5
+            fmt.add_successful('read_domstate', ret)
+
+        # After 300 seconds still domain is not shut off then force off it
+        if shutoff is False:
+            ret = rcc.run(payloads['destroy_domain'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+            fmt.add_successful('destroy_domain', ret)
+
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(host, 3420, {})
+    if status is False:
+        return status, msg
+
+    return True, f'1400: {messages[1400]}'
+
+
+def restart(
+        domain: str,
+        host: str,
+) -> Tuple[bool, str]:
+    """
+    description: Restarts the VM
+
+    parameters:
+        domain:
+            description: Unique identification name for the Cloud-init VM on the KVM Host.
+            type: string
+            required: true
+        host:
+            description: The dns or ipadddress of the Host on which the domain is built
+            type: string
+            required: true
+    return:
+        description: |
+            A tuple with a boolean flag stating the build was successful or not and
+            the output or error message.
+        type: tuple
+    """
+    # Define message
+    messages = {
+        1500: f'Successfully restarted domain {domain} on host {host}',
+        3521: f'Failed to connect to the host {host} for payload restart_domain',
+        3522: f'Failed to run restart command for domain {domain} on host {host}',
+        3523: f'Failed to connect to the host {host} for payload read_domstate',
+        3524: f'Failed to read domain {domain} state from host {host}',
+        3525: f'Failed to restart domain {domain} on host {host}',
+    }
+
+    def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
+
+        payloads = {
+            'restart_domain': f'virsh restart {domain} ',
+            'read_domstate': f'virsh domstate {domain} ',
+        }
+
+        ret = rcc.run(payloads['restart_domain'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+        fmt.add_successful('restart_domain', ret)
+
+        # Since restart is run make sure it is in running state, so read the state until it is running
+        # for max 300 seconds
+        start = 0
+        running = False
+        while start < 300 and running is False:
+            ret = rcc.run(payloads['read_domstate'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
+            else:
+                if 'running' in ret["payload_message"].strip():
+                    running = True
+                else:
+                    # wait interval is 0.5 seconds
+                    time.sleep(0.5)
+                    start += 0.5
+            fmt.add_successful('read_domstate', ret)
+
+        # After 300 seconds still domain is not running then report it as failed
+        if running is False:
+            return False, f'{prefix + 5}: {messages[prefix + 5]}', fmt.successful_payloads
+
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(host, 3520, {})
+    if status is False:
+        return status, msg
+
+    return True, f'1500: {messages[1500]}'
+
+
+def scrub(
+        domain: str,
+        domain_path: str,
+        host: str,
+        primary_storage: str,
+) -> Tuple[bool, str]:
+    """
+    description: Removes the VM
+
+    parameters:
+        domain:
+            description: Unique identification name for the Cloud-init VM on the KVM Host.
+            type: string
+            required: true
+        domain_path:
+            description: The location or directory path where the primary storage is created
+            type: string
+            required: true
+        host:
+            description: The dns or ipadddress of the Host on which the domain is built
+            type: string
+            required: true
+        primary_storage:
+            description: |
+                The storage on which domain operating system is installed
+                It must be an unique name used to create the storage image file on the host.
+                eg '123_45_HDD_578.img'
+            type: string
+            required: true
+    return:
+        description: |
+            A tuple with a boolean flag stating the build was successful or not and
+            the output or error message.
+        type: tuple
+    """
+    # Define message
+    messages = {
+        1100: f'Successfully scrubbed domain {domain} on host {host}',
+        3121: f'Failed to connect to the host {host} for payload read_domstate',
+        3122: f'Failed to read  domain {domain} state from host {host}',
+        3123: f'Failed to connect to the host {host} for payload destroy_domain',
+        3124: f'Failed to destroy domain {domain} on host {host}',
+        3125: f'Failed to connect to the host {host} for payload undefine_domain',
+        3126: f'Failed to undefine domain {domain} on host {host}',
+        3127: f'Failed to connect to the host {host} for payload remove_primary_storage',
+        3128: f'Failed to remove {domain_path}{primary_storage} on host {host}',
+    }
+
+    def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
+
+        payloads = {
+            'read_domstate': f'virsh domstate {domain} ',
+            'destroy_domain': f'virsh destroy {domain} ',
+            'undefine_domain': f'virsh undefine {domain} ',
+            'remove_primary_storage': f'rm --force {domain_path}{primary_storage}'
+        }
+
+        ret = rcc.run(payloads['read_domstate'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        running = True
+        if ret["payload_code"] != SUCCESS_CODE:
+            fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+        else:
+            if 'shut off' in ret["payload_message"].strip():
+                running = False
+        fmt.add_successful('read_domstate', ret)
+
+        if running is False:
+            ret = rcc.run(payloads['destroy_domain'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
+            fmt.add_successful('destroy_domain', ret)
+
+        ret = rcc.run(payloads['undefine_domain'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+        fmt.add_successful('undefine_domain', ret)
+
+        ret = rcc.run(payloads['remove_primary_storage'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
+        fmt.add_successful('remove_primary_storage', ret)
+
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(host, 3120, {})
+    if status is False:
+        return status, msg
+
+    return True, f'1100: {messages[1100]}'
