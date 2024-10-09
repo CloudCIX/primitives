@@ -386,12 +386,14 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
     # Define message
     messages = {
         1400: f'Successfully quiesced domain {domain} on host {host}',
-        3421: f'Failed to connect to the host {host} for payload shutdown_domain',
-        3422: f'Failed to quiesce domain {domain} on host {host}',
-        3423: f'Failed to connect to the host {host} for payload read_domstate',
-        3424: f'Failed to read domain {domain} state from host {host}',
-        3425: f'Failed to connect to the host {host} for payload destroy_domain',
-        3426: f'Failed to destroy domain {domain} on host {host}',
+        3421: f'Failed to connect to the host {host} for payload read_domstate_0',
+        3422: f'Failed to read domain {domain} state from host {host}',
+        3423: f'Failed to connect to the host {host} for payload shutdown_domain',
+        3424: f'Failed to quiesce domain {domain} on host {host}',
+        3425: f'Failed to connect to the host {host} for payload read_domstate_n',
+        3426: f'Failed to read domain {domain} state from host {host}',
+        3427: f'Failed to connect to the host {host} for payload destroy_domain',
+        3428: f'Failed to destroy domain {domain} on host {host}',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -426,9 +428,9 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
 
         ret = rcc.run(payloads['shutdown_domain'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
         fmt.add_successful('shutdown_domain', ret)
 
         # Since shutdown is run make sure it is in shutoff state, so read the state until it is shutoff
@@ -439,11 +441,11 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
             ret = rcc.run(payloads['read_domstate_n'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 fmt.channel_error(
-                    ret, f'Attempt at {start} seconds: {prefix + 3}: {messages[prefix + 3]}'
+                    ret, f'Attempt at {start} seconds: {prefix + 5}: {messages[prefix + 5]}'
                 ), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
                 fmt.payload_error(
-                    ret, f'Attempt at {start} seconds: {prefix + 4}: {messages[prefix + 4]}'
+                    ret, f'Attempt at {start} seconds: {prefix + 6}: {messages[prefix + 6]}'
                 ), fmt.successful_payloads
             else:
                 if 'shut off' in ret["payload_message"].strip():
@@ -458,9 +460,9 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
         if shutoff is False:
             ret = rcc.run(payloads['destroy_domain'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
             fmt.add_successful('destroy_domain', ret)
 
         return True, "", fmt.successful_payloads
@@ -587,11 +589,13 @@ def restart(
     # Define message
     messages = {
         1500: f'Successfully restarted domain {domain} on host {host}',
-        3521: f'Failed to connect to the host {host} for payload restart_domain',
-        3522: f'Failed to run restart command for domain {domain} on host {host}',
-        3523: f'Failed to connect to the host {host} for payload read_domstate',
-        3524: f'Failed to read domain {domain} state from host {host}',
-        3525: f'Failed to restart domain {domain} on host {host}',
+        3521: f'Failed to connect to the host {host} for payload read_domstate_0',
+        3522: f'Failed to read domain {domain} state from host {host}',
+        3523: f'Failed to connect to the host {host} for payload restart_domain',
+        3524: f'Failed to run restart command for domain {domain} on host {host}',
+        3525: f'Failed to connect to the host {host} for payload read_domstate_n',
+        3526: f'Failed to read domain {domain} state from host {host}',
+        3527: f'Failed to restart domain {domain} on host {host}',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -603,15 +607,31 @@ def restart(
         )
 
         payloads = {
+            'read_domstate_0': f'virsh domstate {domain} ',
             'restart_domain': f'virsh start {domain} ',
-            'read_domstate': f'virsh domstate {domain} ',
+            'read_domstate_n': f'virsh domstate {domain} ',
         }
+
+        # First check if dommain is already running or not
+        ret = rcc.run(payloads['read_domstate_0'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        running = False
+        if ret["payload_code"] != SUCCESS_CODE:
+            fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+        else:
+            if 'running' in ret["payload_message"].strip():
+                running = True
+        fmt.add_successful('read_domstate_0', ret)
+
+        if running is True:
+            return True, "", fmt.successful_payloads
 
         ret = rcc.run(payloads['restart_domain'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
         fmt.add_successful('restart_domain', ret)
 
         # Since restart is run make sure it is in running state, so read the state until it is running
@@ -619,11 +639,11 @@ def restart(
         start = 0
         running = False
         while start < 300 and running is False:
-            ret = rcc.run(payloads['read_domstate'])
+            ret = rcc.run(payloads['read_domstate_n'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
+                fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
+                fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
             else:
                 if 'running' in ret["payload_message"].strip():
                     running = True
@@ -631,11 +651,11 @@ def restart(
                     # wait interval is 0.5 seconds
                     time.sleep(0.5)
                     start += 0.5
-            fmt.add_successful('read_domstate', ret)
+            fmt.add_successful('read_domstate_n', ret)
 
         # After 300 seconds still domain is not running then report it as failed
         if running is False:
-            return False, f'{prefix + 5}: {messages[prefix + 5]}', fmt.successful_payloads
+            return False, f'{prefix + 7}: {messages[prefix + 7]}', fmt.successful_payloads
 
         return True, "", fmt.successful_payloads
 
@@ -712,15 +732,15 @@ def scrub(
         ret = rcc.run(payloads['read_domstate'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
-        running = True
+        shutoff = False
         if ret["payload_code"] != SUCCESS_CODE:
             fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         else:
             if 'shut off' in ret["payload_message"].strip():
-                running = False
+                shutoff = True
         fmt.add_successful('read_domstate', ret)
 
-        if running is False:
+        if shutoff is False:
             ret = rcc.run(payloads['destroy_domain'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
