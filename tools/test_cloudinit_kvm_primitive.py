@@ -5,8 +5,26 @@ import sys
 
 from cloudcix_primitives import cloudinit_kvm
 
-cmd = sys.argv[1]
+# Run the following test scripts before this one:
+# * `tools/test_directorymain_primitive.py build /etc/netns/mynetns/cloudcix-metadata` to ensure the directories needed
+#   are in place.
+#
+# * `tools/test_ns_primitive.py build mynetns` to ensure the name space we want to run dhcpns in exists
+#
+# * `tools/test_dhcpns_primitive.py build mynetns` to run dhcp service
+#
+# * `tools/test_nginxns_primitive.py build mynetns` to run nginx service
+#
+# *  `tools/test_directorymain_primitive.py build /etc/netns/mynetns/cloudcix-metadata/10.0.0.3/v1`
+#
+# * `tools/test_cidata_primitive.py build /etc/netns/mynetns/cloudcix-metadata/10.0.0.3/v1`
+#   to give the web server something to serve
+#
+# * `tools/test_bridge_kvm_primitive.py build "<host_ip>" 1000` to ensure the directories needed
+#   are in place.
 
+
+cmd = sys.argv[1]
 
 host = None
 domain = '123_234'

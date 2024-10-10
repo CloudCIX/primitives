@@ -4,6 +4,7 @@ Primitive for Cloud-init VM on KVM hosts
 
 # stdlib
 import time
+from datetime import datetime
 from typing import Any, Dict, List, Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
@@ -292,8 +293,9 @@ def build(
         cmd += '--boot uefi '
         # To import an existing disk image(cloud image),for Non .ISO installations
         cmd += '--import '
-        # To avoid waiting forever until VM completes installation and reboots, usually VM doesn't reboot so
-        # without this option, command hangs forever
+        # Virt-install automatically connects to the guest VM console for any interactions and waits until VM is reboots
+        # Don't automatically try to connect to the guest console. The VM will be created without asking for any
+        # interaction and 'virt-install' will exit quickly.
         cmd += '--noautoconsole '
         # cloudinit datasource
         cmd += '--sysinfo smbios,system.product=CloudCIX '
@@ -435,17 +437,18 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
 
         # Since shutdown is run make sure it is in shutoff state, so read the state until it is shutoff
         # for max 300 seconds
-        start = 0
+        start_time = datetime.now()
         shutoff = False
-        while start < 300 and shutoff is False:
+        attempt = 1
+        while (datetime.now() - start_time).total_seconds() < 300 and shutoff is False:
             ret = rcc.run(payloads['read_domstate_n'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 fmt.channel_error(
-                    ret, f'Attempt at {start} seconds: {prefix + 5}: {messages[prefix + 5]}'
+                    ret, f'{prefix + 5}: Attempt #{attempt}-{messages[prefix + 5]}'
                 ), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
                 fmt.payload_error(
-                    ret, f'Attempt at {start} seconds: {prefix + 6}: {messages[prefix + 6]}'
+                    ret, f'{prefix + 6}: Attempt #{attempt}-{messages[prefix + 6]}'
                 ), fmt.successful_payloads
             else:
                 if 'shut off' in ret["payload_message"].strip():
@@ -453,7 +456,7 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
                 else:
                     # wait interval is 0.5 seconds
                     time.sleep(0.5)
-                    start += 0.5
+            attempt += 1
             fmt.add_successful('read_domstate_n', ret)
 
         # After 300 seconds still domain is not shut off then force off it
@@ -636,21 +639,22 @@ def restart(
 
         # Since restart is run make sure it is in running state, so read the state until it is running
         # for max 300 seconds
-        start = 0
         running = False
-        while start < 300 and running is False:
+        start_time = datetime.now()
+        attempt = 1
+        while (datetime.now() - start_time).total_seconds() < 300 and running is False:
             ret = rcc.run(payloads['read_domstate_n'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
+                fmt.channel_error(ret, f'{prefix + 5}: Attempt #{attempt}-{messages[prefix + 5]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+                fmt.payload_error(ret, f'{prefix + 6}: Attempt #{attempt}-{messages[prefix + 6]}'), fmt.successful_payloads
             else:
                 if 'running' in ret["payload_message"].strip():
                     running = True
                 else:
                     # wait interval is 0.5 seconds
                     time.sleep(0.5)
-                    start += 0.5
+            attempt += 1
             fmt.add_successful('read_domstate_n', ret)
 
         # After 300 seconds still domain is not running then report it as failed

@@ -308,4 +308,6 @@ class InvalidKVMInterfaceVlanBridge(BaseException):
         self.obj = obj
 
     def __str__(self):
-        return f'Invalid KVM Interface property vlan: {self.obj}, The property is not a valid integer'
+        msg = f'Invalid KVM Interface property vlan_bridge {self.obj} '
+        msg += 'The "vlan_bridge" value must be of format `br1234`.'
+        return msg
