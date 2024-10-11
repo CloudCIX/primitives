@@ -289,7 +289,7 @@ class HostErrorFormatter:
     def __init__(self, host, payload_channels, successful_payloads=None):
         """
         Creates a new errorFormatter.
-        :param host: KVM/HyperV/Ceph host the errors occur on.
+        :param host: Local/KVM/HyperV/Ceph host the errors occur on.
         :param payload_channels: dict assigning names to the payload_error and
                                  payload_message keys returned by RCC. For
                                  rcc_ssh you might use
