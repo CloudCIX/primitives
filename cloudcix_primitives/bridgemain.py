@@ -54,8 +54,6 @@ def build(
     messages = {
         1000: f'Successfully created and started bridgemain_{bridge}.service.',
         1001: f'bridgemain_{bridge}.service already exists',
-        # Validations
-        3001: 'Failed to Validate "address_range". It is not a valid IP network',
         # Template
         3002: 'Failed to verify down.sh.j2 template data, One or more template fields are None',
         3003: 'Failed to verify up.sh.j2 template data, One or more template fields are None',
@@ -75,12 +73,6 @@ def build(
         3032: 'Failed to run start_service payload on the local host. Payload exited with status ',
 
     }
-
-    # validate address_range
-    try:
-        ipaddress.ip_network(address_range)
-    except (TypeError, ValueError):
-        return False, f'3001: {messages[3001]}'
 
     # template data for required script files
     template_data = {
@@ -228,8 +220,10 @@ def scrub(
         3123: f'Failed to run stop_service payload on the local host. Payload exited with status ',
         3124: f'Failed to connect to the local host for delete_files payload: ',
         3125: f'Failed to run delete_files payload on the local host. Payload exited with status ',
-        3126: f'Failed to connect to the local host for reload_services payload: ',
-        3127: f'Failed to run reload_services payload on the local host. Payload exited with status ',
+        3126: f'Failed to connect to the local host for delete_bridge payload: ',
+        3127: f'Failed to run delete_bridge payload on the local host. Payload exited with status ',
+        3128: f'Failed to connect to the local host for reload_services payload: ',
+        3129: f'Failed to run reload_services payload on the local host. Payload exited with status ',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -246,6 +240,7 @@ def scrub(
                             f'systemctl disable bridgemain_{bridge}.service',
             'delete_files': f'rm --force {up_script_path} {down_script_path} {service_file_path}',
             'reload_services': 'systemctl daemon-reload',
+            'delete_bridge': f'ip link del {bridge}',
         }
 
         ret = comms_lsh(payloads['find_service'])
@@ -272,11 +267,18 @@ def scrub(
                 return False, fmt.payload_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
             fmt.add_successful('delete_files', ret)
 
+            ret = comms_lsh(payloads['delete_bridge'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
+            fmt.add_successful('delete_files', ret)
+
         ret = comms_lsh(payloads['reload_services'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
         fmt.add_successful('reload_services', ret)
 
         return True, "", fmt.successful_payloads
