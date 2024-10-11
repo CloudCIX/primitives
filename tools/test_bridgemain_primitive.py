@@ -8,13 +8,15 @@ from cloudcix_primitives import bridgemain
 
 cmd = sys.argv[1]
 
+address_range = None
 bridge = 'BM1'
-address_range = '185.49.65.1/27'
 
 if len(sys.argv) > 2:
-    bridge = sys.argv[2]
+    address_range = sys.argv[2]
+
 if len(sys.argv) > 3:
-    address_range = sys.argv[3]
+    bridge = sys.argv[3]
+
 
 status = None
 msg = None
