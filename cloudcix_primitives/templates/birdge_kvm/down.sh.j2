@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Delete the bridge interface first
+ip link del {{ ifname }}.{{ vlan }}
+# Delete the bridge next 
+ip link del br{{ vlan }}

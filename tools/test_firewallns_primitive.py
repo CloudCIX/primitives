@@ -7,16 +7,23 @@ from cloudcix_primitives import firewallns
 
 namespace = "testns"
 table = 'firewall_123'
-priority = 2
 nats = {
-    'dnats': [
-        {'public': '185.49.60.116', 'private': '192.168.0.2', 'iface': 'testns.BM1'},
-    ],
-    'snats': [
-        {'private': '192.168.0.0/24', 'public': '185.49.60.117', 'iface': 'testns.BM1'},
-    ],
+    'prerouting': {
+        'priority': -100,
+        'policy': 'accept',
+        'conversions': [
+            {'public': '185.49.60.116', 'private': '192.168.0.2', 'iface': 'testns.BM1'},
+        ],
+    },
+    'postrouting': {
+        'priority': 100,
+        'policy': 'accept',
+        'conversions': [
+            {'private': '192.168.0.0/24', 'public': '185.49.60.117', 'iface': 'testns.BM1'},
+        ],
+    },
 }
-rules = [
+project_rules = [
     {
         'version': 4,
         'source': ['91.103.3.36', '91.20.3.0/24'],
@@ -53,6 +60,21 @@ rules = [
     },
 ]
 
+geo_rules = [
+    {
+        'version': 4,
+        'source': ['@ie_ipv4'],
+        'destination': ['any'],
+        'protocol': 'any',
+        'port': [],
+        'action': 'accept',
+        'log': True,
+        'order': 1,
+        'iiface': 'testns.BM1',
+        'oiface': '',
+    }
+]
+
 sets = [
     {
         'name': 'ie_ipv4',
@@ -64,6 +86,19 @@ sets = [
         'elements': ['1-34', '589', '4434'],
     },
 ]
+
+chains = {
+    'prerouting': {
+        'priority': 0,
+        'policy': 'accept',
+        'rules': geo_rules,
+    },
+    'forward': {
+        'priority': 0,
+        'policy': 'accept',
+        'rules': project_rules,
+    },
+}
 
 config_file = "/etc/cloudcix/pod/configs/config.json"
 
@@ -83,7 +118,7 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = firewallns.build(namespace, table, priority, config_file, nats=nats, sets=sets, rules=rules)
+    status, msg = firewallns.build(namespace, table, chains, config_file, nats, sets)
 if cmd == 'scrub':
     status, msg = firewallns.scrub(namespace, table, config_file)
 if cmd == 'read':

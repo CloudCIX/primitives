@@ -37,6 +37,7 @@ from cloudcix_primitives.controllers.exceptions import (
 PORT_RANGE = range(1, 65536)
 PROTOCOL_CHOICES = ['any', 'tcp', 'udp', 'icmp', 'dns', 'vpn']
 SET_TYPES = ['ipv4_addr', 'ipv6_addr', 'inet_service', 'ether_addr']
+SET_NAME_REGEX = re.compile('^[a-zA-Z][a-zA-Z0-9_-]*$')
 
 __all__ = ['FirewallNamespace', 'FirewallNAT', 'FirewallSet']
 
@@ -223,7 +224,7 @@ class FirewallSet:
         name = self.obj.get('name', None)
         if name is None:
             raise InvalidSetItem('name')
-        if ' ' in name:  # White spaces in names are not allowed
+        if SET_NAME_REGEX.match(str(name)) is None:
             raise InvalidSetName(name)
         return None
 

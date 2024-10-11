@@ -167,7 +167,9 @@ class InvalidSetName(BaseException):
         self.obj = obj
 
     def __str__(self):
-        return f'Invalid name field Value: {self.obj}, white spaces are not allowed in name field'
+        msg = f'Invalid "name" field Value: {self.obj}, "name" is required. "name" can only contain  uppercase letters,'
+        msg += ' lowercase letters, digits, a hypen (-) or an underscore (_) and the "name" must start with a letter.'
+        return msg
 
 
 class InvalidSetType(BaseException):
@@ -280,3 +282,32 @@ class InvalidNATPublic(BaseException):
 
     def __str__(self):
         return f'Invalid NATs public field: {self.obj}, NAT public address cannot be RFC1918'
+
+
+class InvalidKVMInterfaceItem(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid KVM Interface, field: {self.obj} is missing in the Interface object'
+
+
+class InvalidKVMInterfaceMacAddress(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        return f'Invalid KVM Interface property mac_address: {self.obj}, The property is not a valid Mac Address'
+
+
+class InvalidKVMInterfaceVlanBridge(BaseException):
+    def __init__(self, obj):
+        super().__init__(obj)
+        self.obj = obj
+
+    def __str__(self):
+        msg = f'Invalid KVM Interface property vlan_bridge {self.obj} '
+        msg += 'The "vlan_bridge" value must be of format `br1234`.'
+        return msg
