@@ -105,13 +105,17 @@ def build(
             'routens_add' : f'ip netns exec {namespace} ip {v} route add {route["destination"]} via {route["gateway"]} metric {metric}'
             }
 
+        route_exists = False
         ret = rcc.run(payloads['routens_show'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] == SUCCESS_CODE:
+            route_exists = True
+        fmt.add_successful('routens_show', ret)
+
+        if route_exists:
             #If the interface already exists returns info and true state
             return True, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
-        fmt.add_successful('routens_show', ret)
 
         ret = rcc.run(payloads['routens_add'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
@@ -224,26 +228,27 @@ def scrub(
             'routens_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
             'routens_del' : f'ip netns exec {namespace} ip {v} route del {route["destination"]} via {route["gateway"]}'
             }
+        route_exists = True
 
         ret = rcc.run(payloads['routens_show'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.channel_error(ret, f"{prefix+0}: " + messages[prefix+0]), fmt.successful_payloads
+            route_exists = False
         fmt.add_successful('routens_show', ret)
 
-        if ret["payload_message"] == "":
+        if not route_exists:
             #If the interface already does not exists returns info and true state
             return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
-        else:
-            ret = rcc.run(payloads['routens_del'])
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
-            if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-            fmt.add_successful('routens_del', ret)
 
-            return True, "", fmt.successful_payloads
+        ret = rcc.run(payloads['routens_del'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+        fmt.add_successful('routens_del', ret)
+
+        return True, "", fmt.successful_payloads
 
     status, msg, successful_payloads = run_podnet(enabled,3220,{})
     if status == False:

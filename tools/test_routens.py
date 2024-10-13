@@ -2,6 +2,14 @@ import sys
 import json
 from cloudcix_primitives import routens
 
+"""
+Requirements
+
+build ns -- python3 test_ns_primitive.py build maria
+build bridgeifns -- python3 test_bridgeifns.py build frodo maria
+build networkns -- python3 test_networkns_primitive.py build 'maria' '192.0.2.146' 'maria.frodo'
+
+"""
 # Fetch command and arguments
 cmd = sys.argv[1] if len(sys.argv) > 1 else None
 destination, gateway, namespace = "test_destination", "test_gateway", "testns"
