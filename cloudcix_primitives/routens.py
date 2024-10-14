@@ -44,7 +44,10 @@ def build(
         type: tuple
     """
     try:
-        dest = ipaddress.ip_address(route["destination"])
+        #ignore subnets anything after and including '/'
+        dest = route["destination"].split('/')[0]
+        #change type to ip_address
+        dest = ipaddress.ip_address(dest)
     except:
         return False, f'{route["destination"]} is not a valid IP address.'
 
@@ -165,7 +168,10 @@ def scrub(
     """
 
     try:
-        dest = ipaddress.ip_address(route["destination"])
+        #ignore subnets anything after and including '/'
+        dest = route["destination"].split('/')[0]
+        #change type to ip_address
+        dest = ipaddress.ip_address(dest)
     except:
         return False, f'{route["destination"]} is not a valid IP address.'
 
@@ -185,12 +191,10 @@ def scrub(
         1100: f'1100: Successfully deleted IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} with metric {metric}',
         1101: f'1101: IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} already does not exist.',
 
-        3120: f'3120: Failed to run routens_show payload on the enabled PodNet. Payload exited with ',
         3121: f'3121: Failed to connect to the enabled PodNet from the config file {config_file} for payload routens_show:  ',
         3122: f'3122: Failed to connect to the enabled PodNet from the config file {config_file} for payload routens_del:  ',
         3123: f'3123: Failed to run routens_del payload on the enabled PodNet. Payload exited with status ',
 
-        3150: f'3150: Failed to run routens_show payload on the disabled PodNet. Payload exited with ',
         3151: f'3151: Failed to connect to the disabled PodNet from the config file {config_file} for payload routens_show:  ',
         3152: f'3152: Failed to connect to the disabled PodNet from the config file {config_file} for payload routens_del:  ',
         3153: f'3153: Failed to run routens_del payload on the disabled PodNet. Payload exited with status ',
@@ -288,7 +292,10 @@ def read(
     """
 
     try:
-        dest = ipaddress.ip_address(route["destination"])
+        #ignore subnets anything after and including '/'
+        dest = route["destination"].split('/')[0]
+        #change type to ip_address
+        dest = ipaddress.ip_address(dest)
     except:
         return False, {}, f'{route["destination"]} is not a valid IP address.'
 
