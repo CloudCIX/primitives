@@ -35,7 +35,7 @@ def build(
             description: The public subnet address range (region assignment) to be defined on the bridge
             type: str
             required: true
-        bridge_name:
+        bridge:
             description: Name of the bridge to be created on the PodNet, eg. BM123
             type: string
             required: true
@@ -53,7 +53,6 @@ def build(
     # Define message
     messages = {
         1000: f'Successfully created and started bridgemain_{bridge}.service.',
-        1001: f'bridgemain_{bridge}.service already exists',
         # Template
         3002: 'Failed to verify down.sh.j2 template data, One or more template fields are None',
         3003: 'Failed to verify up.sh.j2 template data, One or more template fields are None',
@@ -194,7 +193,7 @@ def scrub(
         Scrubs the service and deletes the subnet bridge on the local host .
 
     parameters:
-        bridge_name:
+        bridge:
             description: Name of the bridge to be created on the PodNet, eg. BM123
             type: string
             required: true
@@ -298,7 +297,7 @@ def read(
         Reads the service and the vlan tagged bridge on the host .
 
     parameters:
-        bridge_name:
+        bridge:
             description: Name of the bridge to be created on the PodNet, eg. BM123
             type: string
             required: true
