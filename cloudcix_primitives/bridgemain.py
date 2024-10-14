@@ -3,7 +3,6 @@ Primitive for Public Subnet Bridge on PodNet
 """
 
 # stdlib
-import ipaddress
 from typing import Any, Dict, List, Tuple
 # lib
 from cloudcix.rcc import comms_lsh, CHANNEL_SUCCESS
@@ -59,17 +58,16 @@ def build(
         3004: 'Failed to verify interface.service.sh.j2 template data, One or more template fields are None',
         # Payloads
         3021: 'Failed to connect to the local host for find_service payload: ',
-        3022: 'Failed to run find_service_payload on the local host. Payload exited with status ',
-        3023: 'Failed to connect to the local host for create_down_script payload: ',
-        3024: 'Failed to run create_down_script payload on the local host. Payload exited with status ',
-        3025: 'Failed to connect to the local host for create_up_script payload: ',
-        3026: 'Failed to run create_up_script payload on the local host. Payload exited with status ',
-        3027: 'Failed to connect to the local host for create_service_file payload: ',
-        3028: 'Failed to run create_service_file payload on the local host. Payload exited with status ',
-        3029: 'Failed to connect to the local host for reload_services payload: ',
-        3030: 'Failed to run reload_services payload on the local host. Payload exited with status ',
-        3031: 'Failed to connect to the local host for start_service payload: ',
-        3032: 'Failed to run start_service payload on the local host. Payload exited with status ',
+        3022: 'Failed to connect to the local host for create_down_script payload: ',
+        3023: 'Failed to run create_down_script payload on the local host. Payload exited with status ',
+        3024: 'Failed to connect to the local host for create_up_script payload: ',
+        3025: 'Failed to run create_up_script payload on the local host. Payload exited with status ',
+        3026: 'Failed to connect to the local host for create_service_file payload: ',
+        3027: 'Failed to run create_service_file payload on the local host. Payload exited with status ',
+        3028: 'Failed to connect to the local host for reload_services payload: ',
+        3029: 'Failed to run reload_services payload on the local host. Payload exited with status ',
+        3030: 'Failed to connect to the local host for start_service payload: ',
+        3031: 'Failed to run start_service payload on the local host. Payload exited with status ',
 
     }
 
@@ -134,46 +132,44 @@ def build(
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
         create_service = True
-        if ret["payload_code"] != SUCCESS_CODE:
-            fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
-        else:
+        if ret["payload_code"] == SUCCESS_CODE:
             create_service = False
         fmt.add_successful('find_service', ret)
 
         if create_service:
             ret = comms_lsh(payloads['create_down_script'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
             fmt.add_successful('create_down_script', ret)
 
             ret = comms_lsh(payloads['create_up_script'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
             fmt.add_successful('create_up_script', ret)
 
             ret = comms_lsh(payloads['create_service_file'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
             fmt.add_successful('create_service_file', ret)
 
         ret = comms_lsh(payloads['reload_services'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 10}: {messages[prefix + 10]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
         fmt.add_successful('reload_services', ret)
 
         ret = comms_lsh(payloads['start_service'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 11}: {messages[prefix + 11]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 10}: {messages[prefix + 10]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 12}: {messages[prefix + 12]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 11}: {messages[prefix + 11]}'), fmt.successful_payloads
         fmt.add_successful('start_service', ret)
 
         return True, "", fmt.successful_payloads
@@ -219,10 +215,8 @@ def scrub(
         3123: f'Failed to run stop_service payload on the local host. Payload exited with status ',
         3124: f'Failed to connect to the local host for delete_files payload: ',
         3125: f'Failed to run delete_files payload on the local host. Payload exited with status ',
-        3126: f'Failed to connect to the local host for delete_bridge payload: ',
-        3127: f'Failed to run delete_bridge payload on the local host. Payload exited with status ',
-        3128: f'Failed to connect to the local host for reload_services payload: ',
-        3129: f'Failed to run reload_services payload on the local host. Payload exited with status ',
+        3126: f'Failed to connect to the local host for reload_services payload: ',
+        3127: f'Failed to run reload_services payload on the local host. Payload exited with status ',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -239,7 +233,6 @@ def scrub(
                             f'systemctl disable bridgemain_{bridge}.service',
             'delete_files': f'rm --force {up_script_path} {down_script_path} {service_file_path}',
             'reload_services': 'systemctl daemon-reload',
-            'delete_bridge': f'ip link del {bridge}',
         }
 
         ret = comms_lsh(payloads['find_service'])
@@ -266,18 +259,11 @@ def scrub(
                 return False, fmt.payload_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
             fmt.add_successful('delete_files', ret)
 
-            ret = comms_lsh(payloads['delete_bridge'])
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
-            if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
-            fmt.add_successful('delete_files', ret)
-
         ret = comms_lsh(payloads['reload_services'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
         fmt.add_successful('reload_services', ret)
 
         return True, "", fmt.successful_payloads
@@ -337,17 +323,16 @@ def read(
     # Define message
     messages = {
         1200: f'Successfully read bridgemain_{bridge}.service on local host.',
-        1201: f'bridgemain_{bridge}.service does not exists on local host',
-
         3221: 'Failed to connect to the local host for find_service payload: ',
-        3222: f'Failed to connect to the local host for read_bridge payload: ',
-        3223: f'Failed to run read_bridge payload on the local host. Payload exited with status ',
-        3224: f'Failed to connect to the local host for read_down_script payload: ',
-        3225: f'Failed to run read_down_script payload on the local host. Payload exited with status ',
-        3226: f'Failed to connect to the local host for read_up_script payload: ',
-        3227: f'Failed to run read_up_script payload on the local host. Payload exited with status ',
-        3228: f'Failed to connect to the local host for read_service_file payload: ',
-        3229: f'Failed to run read_service_file payload on the local host. Payload exited with status ',
+        3222: f'Failed  to find serivce bridgemain_{bridge}.service, does not exists on local host',
+        3223: f'Failed to connect to the local host for read_bridge payload: ',
+        3224: f'Failed to run read_bridge payload on the local host. Payload exited with status ',
+        3225: f'Failed to connect to the local host for read_down_script payload: ',
+        3226: f'Failed to run read_down_script payload on the local host. Payload exited with status ',
+        3227: f'Failed to connect to the local host for read_up_script payload: ',
+        3228: f'Failed to run read_up_script payload on the local host. Payload exited with status ',
+        3229: f'Failed to connect to the local host for read_service_file payload: ',
+        3230: f'Failed to run read_service_file payload on the local host. Payload exited with status ',
     }
 
     def run_host(host, prefix, successful_payloads, data_dict):
@@ -371,10 +356,10 @@ def read(
         ret = comms_lsh(payloads['find_service'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix + 1}: " + messages[prefix + 1])
+            fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}')
         if ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"1201: " + messages[1201])
+            fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}')
         else:
             data_dict[host]['service'] = ret["payload_message"].strip()
             fmt.add_successful('find_service', ret)
@@ -382,10 +367,10 @@ def read(
         ret = comms_lsh(payloads['read_bridge'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix + 2}: " + messages[prefix + 2])
+            fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}')
         if ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"{prefix + 3}: " + messages[prefix + 3])
+            fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}')
         else:
             data_dict[host]['bridge'] = ret["payload_message"].strip()
             fmt.add_successful('read_bridge', ret)
@@ -393,10 +378,10 @@ def read(
         ret = comms_lsh(payloads['read_down_script'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix + 4}: " + messages[prefix + 4])
+            fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}')
         if ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"{prefix + 5}: " + messages[prefix + 5])
+            fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}')
         else:
             data_dict[host]['down_script'] = ret["payload_message"].strip()
             fmt.add_successful('read_down_script', ret)
@@ -404,10 +389,10 @@ def read(
         ret = comms_lsh(payloads['read_up_script'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix + 6}: " + messages[prefix + 6])
+            fmt.channel_error(ret, f'{prefix + 7}: {messages[prefix + 7]}')
         if ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"{prefix + 7}: " + messages[prefix + 7])
+            fmt.payload_error(ret, f'{prefix + 8}: {messages[prefix + 8]}')
         else:
             data_dict[host]['up_script'] = ret["payload_message"].strip()
             fmt.add_successful('read_up_script', ret)
@@ -415,10 +400,10 @@ def read(
         ret = comms_lsh(payloads['read_service_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix + 8}: " + messages[prefix + 8])
+            fmt.channel_error(ret, f'{prefix + 9}: {messages[prefix + 9]}')
         if ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"{prefix + 9}: " + messages[prefix + 9])
+            fmt.payload_error(ret, f'{prefix + 10}: {messages[prefix + 10]}')
         else:
             data_dict[host]['service_file'] = ret["payload_message"].strip()
             fmt.add_successful('read_file_service', ret)
