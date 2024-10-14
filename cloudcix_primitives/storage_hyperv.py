@@ -76,7 +76,7 @@ def build(
 
         payloads = {
             'read_storage_file': f'Get-VHD -Path {domain_path}{storage}',
-            'create_storage_file': f'New-VHD -Path {domain_path}{storage} -Fixed -SizeBytes {size}GB | Mount-VHD -Passthru | Initialize-Disk -PassThru | ' 
+            'create_storage_file': f'New-VHD -Path {domain_path}{storage} -Dynamic -SizeBytes {size}GB | Mount-VHD -Passthru | Initialize-Disk -PassThru | ' 
                                     'New-Partition -AssignDriveLetter -UseMaximumSize | Format-Volume -FileSystem NTFS -Confirm:$false -Force',
             'dismount_storage_file': f'Dismount-VHD -Path {domain_path}{storage}',
         }
