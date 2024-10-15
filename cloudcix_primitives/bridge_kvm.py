@@ -243,10 +243,20 @@ def scrub(
         3121: f'Failed to connect to the host {host} for find_service payload: ',
         3122: f'Failed to connect to the host {host} for stop_service payload: ',
         3123: f'Failed to run stop_service payload on the host {host}. Payload exited with status ',
-        3124: f'Failed to connect to the host {host} for delete_files payload: ',
-        3125: f'Failed to run delete_files payload on the host {host}. Payload exited with status ',
-        3126: f'Failed to connect to the host {host} for reload_services payload: ',
-        3127: f'Failed to run reload_services payload on the host {host}. Payload exited with status ',
+        3124: f'Failed to connect to the host {host} for check_up_file payload: ',
+        3125: f'Failed to run check_up_file payload on the host {host}. Payload exited with status ',
+        3126: f'Failed to connect to the host {host} for delete_up_file payload: ',
+        3127: f'Failed to run delete_up_file payload on the host {host}. Payload exited with status ',
+        3128: f'Failed to connect to the host {host} for check_down_file payload: ',
+        3129: f'Failed to run check_down_file payload on the host {host}. Payload exited with status ',
+        3130: f'Failed to connect to the host {host} for delete_up_file payload: ',
+        3131: f'Failed to run delete_down_file payload on the host {host}. Payload exited with status ',
+        3132: f'Failed to connect to the host {host}for check_service_file payload: ',
+        3133: f'Failed to run check_service_file payload on the host {host}. Payload exited with status ',
+        3134: f'Failed to connect to the host {host} for delete_up_file payload: ',
+        3135: f'Failed to run delete_service_file payload on the host {host}. Payload exited with status ',
+        3136: f'Failed to connect to the host {host} for reload_services payload: ',
+        3137: f'Failed to run reload_services payload on the host {host}. Payload exited with status ',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -261,39 +271,88 @@ def scrub(
         payloads = {
             'find_service': f'systemctl status bridge_kvm_br{vlan}.service',
             'stop_service': f'systemctl stop bridge_kvm_br{vlan}.service && systemctl disable bridge_kvm_br{vlan}.service',
-            'delete_files': f'rm --force {up_script_path} {down_script_path} {service_file_path}',
+            'check_up_file': f'if [ -f "{up_script_path}" ]; then exit 0; else exit 1; fi',
+            'delete_up_file': f'rm --force {up_script_path}',
+            'check_down_file': f'if [ -f "{down_script_path}" ]; then exit 0; else exit 1; fi',
+            'delete_down_file': f'rm --force {down_script_path}',
+            'check_service_file': f'if [ -f "{service_file_path}" ]; then exit 0; else exit 1; fi',
+            'delete_service_file': f'rm --force {service_file_path}',
             'reload_services': 'systemctl daemon-reload',
         }
 
         ret = rcc.run(payloads['find_service'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
-        delete_service=True
+            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        stop_service = True
         if ret["payload_code"] != SUCCESS_CODE:
-            delete_service=False
+            stop_service = False
             fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
         fmt.add_successful('find_service', ret)
 
-        if delete_service:
+        if stop_service is True:
             ret = rcc.run(payloads['stop_service'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
             fmt.add_successful('stop_service', ret)
 
-            ret = rcc.run(payloads['delete_files'])
+        ret = rcc.run(payloads['check_up_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
+        delete_up_file = True
+        if ret["payload_code"] != SUCCESS_CODE:
+            delete_up_file = False
+            fmt.payload_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
+        fmt.add_successful('check_up_file', ret)
+
+        if delete_up_file is True:
+            ret = rcc.run(payloads['delete_up_file'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-            fmt.add_successful('delete_files', ret)
-        
+                return False, fmt.payload_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
+            fmt.add_successful('delete_up_file', ret)
+
+        ret = rcc.run(payloads['check_down_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
+        delete_down_file = True
+        if ret["payload_code"] != SUCCESS_CODE:
+            delete_down_file = False
+            fmt.payload_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
+        fmt.add_successful('check_down_file', ret)
+
+        if delete_down_file is True:
+            ret = rcc.run(payloads['delete_down_file'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f'{prefix + 10}: {messages[prefix + 10]}'), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f'{prefix + 11}: {messages[prefix + 11]}'), fmt.successful_payloads
+            fmt.add_successful('delete_down_file', ret)
+
+        ret = rcc.run(payloads['check_service_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 12}: {messages[prefix + 12]}'), fmt.successful_payloads
+        delete_service_file = True
+        if ret["payload_code"] != SUCCESS_CODE:
+            delete_service_file = False
+            fmt.payload_error(ret, f'{prefix + 13}: {messages[prefix + 13]}'), fmt.successful_payloads
+        fmt.add_successful('check_service_file', ret)
+
+        if delete_service_file is True:
+            ret = rcc.run(payloads['delete_service_file'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f'{prefix + 14}: {messages[prefix + 14]}'), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f'{prefix + 15}: {messages[prefix + 15]}'), fmt.successful_payloads
+            fmt.add_successful('delete_service_file', ret)
+
         ret = rcc.run(payloads['reload_services'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 16}: {messages[prefix + 16]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 17}: {messages[prefix + 17]}'), fmt.successful_payloads
         fmt.add_successful('reload_services', ret)
 
         return True, "", fmt.successful_payloads
