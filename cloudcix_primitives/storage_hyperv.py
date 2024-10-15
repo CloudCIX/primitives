@@ -169,7 +169,7 @@ def scrub(
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
+            return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
         fmt.add_successful('read_storage_file', ret)
 
         ret = rcc.run(payloads['remove_storage_file'])
