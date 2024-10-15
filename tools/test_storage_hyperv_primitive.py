@@ -11,19 +11,18 @@ host = None
 domain_path = 'D:\HyperV\primitive_test\\'
 storage = 'primitive_test.vhdx'
 size = 5
-update_size = 6
 
 if len(sys.argv) > 2:
     host = sys.argv[2]
 
 if len(sys.argv) > 3:
-    storage = sys.argv[3]
+    domain_path = sys.argv[3]
 
 if len(sys.argv) > 4:
-    size = sys.argv[4]
+    storage = sys.argv[4]
 
 if len(sys.argv) > 5:
-    cloudimage = sys.argv[5]
+    size = sys.argv[5]
 
 if host is None:
     print('Host is required, please supply the host as second argument.')
@@ -39,7 +38,7 @@ if cmd == 'build':
     )
 if cmd == 'update':
     status, msg = storage_hyperv.update(
-        host=host, domain_path=domain_path, storage=storage, size=update_size
+        host=host, domain_path=domain_path, storage=storage, size=size
     )
 if cmd == 'scrub':
     status, msg = storage_hyperv.scrub(host=host, domain_path=domain_path, storage=storage)
