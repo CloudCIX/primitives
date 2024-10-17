@@ -44,18 +44,16 @@ def build(
         type: tuple
     """
     try:
-        #ignore subnets anything after and including '/'
-        dest = route["destination"].split('/')[0]
         #change type to ip_address
-        dest = ipaddress.ip_address(dest)
+        dest = ipaddress.ip_network(route["destination"])
     except:
         return False, f'{route["destination"]} is not a valid IP address.'
 
-    if isinstance(dest, ipaddress.IPv4Address):
+    if dest.version == 4:
         v = ''
         version = 4
         metric = 512
-    elif isinstance(dest, ipaddress.IPv6Address):
+    elif dest.version == 6:
         v = '-6'
         version = 6
         metric = 1024
@@ -168,23 +166,22 @@ def scrub(
     """
 
     try:
-        #ignore subnets anything after and including '/'
-        dest = route["destination"].split('/')[0]
         #change type to ip_address
-        dest = ipaddress.ip_address(dest)
+        dest = ipaddress.ip_network(route["destination"])
     except:
         return False, f'{route["destination"]} is not a valid IP address.'
 
-    if isinstance(dest, ipaddress.IPv4Address):
+    if dest.version == 4:
         v = ''
         version = 4
         metric = 512
-    elif isinstance(dest, ipaddress.IPv6Address):
+    elif dest.version == 6:
         v = '-6'
         version = 6
         metric = 1024
     else:
         return False, f'{route["destination"]} is not a valid IP address.'
+
     # Define message
 
     messages = {
@@ -292,23 +289,21 @@ def read(
     """
 
     try:
-        #ignore subnets anything after and including '/'
-        dest = route["destination"].split('/')[0]
         #change type to ip_address
-        dest = ipaddress.ip_address(dest)
+        dest = ipaddress.ip_network(route["destination"])
     except:
-        return False, {}, f'{route["destination"]} is not a valid IP address.'
+        return False, f'{route["destination"]} is not a valid IP address.'
 
-    if isinstance(dest, ipaddress.IPv4Address):
+    if dest.version == 4:
         v = ''
         version = 4
         metric = 512
-    elif isinstance(dest, ipaddress.IPv6Address):
+    elif dest.version == 6:
         v = '-6'
         version = 6
         metric = 1024
     else:
-        return False, {}, f'{route["destination"]} is not a valid IP address.'
+        return False, f'{route["destination"]} is not a valid IP address.'
     # Define message
 
     messages = {
