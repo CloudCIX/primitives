@@ -1,0 +1,5 @@
+#!/bin/bash
+
+ip link add {{ bridge }} type bridge
+ip addr add {{ address_range }} dev {{ bridge }}
+ip link set dev {{ bridge }} up

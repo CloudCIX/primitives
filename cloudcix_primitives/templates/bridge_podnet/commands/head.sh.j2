@@ -1,8 +1,0 @@
-{
-set -e
-if ! ip link show | grep 'br-{{ identifier }}'; then
-    echo "{{ messages['300'] }}"
-    exit 1
-fi
-echo "{{ messages['000'] }}"
-}

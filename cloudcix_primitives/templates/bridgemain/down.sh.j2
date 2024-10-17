@@ -1,0 +1,5 @@
+#!/bin/bash
+
+ip link set dev {{ bridge }} down
+# Delete the bridge next
+ip link del {{ bridge }}
