@@ -90,6 +90,7 @@ def build(
     disabled = config_data['processed']['disabled']
 
     destination_grepsafe = route["destination"].replace('.', '\.')
+    gateway_grepsafe = route["gateway"].replace('.', '\.')
 
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
@@ -102,7 +103,7 @@ def build(
         )
 
         payloads = {
-            'routens_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
+            'routens_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe} via {gateway_grepsafe}"',
             'routens_add' : f'ip netns exec {namespace} ip {v} route add {route["destination"]} via {route["gateway"]} metric {metric}'
             }
 
@@ -246,6 +247,10 @@ def scrub(
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
+            #If this message is returned when no such networkns does not exist
+            if ret['payload_message'] == "RTNETLINK answers: No such process":
+                return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
+
             return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
         fmt.add_successful('routens_del', ret)
 
@@ -292,7 +297,7 @@ def read(
         #change type to ip_address
         dest = ipaddress.ip_network(route["destination"])
     except:
-        return False, f'{route["destination"]} is not a valid IP address.'
+        return False, {}, f'{route["destination"]} is not a valid IP address.'
 
     if dest.version == 4:
         v = ''
@@ -303,7 +308,7 @@ def read(
         version = 6
         metric = 1024
     else:
-        return False, f'{route["destination"]} is not a valid IP address.'
+        return False, {}, f'{route["destination"]} is not a valid IP address.'
     # Define message
 
     messages = {

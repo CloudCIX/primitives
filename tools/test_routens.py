@@ -9,6 +9,7 @@ build ns -- python3 test_ns_primitive.py build maria
 build bridgeifns -- python3 test_bridgeifns.py build frodo maria
 build networkns -- python3 test_networkns_primitive.py build 'maria' '192.0.2.146' 'maria.frodo'
 
+route add -- python3 test_routens.py build '185.49.65.127' '192.0.2.146' 'maria'
 """
 # Fetch command and arguments
 cmd = sys.argv[1] if len(sys.argv) > 1 else None
