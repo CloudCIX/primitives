@@ -134,11 +134,9 @@ def build(
         1000: f'Successfully created domain {domain} on Host {host}',
         # validations
         3011: 'Invalid "primary_storage", The "primary_storage" is required',
-        3012: 'Invalid "primary_storage", The "primary_storage" is must be a string type',
-        3013: 'Invalid "primary_storage", The "primary_storage" must be a name of the storage file with extension',
-        3014: 'Invalid "primary_storage", The "primary_storage" can only be either .img or .qcow2 file formats',
-        3015: 'Invalid "secondary_storages", every item in "secondary_storages" must be of string type',
-        3016: 'Invalid "secondary_storages", one or more items are invalid, Errors: ',
+        3012: 'Invalid "primary_storage", The "primary_storage" must be a name of the storage file with extension',
+        3013: 'Invalid "primary_storage", The "primary_storage" can only be either .vhd or .vhdx file formats',
+        3014: 'Invalid "secondary_storages", one or more items are invalid, Errors: ',
         # payload execution
         3031: f'Failed to connect to the host {host} for the payload read_domain_info',
         3032: f'Failed to create domain, the requested domain {domain} already exists on the Host {host}',
@@ -184,16 +182,13 @@ def build(
         if ps is None:
             messages_list.append(f'{messages[msg_index]}: {messages[msg_index]}')
             return False
-        if type(primary_storage) is not str:
+
+        ps_items = str(ps).split('.')
+        if len(ps_items) != 2:
             messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]}')
             return False
-
-        ps_items = ps.split('.')
-        if len(ps_items) != 2:
-            messages_list.append(f'{messages[msg_index + 2]}: {messages[msg_index + 2]}')
-            return False
         elif ps_items[1] not in ('vhd', 'vhdx'):
-            messages_list.append(f'{messages[msg_index + 3]}: {messages[msg_index + 3]}')
+            messages_list.append(f'{messages[msg_index + 2]}: {messages[msg_index + 2]}')
             return False
         return True
 
@@ -207,30 +202,26 @@ def build(
 
         errors = []
         valid_sstgs = True
-        for storage in secondary_storages:
-            if type(storage) is not str:
-                errors.append(f'Invalid secondary_storage {storage}, it must be string type')
+        for storage in sstgs:
+            stg_items = str(storage).split('.')
+            if len(stg_items) != 2:
+                errors.append(
+                    f'Invalid secondary_storage {storage}, it must be the name of the storage file with extension',
+                )
                 valid_sstgs = False
-            else:
-                stg_items = storage.split('.')
-                if len(stg_items) != 2:
-                    errors.append(
-                        f'Invalid secondary_storage {storage}, it must be the name of the storage file with extension',
-                    )
-                    valid_sstgs = False
-                elif stg_items[1] not in ('vhd', 'vhdx'):
-                    errors.append(
-                        f'Invalid secondary_storage {storage}, it can only be either .img or .qcow2 file format',
-                    )
-                    valid_sstgs = False
+            elif stg_items[1] not in ('vhd', 'vhdx'):
+                errors.append(
+                    f'Invalid secondary_storage {storage}, it can only be either .img or .qcow2 file format',
+                )
+                valid_sstgs = False
 
         if valid_sstgs is False:
-            messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]} {";".join(errors)}')
+            messages_list.append(f'{messages[msg_index]}: {messages[msg_index]} {";".join(errors)}')
 
         return valid_sstgs
 
     if secondary_storages:
-        validated = validate_secondary_storages(secondary_storages, 3015)
+        validated = validate_secondary_storages(secondary_storages, 3014)
     else:
         secondary_storages = []
 
