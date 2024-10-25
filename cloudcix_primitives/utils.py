@@ -330,9 +330,7 @@ class HostErrorFormatter:
         Formats an error message for a channel error (e.g. network connectivity
         problem or authentication error) and stores it in the object for later
         use. This multi line message will include the error code, the channel's
-        channel_message and channel_error and any relevant context, such as the
-        Podnet config.json used, the PodNet node it failed on and a list of
-        previous successful payloads.
+        channel_message and channel_error.
         """
         self.message_list.append(self._format_channel_error(rcc_return, msg_index))
 
@@ -340,9 +338,7 @@ class HostErrorFormatter:
         """
         Formats an error message for a payload error (e.g. a failed command)
         and stores it in the object for later use. This multi line message will
-        include the error code, the channel's channel_message and channel_error
-        and any relevant context, such as the Podnet config.json used, the
-        PodNet node it failed on and a list of previous successful payloads.
+        include the error code, the channel's channel_message and channel_error.
         """
         self.message_list.append(self._format_payload_error(rcc_return, msg_index))
 
