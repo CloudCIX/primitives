@@ -23,22 +23,26 @@ image = 'WindowsServer-2019-Standard_Gen-2_v2.vhdx'
 cpu = 2
 ram = 2048  # must be in MBs
 primary_storage = '123_234_HDD_568.vhdx'  # file extension must be in .vhdx or .vhd
-size = 20  # must be in GBs
+size = 35  # must be in GBs
 gateway_vlan = 1002
-secondary_vlans = None,
-secondary_storages = None,
+secondary_vlans = None
+secondary_storages = None
+robot_drive_url = None
 
 if len(sys.argv) > 2:
     host = sys.argv[2]
 
 if len(sys.argv) > 3:
-    domain = sys.argv[3]
+    robot_drive_url = sys.argv[3]
 
 if len(sys.argv) > 4:
-    size = sys.argv[4]
+    domain = sys.argv[4]
 
 if len(sys.argv) > 5:
-    cloudimage = sys.argv[5]
+    size = sys.argv[5]
+
+if len(sys.argv) > 6:
+    cloudimage = sys.argv[6]
 
 if host is None:
     print('Host is required, please supply the host as second argument.')
@@ -49,9 +53,13 @@ msg = None
 data = None
 
 if cmd == 'build':
+    if robot_drive_url is None:
+        print('`robot_drive_url` is required, please supply the host as third argument.')
+        exit()
     status, msg = hyperv.build(
         host=host, domain=domain, size=size, primary_storage=primary_storage,
-        image=image, cpu=cpu, ram=ram, gateway_vlan=gateway_vlan,
+        image=image, cpu=cpu, ram=ram, gateway_vlan=gateway_vlan, secondary_vlans=secondary_vlans,
+        secondary_storages=secondary_storages, robot_drive_url=robot_drive_url,
     )
 
 if cmd == 'read':

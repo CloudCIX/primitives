@@ -42,6 +42,7 @@ def build(
         host: str,
         primary_storage: str,
         ram: int,
+        robot_drive_url: str,
         size: int,
         domain_path=None,
         secondary_vlans=None,
@@ -92,6 +93,10 @@ def build(
         ram:
             description: RAM property of the HyperV VM, must be in MBs
             type: integer
+            required: true
+        robot_drive_url:
+            description: Robot Network Drive url to access image file, unattend and network xml files
+            type: string
             required: true
         size:
             description: The size of the storage image to be created, must be in GB value
@@ -229,6 +234,9 @@ def build(
     else:
         secondary_storages = []
 
+    if not secondary_vlans:
+        secondary_vlans = []
+
     if validated is False:
         return False, '; '.join(messages_list)
 
@@ -252,7 +260,6 @@ def build(
             # attach storage to the domain
             add_secondary_storages += f'Add-VMHardDiskDrive -VMName {domain} -Path {domain_path}{domain}\\{storage}; '
 
-        robot_drive_url = '\\\\robot.devtest.cloudcix.com\\etc\\cloudcix\\robot'
         mount_point = f'drive_{domain}'
         vhdx_file = f'{mount_point}:\\HyperV\\VHDXs\\{image}'
         mount_dir = f'{domain_path}{domain}\\mount'
