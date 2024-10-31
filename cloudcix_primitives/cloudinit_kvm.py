@@ -30,12 +30,12 @@ def build(
         cloudimage: str,
         cpu: int,
         domain: str,
-        domain_path: str,
         gateway_interface: dict,
         host: str,
         primary_storage: str,
         ram: int,
         size: int,
+        domain_path=None,
         secondary_interfaces=None,
         secondary_storages=None,
         osvariant='generic',
@@ -62,7 +62,7 @@ def build(
         domain_path:
             description: The location or directory path where this storage image will be created
             type: string
-            required: true
+            required: false
         gateway_interface:
             description: |
                 The gateway interface of the domain connected to the gateway network
@@ -169,6 +169,10 @@ def build(
         3037: f'Failed to connect the Host {host} for the payload virt_install_cmd',
         3038: f'Failed to create domain {domain} on Host {host}'
     }
+
+    # domain_path defaults to /var/lib/libvirt/images/
+    if domain_path is None:
+        domain_path = '/var/lib/libvirt/images/'
 
     messages_list = []
     validated = True
@@ -672,9 +676,9 @@ def restart(
 
 def scrub(
         domain: str,
-        domain_path: str,
         host: str,
         primary_storage: str,
+        domain_path=None,
 ) -> Tuple[bool, str]:
     """
     description: Removes the VM
@@ -687,7 +691,7 @@ def scrub(
         domain_path:
             description: The location or directory path where the primary storage is created
             type: string
-            required: true
+            required: false
         host:
             description: The dns or ipadddress of the Host on which the domain is built
             type: string
@@ -717,6 +721,10 @@ def scrub(
         3127: f'Failed to connect to the host {host} for payload remove_primary_storage',
         3128: f'Failed to remove {domain_path}{primary_storage} on host {host}',
     }
+
+    # domain_path defaults to /var/lib/libvirt/images/
+    if domain_path is None:
+        domain_path = '/var/lib/libvirt/images/'
 
     def run_host(host, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
