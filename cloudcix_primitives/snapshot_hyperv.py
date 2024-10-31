@@ -138,7 +138,7 @@ def read(
         snapshot: str,
 ) -> Tuple[bool, Dict[str, Any], List[str]]:
     """
-    description: Gets the vm information
+    description: Gets the snapshot information
 
     parameters:
         domain:
@@ -181,7 +181,7 @@ def read(
     """
     # Define message
     messages = {
-        1200: f'Successfully read xml data of domain {domain} from host {host}',
+        1200: f'Successfully read of snapshot {snapshot} for domain {domain} from host {host}',
         3221: f'Failed to connect to the host {host} for payload read_snapshot_info',
         3222: f'Failed to read data of snapshot {snapshot} for the domain {domain} from host {host}',
     }
@@ -233,7 +233,7 @@ def scrub(
         remove_subtree: bool,
 ) -> Tuple[bool, str]:
     """
-    description: Removes the VM
+    description: Removes the Snapshot
 
     parameters:
         domain:
@@ -249,20 +249,20 @@ def scrub(
             type: string
             required: true
         remove_subtree:
-            description: Whether to delete all previous snapshots for the same domain or not
+            description: Whether to delete child snapshots of the sent snapshot of the domain or not
             type: boolean
             required: true
 
     return:
         description: |
-            A tuple with a boolean flag stating the build was successful or not and
+            A tuple with a boolean flag stating the scrub was successful or not and
             the output or error message.
         type: tuple
     """
 
     # Define message
     messages = {
-        1100: f'Successfully scrubbed domain {domain} on host {host}',
+        1100: f'Successfully scrubbed snapshot {snapshot} of domain {domain} on host {host}',
         3121: f'Failed to connect to the host {host} for payload read_snapshot_info',
         3122: f'Failed to connect to the host {host} for payload remove_snapshot',
         3123: f'Failed to remove snapshot {snapshot} of the domain {domain} from host {host}',
@@ -294,7 +294,7 @@ def scrub(
         fmt.add_successful('read_snapshot_info', ret)
 
         if scrub_snapshot is True:
-            if remove_subtree is True:
+            if remove_subtree is False:
                 ret = rcc.run(payloads['remove_snapshot'])
                 if ret["channel_code"] != CHANNEL_SUCCESS:
                     return (
@@ -340,7 +340,7 @@ def update(
         snapshot: str,
 ) -> Tuple[bool, str]:
     """
-    description: Removes the VM
+    description: Update a Snapshot by restoring it
 
     parameters:
         domain:
@@ -358,14 +358,14 @@ def update(
 
     return:
         description: |
-            A tuple with a boolean flag stating the build was successful or not and
+            A tuple with a boolean flag stating the restore was successful or not and
             the output or error message.
         type: tuple
     """
 
     # Define message
     messages = {
-        1300: f'Successfully scrubbed domain {domain} on host {host}',
+        1300: f'Successfully restored to snapshot {snapshot} for domain {domain} on host {host}',
         3321: f'Failed to connect to the host {host} for payload read_snapshot_info',
         3322: f'Failed to read data of snapshot {snapshot} for the domain {domain} from host {host}',
         3323: f'Failed to connect to the host {host} for payload restore_snapshot',
