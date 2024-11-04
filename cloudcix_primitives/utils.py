@@ -171,6 +171,17 @@ class PyLXDWrapper:
             'payload_message': None,
         }
 
+        try:
+            client = Client(endpoint=f'https://[{self.host_ip}]:8443', verify=self.verify, project=self.project)
+        except ClientConnectionFailed as e:
+            response['channel_code'] = 404
+            response['channel_message'] = f'Unable to establish a PyLXD Client connection to IP {self.host_ip}'
+            response['channel_error'] = str(e)
+            return response
+
+        response['channel_code'] = 200
+        response['channel_message'] = f'PyLXD Client connection established to IP {self.host_ip}'
+
         # Split the cli string into service and method parts
         service_name, method_name = cli.split('.')
 
@@ -179,26 +190,12 @@ class PyLXDWrapper:
             service = getattr(client, service_name)
             # Dynamically get the method from the service
             method = getattr(service, method_name)
-        except AttributeError as e:
-            response['channel_code'] = 404
-            response['channel_message'] = f'The provided service or method '{cli}' is invalid'
-            response['channel_error'] = str(e)
-            return response
-
-        try:
-            client = Client(endpoint=f'https://[{self.host_ip}]:8443', verify=self.verify, project=self.project)
-        except ClientConnectionFailed as e:
-            response['channel_code'] = 404
-            response['channel_message'] = f'Unable to establish aPyLXD Client connection to IP {self.host_ip}'
-            response['channel_error'] = str(e)
-            return response
-
-        response['channel_code'] = 200
-        response['channel_message'] = f'PyLXD Client connection established to IP {self.host_ip}'
-
-        try:
             lxd_obj = method(name=name, config=config, **kwargs)
-            response['channel_message'] = lxd_obj
+            response['payload_message'] = lxd_obj
+        except AttributeError as e:
+            response['payload_code'] = 404
+            response['payload_message'] = f'The provided service or method "{cli}" is invalid'
+            response['payload_error'] = str(e)
         except LXDAPIException as e:
             response['payload_code'] = 400
             response['payload_message'] = f'PyLXD API unable to successfully execute {obj}.{method} for {name}'

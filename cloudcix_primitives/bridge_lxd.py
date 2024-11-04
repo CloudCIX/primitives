@@ -72,7 +72,7 @@ def build(
             successful_payloads,
         )
 
-        ret = rcc.run(cli='network.exists', name=name)
+        ret = rcc.run(cli='networks.exists', name=name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
