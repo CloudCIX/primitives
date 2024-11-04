@@ -6,7 +6,12 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 # libs
 from jinja2 import Environment, meta, FileSystemLoader, Template
-
+from pylxd import Client
+from pylxd.exceptions import (
+    LXDAPIException,
+    NOT_FOUND,
+    ClientConnectionFailed,
+)
 # local
 
 
@@ -15,6 +20,7 @@ __all__ = [
     'JINJA_ENV',
     'primitives_directory',
     'load_pod_config',
+    'PyLXDWrapper',
     'SSHCommsWrapper',
     'PodnetErrorFormatter',
     'HostErrorFormatter',
@@ -135,6 +141,64 @@ def load_pod_config(config_file=None, prefix=4000) -> Tuple[bool, Dict[str, Opti
     return True, config_data, f'{prefix + 10}: {messages[10]}'
 
 
+class PyLXDWrapper;
+
+    def __init__(self, host_ip, verify=True, project=None):
+        """
+        Wrap a pylxd client function to remember parameters that do not change over a set of multiple invocations.
+        :param host_ip: Target host for the LXD functions
+        :param verify (optional): |
+            - A boolean, indicates if the verify the TLS certificate.
+            - Defaults to True
+        :param project (optional): Name of the LXD project to interact with 
+        """
+        self.host_ip = host_ip
+        self.verify = verify
+        self.project = project
+
+        def run(self, obj, method, name: str, config=None, **kwargs):
+            """
+            Runs a command through RCC.
+            :param obj: The LXD object the request 
+            :param method: The method to run for the object e.g. exists, all, get, create
+            :param name: the name of the LXD object the client is interacting with.
+            :param config (optional): A dictionary for the configuration of the LXD object
+            """
+            response = {
+                'channel_code': None,
+                'channel_error': None,
+                'channel_message': None,
+                'payload_code': None,
+                'payload_error': None,
+                'payload_message': None,
+            }
+
+            try:
+                client = Client(endpoint=f'https://[{host_ip}]:8443', verify=verify, project=project)
+            except ClientConnectionFailed as e:
+                response['channel_code'] = 404
+                response['channel_message'] = f'Unable to establish aPyLXD Client connection to IP {host_ip}'
+                response['channel_error'] = str(e)
+                return response
+
+            response['channel_message'] = f'PyLXD Client connection established to IP {host_ip}'
+
+            try:
+                lxd_obj = client.obj.method(name=name, config=config, **kwargs)
+            except (LXDAPIException, NOT_FOUND) as e:
+                response['payload_code'] = 400
+                response['payload_message'] = f'PyLXD API unable to successfully execute {obj}.{method} for {name}'
+                response['payload_error'] = str(e)
+            except Exception as e:
+                response['payload_code'] = 400
+                response['payload_message'] = 'An unknown exception occurred'
+                response['payload_error'] = str(e)
+            
+            response['channel_message'] = lxd_obj
+
+            return response
+
+
 class SSHCommsWrapper:
     """
     Wraps RCC (Reliable Communications Channel) function to remember parameters
@@ -150,10 +214,12 @@ class SSHCommsWrapper:
         self.host_ip = host_ip
         self.username = username
 
-    def run(self, payload):
+    def run(self, name: str, config=None, **kwargs):
         """
         Runs a command through RCC.
-        :param payload: the command to run.
+        :param name: the name of the LXD instance the client is interacting with.
+        :param config (optional): A dictionary for the configuration of the LXD instance
+        :parm
         """
         return self.comm_function(
             host_ip=self.host_ip,
@@ -205,9 +271,8 @@ class PodnetErrorFormatter:
         """
         self.successful_payloads[self.podnet_node].append({
             'payload_name': payload_name,
-            'rcc_return': rcc_return
-        }
-        )
+            'rcc_return': rcc_return,
+        })
 
     def channel_error(self, rcc_return, msg_index):
         """
@@ -371,3 +436,4 @@ class HostErrorFormatter:
         msg += f"{rcc_return['payload_error']}\n{self.payload_channels['payload_message']}: "
         msg += f"{rcc_return['payload_message']}\n"
         return msg
+
