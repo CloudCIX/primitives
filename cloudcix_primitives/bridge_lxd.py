@@ -1,12 +1,12 @@
 """
 Primitive for Private Bridge in LXD
 """
-
-# 3rd party modules
-import jinja2
 # stdlib
 import os
 from typing import Tuple
+# libs
+import jinja2
+from cloudcix.rcc import CHANNEL_SUCCESS
 # local
 from cloudcix_primitives.utils import HostErrorFormatter, PyLXDWrapper
 
@@ -17,6 +17,7 @@ __all__ = [
     'scrub',
 ]
 
+SUCCESS_CODE = 0
 
 
 def build(
@@ -63,6 +64,7 @@ def build(
 
 
     def run_host(host, prefix, successful_payloads):
+
         rcc = PyLXDWrapper(host, verify_lxd_certs)
         fmt = HostErrorFormatter(
             host,
@@ -70,11 +72,11 @@ def build(
             successful_payloads,
         )
 
-        ret = rcc.run(object='network', method='exists', name=name)
+        ret = rcc.run(cli='network.exists', name=name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
         fmt.add_successful('network.exists', ret)
         
         return True, "", fmt.successful_payloads

@@ -155,11 +155,10 @@ class PyLXDWrapper:
         self.verify = verify
         self.project = project
 
-    def run(self, obj, method, name: str, config=None, **kwargs):
+    def run(self, cli, name: str, config=None, **kwargs):
         """
         Runs a command through RCC.
-        :param obj: The LXD object the request 
-        :param method: The method to run for the object e.g. exists, all, get, create
+        :param cli: The LXD object for the request and the method to run
         :param name: the name of the LXD object the client is interacting with.
         :param config (optional): A dictionary for the configuration of the LXD object
         """
@@ -172,6 +171,20 @@ class PyLXDWrapper:
             'payload_message': None,
         }
 
+        # Split the cli string into service and method parts
+        service_name, method_name = cli.split('.')
+
+        try:
+            # Dynamically get the service from the client
+            service = getattr(client, service_name)
+            # Dynamically get the method from the service
+            method = getattr(service, method_name)
+        except AttributeError as e:
+            response['channel_code'] = 404
+            response['channel_message'] = f'The provided service or method '{cli}' is invalid'
+            response['channel_error'] = str(e)
+            return response
+
         try:
             client = Client(endpoint=f'https://[{self.host_ip}]:8443', verify=self.verify, project=self.project)
         except ClientConnectionFailed as e:
@@ -180,10 +193,12 @@ class PyLXDWrapper:
             response['channel_error'] = str(e)
             return response
 
+        response['channel_code'] = 200
         response['channel_message'] = f'PyLXD Client connection established to IP {self.host_ip}'
 
         try:
-            lxd_obj = client.obj.method(name=name, config=config, **kwargs)
+            lxd_obj = method(name=name, config=config, **kwargs)
+            response['channel_message'] = lxd_obj
         except LXDAPIException as e:
             response['payload_code'] = 400
             response['payload_message'] = f'PyLXD API unable to successfully execute {obj}.{method} for {name}'
@@ -192,8 +207,6 @@ class PyLXDWrapper:
             response['payload_code'] = 400
             response['payload_message'] = 'An unknown exception occurred'
             response['payload_error'] = str(e)
-        
-        response['channel_message'] = lxd_obj
 
         return response
 
