@@ -9,7 +9,6 @@ from jinja2 import Environment, meta, FileSystemLoader, Template
 from pylxd import Client
 from pylxd.exceptions import (
     LXDAPIException,
-    NOT_FOUND,
     ClientConnectionFailed,
 )
 # local
@@ -141,7 +140,7 @@ def load_pod_config(config_file=None, prefix=4000) -> Tuple[bool, Dict[str, Opti
     return True, config_data, f'{prefix + 10}: {messages[10]}'
 
 
-class PyLXDWrapper;
+class PyLXDWrapper:
 
     def __init__(self, host_ip, verify=True, project=None):
         """
@@ -156,47 +155,47 @@ class PyLXDWrapper;
         self.verify = verify
         self.project = project
 
-        def run(self, obj, method, name: str, config=None, **kwargs):
-            """
-            Runs a command through RCC.
-            :param obj: The LXD object the request 
-            :param method: The method to run for the object e.g. exists, all, get, create
-            :param name: the name of the LXD object the client is interacting with.
-            :param config (optional): A dictionary for the configuration of the LXD object
-            """
-            response = {
-                'channel_code': None,
-                'channel_error': None,
-                'channel_message': None,
-                'payload_code': None,
-                'payload_error': None,
-                'payload_message': None,
-            }
+    def run(self, obj, method, name: str, config=None, **kwargs):
+        """
+        Runs a command through RCC.
+        :param obj: The LXD object the request 
+        :param method: The method to run for the object e.g. exists, all, get, create
+        :param name: the name of the LXD object the client is interacting with.
+        :param config (optional): A dictionary for the configuration of the LXD object
+        """
+        response = {
+            'channel_code': None,
+            'channel_error': None,
+            'channel_message': None,
+            'payload_code': None,
+            'payload_error': None,
+            'payload_message': None,
+        }
 
-            try:
-                client = Client(endpoint=f'https://[{host_ip}]:8443', verify=verify, project=project)
-            except ClientConnectionFailed as e:
-                response['channel_code'] = 404
-                response['channel_message'] = f'Unable to establish aPyLXD Client connection to IP {host_ip}'
-                response['channel_error'] = str(e)
-                return response
-
-            response['channel_message'] = f'PyLXD Client connection established to IP {host_ip}'
-
-            try:
-                lxd_obj = client.obj.method(name=name, config=config, **kwargs)
-            except (LXDAPIException, NOT_FOUND) as e:
-                response['payload_code'] = 400
-                response['payload_message'] = f'PyLXD API unable to successfully execute {obj}.{method} for {name}'
-                response['payload_error'] = str(e)
-            except Exception as e:
-                response['payload_code'] = 400
-                response['payload_message'] = 'An unknown exception occurred'
-                response['payload_error'] = str(e)
-            
-            response['channel_message'] = lxd_obj
-
+        try:
+            client = Client(endpoint=f'https://[{self.host_ip}]:8443', verify=self.verify, project=self.project)
+        except ClientConnectionFailed as e:
+            response['channel_code'] = 404
+            response['channel_message'] = f'Unable to establish aPyLXD Client connection to IP {self.host_ip}'
+            response['channel_error'] = str(e)
             return response
+
+        response['channel_message'] = f'PyLXD Client connection established to IP {self.host_ip}'
+
+        try:
+            lxd_obj = client.obj.method(name=name, config=config, **kwargs)
+        except LXDAPIException as e:
+            response['payload_code'] = 400
+            response['payload_message'] = f'PyLXD API unable to successfully execute {obj}.{method} for {name}'
+            response['payload_error'] = str(e)
+        except Exception as e:
+            response['payload_code'] = 400
+            response['payload_message'] = 'An unknown exception occurred'
+            response['payload_error'] = str(e)
+        
+        response['channel_message'] = lxd_obj
+
+        return response
 
 
 class SSHCommsWrapper:

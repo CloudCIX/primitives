@@ -8,7 +8,7 @@ import jinja2
 import os
 from typing import Tuple
 # local
-from cloudcix_primitives.utils import PyLXDWrapper
+from cloudcix_primitives.utils import HostErrorFormatter, PyLXDWrapper
 
 
 __all__ = [
@@ -63,15 +63,14 @@ def build(
 
 
     def run_host(host, prefix, successful_payloads):
-        if client is None:
-        rcc = PyLXDWrapper(host, verify)
+        rcc = PyLXDWrapper(host, verify_lxd_certs)
         fmt = HostErrorFormatter(
             host,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
             successful_payloads,
         )
 
-        ret = rcc.run(object='network', method='exists', name=name, config)
+        ret = rcc.run(object='network', method='exists', name=name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
