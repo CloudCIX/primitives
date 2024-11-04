@@ -155,12 +155,10 @@ class PyLXDWrapper:
         self.verify = verify
         self.project = project
 
-    def run(self, cli, name: str, config=None, **kwargs):
+    def run(self, cli, **kwargs):
         """
         Runs a command through RCC.
         :param cli: The LXD object for the request and the method to run
-        :param name: the name of the LXD object the client is interacting with.
-        :param config (optional): A dictionary for the configuration of the LXD object
         """
         response = {
             'channel_code': None,
@@ -190,7 +188,7 @@ class PyLXDWrapper:
             service = getattr(client, service_name)
             # Dynamically get the method from the service
             method = getattr(service, method_name)
-            lxd_obj = method(name=name, config=config, **kwargs)
+            lxd_obj = method(**kwargs)
             response['payload_message'] = lxd_obj
         except AttributeError as e:
             response['payload_code'] = 404
