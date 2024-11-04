@@ -196,7 +196,7 @@ class PyLXDWrapper:
             response['payload_error'] = str(e)
         except LXDAPIException as e:
             response['payload_code'] = 400
-            response['payload_message'] = f'PyLXD API unable to successfully execute {cli} for {name}'
+            response['payload_message'] = f'PyLXD API unable to successfully execute {cli}'
             response['payload_error'] = str(e)
         except Exception as e:
             response['payload_code'] = 400
