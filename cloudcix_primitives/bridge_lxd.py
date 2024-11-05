@@ -84,7 +84,7 @@ def build(
         
         return True, "", fmt.successful_payloads
 
-    status, msg, successful_payloads = run_host(host, 3020, {})
+    status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
     if status is False:
         return status, msg
 
