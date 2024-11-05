@@ -1,16 +1,17 @@
 """
 Primitive for Private VLAN Bridge (KVM only)
 """
-
-# 3rd party modules
-import jinja2
 # stdlib
 import os
 from typing import Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
-from cloudcix_primitives.utils import SSHCommsWrapper, HostErrorFormatter
+from cloudcix_primitives.utils import (
+    JINJA_ENV,
+    SSHCommsWrapper,
+    HostErrorFormatter,
+)
 
 
 __all__ = [
@@ -21,7 +22,6 @@ __all__ = [
 
 SUCCESS_CODE = 0
 
-template_path = os.path.join(os.path.dirname(__file__), 'templates', __name__.split(".").pop())
 
 def build(
         host: str,
@@ -78,46 +78,38 @@ def build(
         3031: f'Failed to run start_service payload on the host {host}. Payload exited with status ',
     }
 
+    # template data for required script files
+    template_data = {
+        'ifname': ifname,
+        'vlan': vlan,
+        'down_script_path': down_script_path,
+        'up_script_path': up_script_path,
+    }
+    # Templates
+    # down script
+    template = JINJA_ENV.get_template('bridge_kvm/down.sh.j2')
+    template_verified, template_error = check_template_data(template_data, template)
+    if not template_verified:
+        return False, f'3018: {messages[3018]}'
 
-    try:
-      jenv = jinja2.Environment(loader=jinja2.FileSystemLoader(
-          os.path.join(template_path))
-      )
-      template = jenv.get_template("down.sh.j2")
+    down_script = template.render(**template_data)
 
-      down_script = template.render(
-          ifname=ifname,
-          vlan=vlan,
-      )
-    except Exception as e:
-      return False, messages[3018]
+    # up script
+    template = JINJA_ENV.get_template('bridge_kvm/up.sh.j2')
+    template_verified, template_error = check_template_data(template_data, template)
+    if not template_verified:
+        return False, f'3019: {messages[3019]}'
 
-    try:
-      jenv = jinja2.Environment(loader=jinja2.FileSystemLoader(
-          os.path.join(template_path))
-      )
-      template = jenv.get_template("up.sh.j2")
+    up_script = template.render(**template_data)
 
-      up_script= template.render(
-          ifname=ifname,
-          vlan=vlan,
-      )
-    except Exception as e:
-      return False, messages[3019]
-    
-    try:
-      jenv = jinja2.Environment(loader=jinja2.FileSystemLoader(
-          os.path.join(template_path))
-      )
-      template = jenv.get_template("interface.service.j2")
+    # service file
+    template = JINJA_ENV.get_template('bridge_kvm/interface.service.j2')
+    template_verified, template_error = check_template_data(template_data, template)
+    if not template_verified:
+        return False, f'3020: {messages[3020]}'
 
-      service_file= template.render(
-          vlan=vlan,
-          down_script_path=down_script_path,
-          up_script_path=up_script_path,
-      )
-    except Exception as e:
-      return False, messages[3020]
+    service_file = template.render(**template_data)
+
 
     def run_host(host, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
