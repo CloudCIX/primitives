@@ -1,8 +1,6 @@
 """
 Primitive to Build, Read and Scrub nginx for cloud-init userdata/metadata delivery on PodNet HA
 """
-# 3rd party modules
-import jinja2
 # stdlib
 import json
 import ipaddress
@@ -13,7 +11,13 @@ from typing import Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS, VALIDATION_ERROR, CONNECTION_ERROR
 # local
-from cloudcix_primitives.utils import load_pod_config, SSHCommsWrapper, PodnetErrorFormatter
+from cloudcix_primitives.utils import (
+    check_template_data,
+    load_pod_config,
+    JINJA_ENV,
+    PodnetErrorFormatter,
+    SSHCommsWrapper,
+)
 
 
 __all__ = [
@@ -25,6 +29,7 @@ __all__ = [
 SUCCESS_CODE = 0
 
 template_path = os.path.join(os.path.dirname(__file__), 'templates', __name__.split(".").pop())
+
 
 def build(
         namespace: str,
@@ -95,18 +100,19 @@ def build(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
-    try:
-      jenv = jinja2.Environment(loader=jinja2.FileSystemLoader(
-          os.path.join(template_path))
-      )
-      template = jenv.get_template("nginx.conf.j2")
+    # template data for required files
+    template_data = {
+        'namespace': namespace,
+        'pidfile': pidfile,
+    }
+    # Templates
+    # nginx.conf file
+    template = JINJA_ENV.get_template('nginxns/nginx.conf.j2')
+    template_verified, template_error = check_template_data(template_data, template)
+    if not template_verified:
+        return False, f'3019: {messages[3019]}'
 
-      nginx_conf = template.render(
-          namespace=namespace,
-          pidfile=pidfile
-      )
-    except Exception as e:
-        return False, messages[3019]
+    nginx_conf = template.render(**template_data)
 
 
     def run_podnet(podnet_node, prefix, successful_payloads):

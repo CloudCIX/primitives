@@ -1,8 +1,6 @@
 """
 Primitive to Build, Read and Scrub dnsmasq for VRF name space DHCP on PodNet HA
 """
-# 3rd party modules
-import jinja2
 # stdlib
 import json
 import os
@@ -10,7 +8,13 @@ from typing import Tuple
 # lib
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
-from cloudcix_primitives.utils import load_pod_config, SSHCommsWrapper, PodnetErrorFormatter
+from cloudcix_primitives.utils import (
+    check_template_data,
+    load_pod_config,
+    JINJA_ENV,
+    PodnetErrorFormatter,
+    SSHCommsWrapper,
+)
 
 
 __all__ = [
@@ -100,32 +104,30 @@ def build(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
+    # template data for required files
+    template_data = {
+        'hosts': dhcp_hosts,
+        'hostsfile': dnsmasq_hosts_path,
+        'pidfile': pidfile,
+        'ranges': dhcp_ranges,
+    }
+    # Templates
+    # dnsmasq.conf file
+    template = JINJA_ENV.get_template('dchpns/dnsmasq.conf.j2')
+    template_verified, template_error = check_template_data(template_data, template)
+    if not template_verified:
+        return False, f'3019: {messages[3019]}'
 
-    try:
-      jenv = jinja2.Environment(loader=jinja2.FileSystemLoader(
-          os.path.join(template_path))
-      )
-      template = jenv.get_template("dnsmasq.conf.j2")
+    dnsmasq_conf = template.render(**template_data)
 
-      dnsmasq_conf = template.render(
-          hostsfile=dnsmasq_hosts_path,
-          pidfile=pidfile,
-          ranges=dhcp_ranges
-      )
-    except Exception as e:
-      return False, messages[3019]
+    # dnsmasq.hosts file
+    template = JINJA_ENV.get_template('dchpns/dnsmasq.hosts.j2')
+    template_verified, template_error = check_template_data(template_data, template)
+    if not template_verified:
+        return False, f'3020: {messages[3020]}'
 
-    try:
-      jenv = jinja2.Environment(loader=jinja2.FileSystemLoader(
-          os.path.join(template_path))
-      )
-      template = jenv.get_template("dnsmasq.hosts.j2")
+    dnsmasq_hosts = template.render(**template_data)
 
-      dnsmasq_hosts = template.render(
-          hosts=dhcp_hosts,
-      )
-    except Exception as e:
-      return False, messages[3020]
 
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')

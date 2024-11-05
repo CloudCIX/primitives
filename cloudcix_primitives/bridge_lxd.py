@@ -2,10 +2,8 @@
 Primitive for Private Bridge in LXD
 """
 # stdlib
-import os
 from typing import Tuple
 # libs
-import jinja2
 from cloudcix.rcc import API_SUCCESS, comms_lxd, CHANNEL_SUCCESS
 # local
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
