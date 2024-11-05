@@ -12,10 +12,14 @@ setup(
     maintainer_email="developers@cloudcix.com",
     license="Apache 2.0",
     install_requires=[
-        "cloudcix>=0.14.2",
+        "cloudcix>=0.15.0",
         "jinja2"
     ],
     packages=find_packages(),
+    include_package_data=True,
+    package_data={
+        'cloudcix_primitives': ['templates/**/*.j2'],
+    },
     platforms="platform-independent",
     url="https://www.github.com/cloudcix/primitives/",
     description="Primitives and associated utilities for CloudCIX Drivers to use.",
