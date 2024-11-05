@@ -19,7 +19,7 @@ __all__ = [
 
 
 def build(
-        host: str,
+        endpoint_url: str,
         name: int,
         verify_lxd_certs=True,
 ) -> Tuple[bool, str]:
@@ -28,8 +28,8 @@ def build(
         Configures a bridge on the LXD host.
 
     parameters:
-        host:
-            description: LXD Host where the service will be created
+        endpoint_url:
+            description: The endpoint URL for the LXD Host where the service will be created
             type: string
             required: true
         name:
@@ -49,10 +49,10 @@ def build(
 
     # Define message
     messages = {
-        1000: f'Successfully created and started bridge_lxd_{name}.service on tux {host}.',
+        1000: f'Successfully created and started bridge_lxd_{name}.service on {endpoint_url}.',
 
-        3021: f'Failed to connect to the host {host} for network.exists payload',
-        3022: f'Failed to run network.exists payload on the host {host}. Payload exited with status ',
+        3021: f'Failed to connect to {endpoint_url} for network.exists payload',
+        3022: f'Failed to run network.exists payload on {endpoint_url}. Payload exited with status ',
     }
 
     config = {
@@ -60,11 +60,11 @@ def build(
         'ipv6.address': None,
     }
 
-    def run_host(host, prefix, successful_payloads):
+    def run_host(endpoint_url, prefix, successful_payloads):
 
-        rcc = LXDCommsWrapper(comms_lxd, host, verify_lxd_certs)
+        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
         fmt = HostErrorFormatter(
-            host,
+            endpoint_url,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
             successful_payloads,
         )

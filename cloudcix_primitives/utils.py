@@ -137,18 +137,18 @@ def load_pod_config(config_file=None, prefix=4000) -> Tuple[bool, Dict[str, Opti
 
 class LXDCommsWrapper:
 
-    def __init__(self, comm_function, host_ip, verify=True, project=None):
+    def __init__(self, comm_function, endpoint_url, verify=True, project=None):
         """
         Wrap a pylxd client function to remember parameters that do not change over a set of multiple invocations.
         :param comm_function: RCC function to call, e.g. cloudcix.rcc.comms_lxd()
-        :param host_ip: Target host for the LXD functions
+        :param endpoint_url: Target host for the LXD functions
         :param verify (optional): |
             - A boolean, indicates if the verify the TLS certificate.
             - Defaults to True
         :param project (optional): Name of the LXD project to interact with 
         """
         self.comm_function = comm_function
-        self.host_ip = host_ip
+        self.endpoint_url = endpoint_url
         self.verify = verify
         self.project = project
 
@@ -158,7 +158,7 @@ class LXDCommsWrapper:
         :param cli: The LXD service for the request and the method to run
         """
         return self.comm_function(
-            host_ip=self.host_ip,
+            endpoint_url=self.endpoint_url,
             cli=cli,
             project=self.project,
             verify=self.verify,
@@ -181,12 +181,10 @@ class SSHCommsWrapper:
         self.host_ip = host_ip
         self.username = username
 
-    def run(self, name: str, config=None, **kwargs):
+    def run(self, payload):
         """
         Runs a command through RCC.
-        :param name: the name of the LXD instance the client is interacting with.
-        :param config (optional): A dictionary for the configuration of the LXD instance
-        :parm
+        :param payload: the command to run.
         """
         return self.comm_function(
             host_ip=self.host_ip,
