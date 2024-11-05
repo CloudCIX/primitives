@@ -6,9 +6,9 @@ import os
 from typing import Tuple
 # libs
 import jinja2
-from cloudcix.rcc import CHANNEL_SUCCESS
+from cloudcix.rcc import API_SUCCESS, comms_lxd, CHANNEL_SUCCESS
 # local
-from cloudcix_primitives.utils import HostErrorFormatter, PyLXDWrapper
+from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
 
 
 __all__ = [
@@ -16,8 +16,6 @@ __all__ = [
     'read',
     'scrub',
 ]
-
-SUCCESS_CODE = 0
 
 
 def build(
@@ -62,10 +60,9 @@ def build(
         'ipv6.address': None,
     }
 
-
     def run_host(host, prefix, successful_payloads):
 
-        rcc = PyLXDWrapper(host, verify_lxd_certs)
+        rcc = LXDCommsWrapper(comms_lxd, host, verify_lxd_certs)
         fmt = HostErrorFormatter(
             host,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
@@ -75,9 +72,15 @@ def build(
         ret = rcc.run(cli='networks.exists', name=name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
+        if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+
+        bridge_exists = ret['payload_message']
         fmt.add_successful('network.exists', ret)
+
+        if bridge_exists == False:
+            # create bridge
+            pass
         
         return True, "", fmt.successful_payloads
 

@@ -6,11 +6,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 # libs
 from jinja2 import Environment, meta, FileSystemLoader, Template
-from pylxd import Client
-from pylxd.exceptions import (
-    LXDAPIException,
-    ClientConnectionFailed,
-)
 # local
 
 
@@ -140,17 +135,19 @@ def load_pod_config(config_file=None, prefix=4000) -> Tuple[bool, Dict[str, Opti
     return True, config_data, f'{prefix + 10}: {messages[10]}'
 
 
-class PyLXDWrapper:
+class LXDCommsWrapper:
 
-    def __init__(self, host_ip, verify=True, project=None):
+    def __init__(self, comm_function, host_ip, verify=True, project=None):
         """
         Wrap a pylxd client function to remember parameters that do not change over a set of multiple invocations.
+        :param comm_function: RCC function to call, e.g. cloudcix.rcc.comms_lxd()
         :param host_ip: Target host for the LXD functions
         :param verify (optional): |
             - A boolean, indicates if the verify the TLS certificate.
             - Defaults to True
         :param project (optional): Name of the LXD project to interact with 
         """
+        self.comm_function = comm_function
         self.host_ip = host_ip
         self.verify = verify
         self.project = project
@@ -158,52 +155,15 @@ class PyLXDWrapper:
     def run(self, cli, **kwargs):
         """
         Runs a command through RCC.
-        :param cli: The LXD object for the request and the method to run
+        :param cli: The LXD service for the request and the method to run
         """
-        response = {
-            'channel_code': None,
-            'channel_error': None,
-            'channel_message': None,
-            'payload_code': None,
-            'payload_error': None,
-            'payload_message': None,
-        }
-
-        try:
-            client = Client(endpoint=f'https://[{self.host_ip}]:8443', verify=self.verify, project=self.project)
-        except ClientConnectionFailed as e:
-            response['channel_code'] = 404
-            response['channel_message'] = f'Unable to establish a PyLXD Client connection to IP {self.host_ip}'
-            response['channel_error'] = str(e)
-            return response
-
-        response['channel_code'] = 200
-        response['channel_message'] = f'PyLXD Client connection established to IP {self.host_ip}'
-
-        # Split the cli string into service and method parts
-        service_name, method_name = cli.split('.')
-
-        try:
-            # Dynamically get the service from the client
-            service = getattr(client, service_name)
-            # Dynamically get the method from the service
-            method = getattr(service, method_name)
-            lxd_obj = method(**kwargs)
-            response['payload_message'] = lxd_obj
-        except AttributeError as e:
-            response['payload_code'] = 404
-            response['payload_message'] = f'The provided service or method "{cli}" is invalid'
-            response['payload_error'] = str(e)
-        except LXDAPIException as e:
-            response['payload_code'] = 400
-            response['payload_message'] = f'PyLXD API unable to successfully execute {cli}'
-            response['payload_error'] = str(e)
-        except Exception as e:
-            response['payload_code'] = 400
-            response['payload_message'] = 'An unknown exception occurred'
-            response['payload_error'] = str(e)
-
-        return response
+        return self.comm_function(
+            host_ip=self.host_ip,
+            cli=cli,
+            project=self.project,
+            verify=self.verify,
+            **kwargs,
+        )
 
 
 class SSHCommsWrapper:

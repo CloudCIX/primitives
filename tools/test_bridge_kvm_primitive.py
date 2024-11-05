@@ -10,6 +10,8 @@ from cloudcix_primitives import bridge_kvm
 # * `tools/test_directorymain_primitive.py build /etc/netns/mynetns` to ensure the directories needed
 #   are in place.
 # * `tools/test_ns_primitive.py build mynetns to ensure the name space we want to run dhcpns in exists
+# * `tools/test_vlanifns.py build {vlan} to ensure vlan tagged interface exists on podnet
+# * `tools/test_bridge_lxd.py build b{vlan} to ensure the bridge in LXD is built
 
 cmd = sys.argv[1]
 
