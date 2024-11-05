@@ -8,9 +8,10 @@ from typing import Tuple
 from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
 # local
 from cloudcix_primitives.utils import (
+    check_template_data,
+    HostErrorFormatter,
     JINJA_ENV,
     SSHCommsWrapper,
-    HostErrorFormatter,
 )
 
 
