@@ -47,10 +47,12 @@ def build(
 
     # Define message
     messages = {
-        1000: f'Successfully created and started bridge_lxd_{name}.service on {endpoint_url}.',
+        1000: f'Successfully created bridge_lxd {name} on {endpoint_url}.',
 
-        3021: f'Failed to connect to {endpoint_url} for network.exists payload',
-        3022: f'Failed to run network.exists payload on {endpoint_url}. Payload exited with status ',
+        3021: f'Failed to connect to {endpoint_url} for networks.exists payload',
+        3022: f'Failed to run networks.exists payload on {endpoint_url}. Payload exited with status ',
+        3023: f'Failed to connect to {endpoint_url} for networks.create payload',
+        3024: f'Failed to run networks.create payload on {endpoint_url}. Payload exited with status ',
     }
 
     config = {
@@ -74,13 +76,20 @@ def build(
             return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
 
         bridge_exists = ret['payload_message']
-        fmt.add_successful('network.exists', ret)
+        fmt.add_successful('networks.exists', ret)
 
         if bridge_exists == False:
-            # create bridge
-            pass
+            config = {
+                'ipv6.address': 'none',
+                'ipv4.address': 'none',
+            }
+            ret = rcc.run(cli='networks.create', name=name, type='bridge', config=config)
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+            if ret["payload_code"] != API_SUCCESS:
+                return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
         
-        return True, "", fmt.successful_payloads
+        return True, '', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
     if status is False:
