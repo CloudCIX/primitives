@@ -425,10 +425,10 @@ def read(
         ret = rcc.run(payloads['find_service'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
-        if ret["payload_code"] != SUCCESS_CODE:
+            fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
+        elif ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"1201: " + messages[1201])
+            fmt.store_payload_error(ret, f"1201: " + messages[1201])
         else:
             data_dict[host]['service'] = ret["payload_message"].strip()
             fmt.add_successful('find_service', ret)
@@ -436,10 +436,10 @@ def read(
         ret = rcc.run(payloads['read_bridge'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2])
-        if ret["payload_code"] != SUCCESS_CODE:
+            fmt.store_channel_error(ret, f"{prefix+2}: " + messages[prefix+2])
+        elif ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3])
+            fmt.store_payload_error(ret, f"{prefix+3}: " + messages[prefix+3])
         else:
             data_dict[host]['bridge'] = ret["payload_message"].strip()
             fmt.add_successful('read_bridge', ret)
@@ -447,10 +447,10 @@ def read(
         ret = rcc.run(payloads['read_down_script'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4])
-        if ret["payload_code"] != SUCCESS_CODE:
+            fmt.store_channel_error(ret, f"{prefix+4}: " + messages[prefix+4])
+        elif ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5])
+            fmt.store_payload_error(ret, f"{prefix+5}: " + messages[prefix+5])
         else:
             data_dict[host]['down_script'] = ret["payload_message"].strip()
             fmt.add_successful('read_down_script', ret)
@@ -458,10 +458,10 @@ def read(
         ret = rcc.run(payloads['read_up_script'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6])
-        if ret["payload_code"] != SUCCESS_CODE:
+            fmt.store_channel_error(ret, f"{prefix+6}: " + messages[prefix+6])
+        elif ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7])
+            fmt.store_payload_error(ret, f"{prefix+7}: " + messages[prefix+7])
         else:
             data_dict[host]['up_script'] = ret["payload_message"].strip()
             fmt.add_successful('read_up_script', ret)
@@ -469,10 +469,10 @@ def read(
         ret = rcc.run(payloads['read_service_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix+8}: " + messages[prefix+8])
-        if ret["payload_code"] != SUCCESS_CODE:
+            fmt.store_channel_error(ret, f"{prefix+8}: " + messages[prefix+8])
+        elif ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9])
+            fmt.store_payload_error(ret, f"{prefix+9}: " + messages[prefix+9])
         else:
             data_dict[host]['service_file'] = ret["payload_message"].strip()
             fmt.add_successful('read_file_service', ret)

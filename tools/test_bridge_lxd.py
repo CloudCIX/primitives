@@ -33,10 +33,10 @@ data = None
 
 if cmd == 'build':
     status, msg = bridge_lxd.build(endpoint_url=endpoint_url, name=name, config=config, verify_lxd_certs=verify_lxd_certs)
-# if cmd == 'scrub':
-#     status, msg = bridge_lxd.scrub(endpoint_url=endpoint_url, name=name, verify_lxd_certs=verify_lxd_certs)
-# if cmd == 'read':
-#     status, data, msg = bridge_lxd.read(endpoint_url=endpoint_url, name=name, verify_lxd_certs=verify_lxd_certs)
+if cmd == 'scrub':
+    status, msg = bridge_lxd.scrub(endpoint_url=endpoint_url, name=name, verify_lxd_certs=verify_lxd_certs)
+if cmd == 'read':
+    status, data, msg = bridge_lxd.read(endpoint_url=endpoint_url, name=name, verify_lxd_certs=verify_lxd_certs)
 
 print("Status: %s" %  status)
 print()

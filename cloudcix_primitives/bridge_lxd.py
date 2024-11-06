@@ -107,11 +107,11 @@ def read(endpoint_url: str,
 
     parameters:
         endpoint_url:
-            description: The endpoint URL for the LXD Host where the service will be created
+            description: The endpoint URL for the LXD Host where the service will be read
             type: string
             required: true
         name:
-            description: The name of the bridge to create
+            description: The name of the bridge to read
             type: integer
             required: true
         verify_lxd_certs:
@@ -134,6 +134,8 @@ def read(endpoint_url: str,
     }
 
     def run_host(endpoint_url, prefix, successful_payloads, data_dict):
+        retval = True
+        data_dict[endpoint_url] = {}
 
         rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
         fmt = HostErrorFormatter(
@@ -145,10 +147,10 @@ def read(endpoint_url: str,
         ret = rcc.run(cli='networks.get', name=name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
-        if ret["payload_code"] != API_SUCCESS:
+            fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
+        elif ret["payload_code"] != API_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2])
+            fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix+2])
         else:
             data_dict[endpoint_url]['networks.get'] = ret["payload_message"].strip()
             fmt.add_successful('networks.get', ret)
@@ -163,3 +165,77 @@ def read(endpoint_url: str,
         return retval, data_dict, message_list
     else:
         return True, data_dict, [messages[1200]]
+
+
+def scrub(
+    endpoint_url: str,
+    name: int,
+    verify_lxd_certs=True,
+) -> Tuple[bool, str]:
+    """
+    description:
+        Scrubs a bridge on the LXD host.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            type: string
+            required: true
+        name:
+            description: The name of the bridge to scrub
+            type: integer
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+        
+    return:
+        description: |
+            A tuple with a boolean flag stating if the scrub was successful or not and
+            the output or error message.
+        type: tuple
+    """
+
+    # Define message
+    messages = {
+        1100: f'Successfully scrubbed bridge_lxd {name} on {endpoint_url}.',
+
+        3121: f'Failed to connect to {endpoint_url} for networks.exists payload',
+        3122: f'Failed to run networks.exists payload on {endpoint_url}. Payload exited with status ',
+        3123: f'Failed to connect to {endpoint_url} for networks.delete payload',
+        3124: f'Failed to run networks.delete payload on {endpoint_url}. Payload exited with status ',
+    }
+
+    def run_host(endpoint_url, prefix, successful_payloads):
+
+        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
+        fmt = HostErrorFormatter(
+            endpoint_url,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads,
+        )
+
+        ret = rcc.run(cli='networks.exists', name=name)
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
+        if ret["payload_code"] != API_SUCCESS:
+            return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+
+        bridge_exists = ret['payload_message']
+        fmt.add_successful('networks.exists', ret)
+
+        if bridge_exists == False:
+            ret = rcc.run(cli='networks.delete', name=name, type='bridge', config=config)
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+            if ret["payload_code"] != API_SUCCESS:
+                return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+        
+        return True, '', fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(endpoint_url, 3120, {})
+    if status is False:
+        return status, msg
+
+    return True, messages[1100]
