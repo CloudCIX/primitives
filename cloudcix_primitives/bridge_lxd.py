@@ -152,7 +152,7 @@ def read(endpoint_url: str,
             retval = False
             fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix+2])
         else:
-            data_dict[endpoint_url]['networks.get'] = ret["payload_message"].strip()
+            data_dict[endpoint_url]['networks.get'] = ret["payload_message"]
             fmt.add_successful('networks.get', ret)
 
         return retval, fmt.message_list, fmt.successful_payloads, data_dict
