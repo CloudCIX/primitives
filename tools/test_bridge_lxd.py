@@ -11,6 +11,10 @@ cmd = sys.argv[1]
 endpoint_url = None
 name = 'br4000'
 verify_lxd_certs = False
+config = {
+    'ipv6.address': 'none',
+    'ipv4.address': 'none',
+}
 
 if len(sys.argv) > 2:
     endpoint_url = sys.argv[2]
@@ -28,7 +32,7 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = bridge_lxd.build(endpoint_url=endpoint_url, name=name, verify_lxd_certs=verify_lxd_certs)
+    status, msg = bridge_lxd.build(endpoint_url=endpoint_url, name=name, config=config, verify_lxd_certs=verify_lxd_certs)
 # if cmd == 'scrub':
 #     status, msg = bridge_lxd.scrub(endpoint_url=endpoint_url, name=name, verify_lxd_certs=verify_lxd_certs)
 # if cmd == 'read':

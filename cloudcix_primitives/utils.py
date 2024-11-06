@@ -202,19 +202,14 @@ class PodnetErrorFormatter:
         :param config_file: Config file the PodNet configuration originates from.
         :param podnet_node: PodNet node the errors occur on.
         :param enabled: Boolean status code indicating whether podnet_node is enabled
-        :param payload_channels: dict assigning names to the payload_error and
-                                 payload_message keys returned by RCC. For
-                                 rcc_ssh you might use 
-                                 {'payload_message': 'STDOUT', 'payload_error':
-                                 'STDERR'}, for instance. These names will be
-                                 used by format_payload_error(). and
-                                 store_payload_error().
-        :param successful_payloads: dict keyed by PodNet node (may be empty).
-                                    Each key contains a list of successful
-                                    payload names as created by
-                                    add_successful() this can be used to carry
-                                    over successful payloads from a different
-                                    instance of this class.
+        :param payload_channels: |
+            dict assigning names to the payload_error and payload_message keys returned by RCC. For
+            rcc_ssh you might use {'payload_message': 'STDOUT', 'payload_error': 'STDERR'}, for
+            instance. These names will be used by format_payload_error(). and store_payload_error().
+        :param successful_payloads: |
+            dict keyed by PodNet node (may be empty).Each key contains a list of successful payload names
+            as created by add_successful() this can be used to carry over successful payloads from a
+            different instance of this class.
         """
         if successful_payloads is None:
             successful_payloads = {}
@@ -319,20 +314,15 @@ class HostErrorFormatter:
     def __init__(self, host, payload_channels, successful_payloads=None):
         """
         Creates a new errorFormatter.
-        :param host: Local/KVM/HyperV/Ceph host the errors occur on.
-        :param payload_channels: dict assigning names to the payload_error and
-                                 payload_message keys returned by RCC. For
-                                 rcc_ssh you might use
-                                 {'payload_message': 'STDOUT', 'payload_error':
-                                 'STDERR'}, for instance. These names will be
-                                 used by format_payload_error(). and
-                                 store_payload_error().
-        :param successful_payloads: dict keyed by kvm host (may be empty).
-                                    Each key contains a list of successful
-                                    payload names as created by
-                                    add_successful() this can be used to carry
-                                    over successful payloads from a different
-                                    instance of this class.
+        :param host: Local/KVM/HyperV/Ceph/LXD host the errors occur on.
+        :param payload_channels: |
+            dict assigning names to the payload_error and payload_message keys returned by RCC.
+            For rcc_ssh you might use {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            for instance. These names will be used by format_payload_error() and store_payload_error().
+        :param successful_payloads: |
+            dict keyed by kvm host (may be empty). Each key contains a list of successful payload names
+            as created by add_successful() this can be used to carry over successful payloads from a
+            different instance of this class.
         """
         self.host = host
         self.message_list = list()
