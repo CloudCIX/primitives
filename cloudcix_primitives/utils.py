@@ -152,16 +152,20 @@ class LXDCommsWrapper:
         self.verify = verify
         self.project = project
 
-    def run(self, cli, **kwargs):
+    def run(self, cli, api=False, **kwargs):
         """
         Runs a command through RCC.
         :param cli: The LXD service for the request and the method to run
+        :param api (optional): |
+            This attribute provides tree traversal syntax to LXD’s REST API for lower-level interaction.
+            Defaults to False
         """
         return self.comm_function(
             endpoint_url=self.endpoint_url,
             cli=cli,
             project=self.project,
             verify=self.verify,
+            api=api,
             **kwargs,
         )
 

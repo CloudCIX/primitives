@@ -203,8 +203,8 @@ def scrub(
 
         3121: f'Failed to connect to {endpoint_url} for networks.exists payload',
         3122: f'Failed to run networks.exists payload on {endpoint_url}. Payload exited with status ',
-        3123: f'Failed to connect to {endpoint_url} for networks.delete payload',
-        3124: f'Failed to run networks.delete payload on {endpoint_url}. Payload exited with status ',
+        3123: f'Failed to connect to {endpoint_url} for networks["{name}"].delete payload',
+        3124: f'Failed to run networks["{name}"].delete payload on {endpoint_url}. Payload exited with status ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -226,7 +226,7 @@ def scrub(
         fmt.add_successful('networks.exists', ret)
 
         if bridge_exists == False:
-            ret = rcc.run(cli='networks.delete', name=name, type='bridge', config=config)
+            ret = rcc.run(cli=f'networks["{name}"].delete', api=True)
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
             if ret["payload_code"] != API_SUCCESS:
