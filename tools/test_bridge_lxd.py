@@ -50,4 +50,4 @@ else:
 if data is not None:
     print()
     print("Data:")
-    print(json.dumps(data, sort_keys=True, indent=4))
+    print(data)
