@@ -35,18 +35,18 @@ def dictify(data):
 
 
 def build(
-        image: str,
-        cpu: int,
-        domain: str,
-        gateway_vlan: int,
-        host: str,
-        primary_storage: str,
-        ram: int,
-        robot_drive_url: str,
-        size: int,
-        domain_path=None,
-        secondary_vlans=None,
-        secondary_storages=None,
+    image: str,
+    cpu: int,
+    domain: str,
+    gateway_vlan: int,
+    host: str,
+    primary_storage: str,
+    ram: int,
+    robot_drive_url: str,
+    size: int,
+    domain_path=None,
+    secondary_vlans=None,
+    secondary_storages=None,
 ) -> Tuple[bool, str]:
     """
         description:
@@ -737,10 +737,10 @@ def restart(
 
 
 def scrub(
-        domain: str,
-        host: str,
-        primary_storage: str,
-        domain_path=None,
+    domain: str,
+    host: str,
+    primary_storage: str,
+    domain_path=None,
 ) -> Tuple[bool, str]:
     """
     description: Removes the VM
