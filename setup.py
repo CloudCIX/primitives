@@ -12,7 +12,7 @@ setup(
     maintainer_email="developers@cloudcix.com",
     license="Apache 2.0",
     install_requires=[
-        "cloudcix>=0.15.0",
+        "cloudcix>=0.15.2",
         "jinja2"
     ],
     packages=find_packages(),
