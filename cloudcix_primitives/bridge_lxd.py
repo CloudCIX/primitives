@@ -103,7 +103,7 @@ def read(endpoint_url: str,
 ) -> Tuple[bool, str]:
     """
     description:
-        Configures a bridge on the LXD host.
+        Reads configuration of a bridge on the LXD host.
 
     parameters:
         endpoint_url:
