@@ -161,7 +161,7 @@ def build(
 
         if instance_exists == False:
             # Build instance in Project
-            ret = project_rcc.run(cli=f'{instance_type}s.create', wait=True, config)
+            ret = project_rcc.run(cli=f'{instance_type}s.create', config, wait=True)
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
             if ret["payload_code"] != API_SUCCESS:
