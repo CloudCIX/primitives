@@ -7,7 +7,7 @@ from cloudcix_primitives import ns
 
 cmd = sys.argv[1]
 
-namespace_name = "testns"
+namespace_name = "mynetns"
 
 if len(sys.argv) > 2:
     namespace_name = sys.argv[2]

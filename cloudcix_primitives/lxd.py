@@ -29,6 +29,8 @@ def build(
     gateway_interface: dict,
     ram: int,
     size: int,
+    network_config: str,
+    userdata: str,
     secondary_interfaces=[],
     verify_lxd_certs=True,
 ) -> Tuple[bool, str]:
@@ -84,8 +86,8 @@ def build(
             'limits.cpu': f'{cpu}',
             'limits.memory': f'{ram}GB',
             'volatile.eth0.hwaddr': gateway_interface['mac_address'],
-            'cloud-init.network-config': f'"""{network_config}"""',
-            'cloud-init.user-data': f'"""{userdata}"""',
+            'cloud-init.network-config': {network_config},
+            'cloud-init.user-data': {userdata},
         },
         'devices': {
             'root': {
