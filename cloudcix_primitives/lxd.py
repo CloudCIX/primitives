@@ -49,7 +49,7 @@ def build(
 
     # Define message
     messages = {
-        1000: f'Successfully created {instance_type} {domain} on {endpoint_url}',
+        1000: f'Successfully created {instance_type} {name} on {endpoint_url}',
         # validations
         3011: f'Invalid instance_type "{instance_type}" sent. Suuported instance types are "container" and "virtual_machine"',
 
