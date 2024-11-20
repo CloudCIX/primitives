@@ -75,42 +75,35 @@ def build(
     if validated is False:
         return False, '; '.join(messages_list)
 
-    network_config = ''
-
     config = {
-        'name': name,
-        'architecture': 'x86_64',
-        'profiles': ['default'],
-        'ephemeral': False,
-        'config': {
-            'limits.cpu': f'{cpu}',
-            'limits.memory': f'{ram}GB',
-            'volatile.eth0.hwaddr': gateway_interface['mac_address'],
-            'cloud-init.network-config': {network_config},
-            'cloud-init.user-data': {userdata},
-        },
-        'devices': {
-            'root': {
-                'type': 'disk',
-                'path': '/',
-                'pool': 'default',
-                'size': f'{size}GB',
-            },
-            'eth0': {
-                'type': 'nic',
-                'network': f'br{gateway_interface["vlan"]}',
-                'ipv4.address': None,
-                'ipv6.address': None,
-            }
-        },
-        'source': {
-            'type': 'image',
-            'alias': image['os_variant'],
-            'mode': 'pull',
-            'protocol': 'simplestreams',
-            'server': image['filename'],
-        },
+        'limits.cpu': f'{cpu}',
+        'limits.memory': f'{ram}GB',
+        'volatile.eth0.hwaddr': gateway_interface['mac_address'],
+        'cloud-init.network-config': {network_config},
+        'cloud-init.user-data': {userdata},
     }
+    devices = {
+        'root': {
+            'type': 'disk',
+            'path': '/',
+            'pool': 'default',
+            'size': f'{size}GB',
+        },
+        'eth0': {
+            'type': 'nic',
+            'network': f'br{gateway_interface["vlan"]}',
+            'ipv4.address': None,
+            'ipv6.address': None,
+        }
+    }
+    source = {
+        'type': 'image',
+        'alias': image['os_variant'],
+        'mode': 'pull',
+        'protocol': 'simplestreams',
+        'server': image['filename'],
+    }
+
     if len(secondary_interfaces) > 0:
         n = 1
         for interface in secondary_interfaces:
@@ -161,7 +154,17 @@ def build(
 
         if instance_exists == False:
             # Build instance in Project
-            ret = project_rcc.run(cli=f'{instance_type}s.create', config, wait=True)
+            ret = project_rcc.run(
+                cli=f'{instance_type}s.create',
+                name=name,
+                architecture='x86_64',
+                profiles=['default'],
+                ephemeral=False,
+                config=config,
+                devices=devices,
+                source=source,
+                wait=True,
+            )
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
             if ret["payload_code"] != API_SUCCESS:
