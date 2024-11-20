@@ -17,7 +17,7 @@ from cloudcix_primitives import lxd
 cmd = sys.argv[1]
 
 endpoint_url = None
-instance_type = 'container'
+instance_type = 'containers'
 name = 'mynetns-1234'
 project = 'mynetns'
 image = {
