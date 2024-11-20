@@ -31,7 +31,7 @@ gateway_interface = {
 }
 ram = 2
 size = 50
-secondary_interfaces = [],
+secondary_interfaces = []
 verify_lxd_certs  =  False 
 
 network_config = """
