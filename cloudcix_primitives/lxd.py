@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-SUPPORTED_INSTANCES = ['virtual_machine', 'container']
+SUPPORTED_INSTANCES = ['virtual_machines', 'containers']
 
 
 def build(
@@ -57,20 +57,20 @@ def build(
         3022: f'Failed to run projects.exists payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to connect to {endpoint_url} for projects.create payload',
         3024: f'Failed to run projects.create payload on {endpoint_url}. Payload exited with status ',
-        3025: f'Failed to connect to {endpoint_url} for {instance_type}s.exists payload',
-        3026: f'Failed to run {instance_type}s.exists payload on {endpoint_url}. Payload exited with status ',
-        3027: f'Failed to connect to {endpoint_url} for {instance_type}s.exists payload',
-        3028: f'Failed to run {instance_type}s.exists payload on {endpoint_url}. Payload exited with status ',
+        3025: f'Failed to connect to {endpoint_url} for {instance_type}.exists payload',
+        3026: f'Failed to run {instance_type}.exists payload on {endpoint_url}. Payload exited with status ',
+        3027: f'Failed to connect to {endpoint_url} for {instance_type}.exists payload',
+        3028: f'Failed to run {instance_type}.exists payload on {endpoint_url}. Payload exited with status ',
     }
 
     # validation
     messages_list = []
-    def validate_instance_type(instance_type):
+    def validate_instance_type(instance_type, msg_index):
         if instance_type not in SUPPORTED_INSTANCES:
             messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]}')
             return False
 
-    validated = validate_instance_type(instance_type, 3011)
+    validated = validate_instance_type(instance_type, 3010)
 
     if validated is False:
         return False, '; '.join(messages_list)
@@ -143,19 +143,19 @@ def build(
                 return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
 
         # Check if instances exists in Project
-        ret = project_rcc.run(cli=f'{instance_type}s.exists', name=name)
+        ret = project_rcc.run(cli=f'{instance_type}.exists', name=name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
 
         instance_exists = ret['payload_message']
-        fmt.add_successful(f'{instance_type}s.exists', ret)
+        fmt.add_successful(f'{instance_type}.exists', ret)
 
         if instance_exists == False:
             # Build instance in Project
             ret = project_rcc.run(
-                cli=f'{instance_type}s.create',
+                cli=f'{instance_type}.create',
                 name=name,
                 architecture='x86_64',
                 profiles=['default'],
@@ -171,7 +171,7 @@ def build(
                 return False, fmt.payload_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
 
             # Start the instance.
-            # ret = project_rcc.run(cli=f'{instance_type}s["name"].start', api=True, wait=True)
+            # ret = project_rcc.run(cli=f'{instance_type}["name"].start', api=True, wait=True)
             instance = ret['payload_message']
             instance.start(wait=True)
         
