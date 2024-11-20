@@ -61,6 +61,8 @@ def build(
         3026: f'Failed to run {instance_type}.exists payload on {endpoint_url}. Payload exited with status ',
         3027: f'Failed to connect to {endpoint_url} for {instance_type}.exists payload',
         3028: f'Failed to run {instance_type}.exists payload on {endpoint_url}. Payload exited with status ',
+        3029: f'Failed to connect to {endpoint_url} for {instance_type}["{name}"].start payload',
+        3030: f'Failed to run {instance_type}["{name}"].start payload on {endpoint_url}. Payload exited with status ',
     }
 
     # validation
@@ -166,9 +168,13 @@ def build(
                 return False, fmt.payload_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
 
             # Start the instance.
-            # ret = project_rcc.run(cli=f'{instance_type}["name"].start', api=True, wait=True)
-            instance = ret['payload_message']
-            instance.start(wait=True)
+            ret = project_rcc.run(cli=f'{instance_type}["{name}"].start', api=True, wait=True)
+            # instance = ret['payload_message']
+            # instance.start(wait=True)
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
+            if ret["payload_code"] != API_SUCCESS:
+                return False, fmt.payload_error(ret, f"{prefix+10}: " + messages[prefix+10]), fmt.successful_payloads
         
         return True, '', fmt.successful_payloads
 
