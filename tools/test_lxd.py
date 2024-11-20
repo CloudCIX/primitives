@@ -77,6 +77,7 @@ write_files:
 runcmd:
   - apt-get update
   - apt-get install python3-pip python3-venv git --yes
+  - cd /home/administrator/
   - git clone https://github.com/CloudCIX/primitives.git
   - python3 -m venv .venv/
   - .venv/bin/pip install -r primitives/requirements.txt
