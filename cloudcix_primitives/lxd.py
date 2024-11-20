@@ -65,7 +65,7 @@ def build(
 
     # validation
     messages_list = []
-    def validate_instance_type(instance_type)
+    def validate_instance_type(instance_type):
         if instance_type not in SUPPORTED_INSTANCES:
             messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]}')
             return False
