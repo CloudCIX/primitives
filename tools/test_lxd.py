@@ -35,7 +35,8 @@ secondary_interfaces = []
 verify_lxd_certs  =  False 
 
 network_config = """
-"ethernets": {
+"version": 2
+""ethernets": {
   "eth0": {
       "match": {
           "macaddress": "00:16:3e:f0:cc:45"
@@ -57,6 +58,7 @@ network_config = """
 """
 
 userdata = """
+#cloud-config
 hostname: test-lxd-primitive
 
 users:
