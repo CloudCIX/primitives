@@ -35,7 +35,6 @@ secondary_interfaces = []
 verify_lxd_certs  =  False 
 
 network_config = """
-"version": 2,
 "ethernets": {
   "eth0": {
       "match": {
