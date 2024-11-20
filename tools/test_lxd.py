@@ -58,10 +58,27 @@ network_config = """
 """
 
 userdata = """
-#!/bin/sh
+hostname: test-lxd-primitive
 
-echo "Cloud init user data payload did indeed get executed" > /root/message_from_cloudinit
-cat /root/.ssh/authorized_keys >> /home/ubuntu/.ssh/authorized_keys
+users:
+  - name: administrator
+    groups: sudo
+    passwd:  $6$rand5Alt$v..Ygd5dbiOaR60Zan0U0HQyGdFAxIp0s/BSRdTS7x2ALGTHrT8Km1S41YutublfLAvDUpsAzI7WIjMuGNkKY0
+    lock_passwd: false
+    shell: /bin/bash
+
+write_files:
+  - path: /home/administrator/hello.txt
+    permissions: "0644"
+    content: |
+      Hello World!
+
+runcmd:
+  - apt-get update
+  - apt-get install python3-pip python3-venv git --yes
+  - git clone https://github.com/CloudCIX/primitives.git
+  - python3 -m venv .venv/
+  - .venv/bin/pip install -r primitives/requirements.txt
 """
 
 if len(sys.argv) > 2:
