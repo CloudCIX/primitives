@@ -84,8 +84,8 @@ def build(
             'limits.cpu': f'{cpu}',
             'limits.memory': f'{ram}GB',
             'volatile.eth0.hwaddr': gateway_interface['mac_address'],
-            'cloud-init.network-config': {network_config},
-            'cloud-init.user-data': {userdata},
+            'cloud-init.network-config': network_config,
+            'cloud-init.user-data': userdata,
         },
         'devices': {
             'root': {

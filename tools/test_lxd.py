@@ -56,6 +56,7 @@ network_config = """
   }
 }
 """
+
 userdata = """
 #!/bin/sh
 
