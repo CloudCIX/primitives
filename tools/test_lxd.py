@@ -116,13 +116,30 @@ if cmd == 'read':
     status, data, msg = lxd.read(domain=domain, host=host)
 
 if cmd == 'quiesce':
-    status, msg = lxd.quiesce(endpoint_url=endpoint_url, project=project, name=name, instance_type=instance_type)
-
+    status, msg = lxd.quiesce(
+        endpoint_url=endpoint_url,
+        project=project,
+        name=name,
+        instance_type=instance_type,
+        verify_lxd_certs=verify_lxd_certs,
+    )
 if cmd == 'restart':
-    status, msg = lxd.restart(endpoint_url=endpoint_url, project=project, name=name, instance_type=instance_type)
+    status, msg = lxd.restart(
+        endpoint_url=endpoint_url,
+        project=project,
+        name=name,
+        instance_type=instance_type,
+        verify_lxd_certs=verify_lxd_certs,
+    )
 
 if cmd == 'scrub':
-    status, msg = lxd.scrub(endpoint_url=endpoint_url, project=project, name=name, instance_type=instance_type)
+    status, msg = lxd.scrub(
+        endpoint_url=endpoint_url,
+        project=project,
+        name=name,
+        instance_type=instance_type,
+        verify_lxd_certs=verify_lxd_certs,
+    )
 
 print("Status: %s" %  status)
 print()

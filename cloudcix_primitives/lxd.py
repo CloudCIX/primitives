@@ -168,7 +168,7 @@ def build(
     return True, f'1000: {messages[1000]}'
 
 
-def quiesce(endpoint_url: str, project: str, name: str, instance_type: str) -> Tuple[bool, str]:
+def quiesce(endpoint_url: str, project: str, name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
     """
     description: Shutdown the LXD Instance
 
