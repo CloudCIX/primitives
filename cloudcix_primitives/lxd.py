@@ -213,7 +213,7 @@ def quiesce(endpoint_url: str, project: str, name: str, instance_type: str) -> T
         # Stop the instance.
         instance = ret['payload_message']
         state = instance.state()
-        if state.status == 'Running'
+        if state.status == 'Running':
             instance.stop(force=False, wait=True)
         elif state.status != 'Stopped':
             return False, f"{prefix+3}: {messages[prefix+3]} {state.status}"
