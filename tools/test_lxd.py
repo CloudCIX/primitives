@@ -36,7 +36,7 @@ verify_lxd_certs  =  False
 
 network_config = """
 "version": 2
-""ethernets": {
+"ethernets": {
   "eth0": {
       "match": {
           "macaddress": "00:16:3e:f0:cc:45"
@@ -116,13 +116,13 @@ if cmd == 'read':
     status, data, msg = lxd.read(domain=domain, host=host)
 
 if cmd == 'quiesce':
-    status, msg = lxd.quiesce(domain=domain, host=host)
+    status, msg = lxd.quiesce(endpoint_url=endpoint_url, project=project, name=name, instance_type=instance_type)
 
 if cmd == 'restart':
-    status, msg = lxd.restart(domain=domain, host=host)
+    status, msg = lxd.restart(endpoint_url=endpoint_url, project=project, name=name, instance_type=instance_type)
 
 if cmd == 'scrub':
-    status, msg = lxd.scrub(domain=domain, host=host)
+    status, msg = lxd.scrub(endpoint_url=endpoint_url, project=project, name=name, instance_type=instance_type)
 
 print("Status: %s" %  status)
 print()
