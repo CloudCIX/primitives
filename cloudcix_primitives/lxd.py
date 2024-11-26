@@ -39,7 +39,104 @@ def build(
         Configures a LXD instance on the LXD host.
 
     parameters:
-        
+        endpoint_url:
+            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
+            type: string
+            required: true
+        name:
+            description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The name of the type of the LXD instacne to build. Valid options are "containers" and "virtual_machines".
+            type: string
+            required: true
+        image:
+            type: object
+            properties:
+                os_variant:
+                    description: The OS Variant of the image to install e.g. 24.04
+                    type: string
+                    required: true
+                filename:
+                    description: The URL for the simplestram server to pull the image from e.g. https://cloud-images.ubuntu.com/releases
+                    type: string
+                    required: true
+        cpu:
+            description: CPU property of the LXD instance
+            type: integer
+            required: true
+        gateway_interface:
+            type: object
+                properties:
+                    vlan:
+                        description: The VLAN ID of the gateway interface for the LXD instance
+                        type: string
+                        required: true
+                    mac_address:
+                        description: The MAC address of the the gateway interface for the LXD instance
+                        type: string
+                        required: true
+        ram: 
+            description: RAM property of the LXD instance, must be in GBs
+            type: integer
+            required: true
+        size:
+            description: The size of the storage image to be created, must be in GB value
+            type: integer
+            required: true
+        network_config: 
+            description: |
+                The network details of the interfaces for the LXD instance e.g.
+                '''
+                "version": 2
+                "ethernets": {
+                  "eth0": {
+                      "match": {
+                          "macaddress": "00:16:3e:f0:cc:45"
+                      },
+                      "addresses" : [
+                         "10.0.0.3/24"
+                      ],
+                      "nameservers": {
+                          "addresses": ["8.8.8.8"],
+                          "search": ["cloudcix.com", "cix.ie"]
+                      },
+                      "routes": [{
+                        "to": "default",
+                        "via": "10.0.0.1"
+                      }
+                    ]
+                  }
+                }
+                '''
+            type: string
+            required: true
+        userdata: 
+            description: The cloudinit userdata for the LXD instance
+            type: string
+            required: true
+        secondary_interfaces:
+            type: array
+            items:
+                type: object
+                properties:
+                    vlan:
+                        description: The VLAN ID of the interface for the LXD instance
+                        type: string
+                        required: true
+                    mac_address:
+                        description: The MAC address of the the interface for the LXD instance
+                        type: string
+                        required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
     return:
         description: |
             A tuple with a boolean flag stating if the build was successful or not and
@@ -173,6 +270,26 @@ def quiesce(endpoint_url: str, project: str, name: str, instance_type: str, veri
     description: Shutdown the LXD Instance
 
     parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
+            type: string
+            required: true
+        name:
+            description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The name of the type of the LXD instacne to build. Valid options are "containers" and "virtual_machines".
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
 
     return:
         description: |
@@ -232,6 +349,26 @@ def restart(endpoint_url: str, project: str, name: str, instance_type: str, veri
     description: Restart the LXD Instance
 
     parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
+            type: string
+            required: true
+        name:
+            description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The name of the type of the LXD instacne to build. Valid options are "containers" and "virtual_machines".
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
 
     return:
         description: |
@@ -293,12 +430,20 @@ def read(endpoint_url: str, project: str, name: str, instance_type: str, verify_
 
     parameters:
         endpoint_url:
-            description: The endpoint URL for the LXD Host where the service will be read
+            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
             type: string
             required: true
         name:
-            description: The name of the instance to read
-            type: integer
+            description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The name of the type of the LXD instacne to build. Valid options are "containers" and "virtual_machines".
+            type: string
             required: true
         verify_lxd_certs:
             description: Boolean to verify LXD certs.
@@ -362,6 +507,26 @@ def scrub(endpoint_url: str, project: str, name: str, instance_type: str, verify
     description: Scrub the LXD Instance
 
     parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
+            type: string
+            required: true
+        name:
+            description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The name of the type of the LXD instacne to build. Valid options are "containers" and "virtual_machines".
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
 
     return:
         description: |

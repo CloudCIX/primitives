@@ -113,7 +113,13 @@ if cmd == 'build':
         verify_lxd_certs=verify_lxd_certs,
     )
 if cmd == 'read':
-    status, data, msg = lxd.read(domain=domain, host=host)
+    status, data, msg = lxd.read(
+        endpoint_url=endpoint_url,
+        project=project,
+        name=name,
+        instance_type=instance_type,
+        verify_lxd_certs=verify_lxd_certs,
+    )
 
 if cmd == 'quiesce':
     status, msg = lxd.quiesce(
