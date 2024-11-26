@@ -12,7 +12,6 @@ from cloudcix_primitives import bridge_lxd
 # * `tools/test_ns_primitive.py build mynetns to ensure the name space we want to run dhcpns in exists
 # * `tools/test_bridge_lxd.py build br4000 to ensure the LXD bridge exists to connect to the vlan tagged interface
 
-
 cmd = sys.argv[1]
 
 endpoint_url = None
