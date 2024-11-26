@@ -35,18 +35,17 @@ def dictify(data):
 
 
 def build(
-        image: str,
-        cpu: int,
-        domain: str,
-        gateway_vlan: int,
-        host: str,
-        primary_storage: str,
-        ram: int,
-        robot_drive_url: str,
-        size: int,
-        domain_path=None,
-        secondary_vlans=None,
-        secondary_storages=None,
+    image: str,
+    cpu: int,
+    domain: str,
+    gateway_vlan: int,
+    host: str,
+    primary_storage: str,
+    ram: int,
+    robot_drive_url: str,
+    size: int,
+    domain_path=None,
+    secondary_vlans=[],
 ) -> Tuple[bool, str]:
     """
         description:
@@ -102,15 +101,6 @@ def build(
             description: The size of the storage image to be created, must be in GB value
             type: integer
             required: true
-        secondary_storages:
-            description: |
-                The list of all secondary storages that are attached to domain
-                the names of storages must be unique.
-                e.g secondary_storages = ['564_45_HDD_909.vhdx',]
-            type: array
-            required: false
-            items:
-                type: string
         secondary_vlans:
             description: |
                 List of all other vlans of the domain
@@ -136,7 +126,6 @@ def build(
         3011: 'Invalid "primary_storage", The "primary_storage" is required',
         3012: 'Invalid "primary_storage", The "primary_storage" must be a name of the storage file with extension',
         3013: 'Invalid "primary_storage", The "primary_storage" can only be either .vhd or .vhdx file formats',
-        3014: 'Invalid "secondary_storages", one or more items are invalid, Errors: ',
         # payload execution
         3031: f'Failed to connect to the host {host} for the payload read_domain_info',
         3032: f'Failed to create domain, the requested domain {domain} already exists on the Host {host}',
@@ -169,10 +158,8 @@ def build(
         3058: f'Failed to add gateway vlan {gateway_vlan} to domain {domain} on Host {host}',
         3059: f'Failed to connect the Host {host} for the add_secondary_vlans',
         3060: f'Failed to add secondary vlans to domain {domain} on Host {host}',
-        3061: f'Failed to connect the Host {host} for the add_secondary_storages',
-        3062: f'Failed to add secondary storages to domain {domain} on Host {host}',
-        3063: f'Failed to connect the Host {host} for the start_domain',
-        3064: f'Failed to start domain {domain} on Host {host}',
+        3061: f'Failed to connect the Host {host} for the start_domain',
+        3062: f'Failed to start domain {domain} on Host {host}',
     }
 
     messages_list = []
@@ -180,53 +167,19 @@ def build(
     # validate primary_storage
     def validate_primary_storage(ps, msg_index):
         if ps is None:
-            messages_list.append(f'{messages[msg_index]}: {messages[msg_index]}')
+            messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]}')
             return False
 
         ps_items = str(ps).split('.')
         if len(ps_items) != 2:
-            messages_list.append(f'{messages[msg_index + 1]}: {messages[msg_index + 1]}')
+            messages_list.append(f'{messages[msg_index + 2]}: {messages[msg_index + 2]}')
             return False
         elif ps_items[1] not in ('vhd', 'vhdx'):
-            messages_list.append(f'{messages[msg_index + 2]}: {messages[msg_index + 2]}')
+            messages_list.append(f'{messages[msg_index + 3]}: {messages[msg_index + 3]}')
             return False
         return True
 
-    validated = validate_primary_storage(primary_storage, 3011)
-
-    # validate secondary storages
-    def validate_secondary_storages(sstgs, msg_index):
-        if type(sstgs) is not list:
-            messages_list.append(f'{messages[msg_index]}: {messages[msg_index]}')
-            return False
-
-        errors = []
-        valid_sstgs = True
-        for storage in sstgs:
-            stg_items = str(storage).split('.')
-            if len(stg_items) != 2:
-                errors.append(
-                    f'Invalid secondary_storage {storage}, it must be the name of the storage file with extension',
-                )
-                valid_sstgs = False
-            elif stg_items[1] not in ('vhd', 'vhdx'):
-                errors.append(
-                    f'Invalid secondary_storage {storage}, it can only be either .img or .qcow2 file format',
-                )
-                valid_sstgs = False
-
-        if valid_sstgs is False:
-            messages_list.append(f'{messages[msg_index]}: {messages[msg_index]} {";".join(errors)}')
-
-        return valid_sstgs
-
-    if secondary_storages:
-        validated = validate_secondary_storages(secondary_storages, 3014)
-    else:
-        secondary_storages = []
-
-    if not secondary_vlans:
-        secondary_vlans = []
+    validated = validate_primary_storage(primary_storage, 3010)
 
     if validated is False:
         return False, '; '.join(messages_list)
@@ -245,12 +198,6 @@ def build(
                                    f'"Virtual Switch" -DeviceNaming On; ' \
                                    f'Set-VMNetworkAdapterVlan -VMName {domain} ' \
                                    f'-VMNetworkAdapterName "vNIC-{vlan}" -Access -VlanId {vlan}; '
-
-        add_secondary_storages = ''
-        for storage in secondary_storages:
-            # attach storage to the domain
-            add_secondary_storages += f'Add-VMHardDiskDrive -VMName {domain} -Path {domain_path}{domain}\\{storage}; '
-
         mount_point = f'drive_{domain}'
         vhdx_file = f'{mount_point}:\\HyperV\\VHDXs\\{image}'
         mount_dir = f'{domain_path}{domain}\\mount'
@@ -296,7 +243,6 @@ def build(
                                        f'Set-VMNetworkAdapterVlan -VMName {domain} -VMNetworkAdapterName'
                                        f' "vNIC-{gateway_vlan}" -Access -VlanId {gateway_vlan}',
             'add_secondary_vlans':     add_secondary_vlans,
-            'add_secondary_storages':  add_secondary_storages,
             'start_domain':            f'Start-VM -Name {domain}; Wait-VM -Name {domain} -For IPAddress',
         }
 
@@ -408,19 +354,11 @@ def build(
                 return False, fmt.payload_error(ret, f'{prefix + 30}: {messages[prefix + 30]}'), fmt.successful_payloads
             fmt.add_successful('add_secondary_vlans', ret)
 
-        if add_secondary_storages != '':
-            ret = rcc.run(payloads['add_secondary_storages'])
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 31}: {messages[prefix + 31]}'), fmt.successful_payloads
-            if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 32}: {messages[prefix + 32]}'), fmt.successful_payloads
-            fmt.add_successful('add_secondary_storages', ret)
-
         ret = rcc.run(payloads['start_domain'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 33}: {messages[prefix + 33]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 31}: {messages[prefix + 31]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 34}: {messages[prefix + 34]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 32}: {messages[prefix + 32]}'), fmt.successful_payloads
         fmt.add_successful('start_domain', ret)
 
         return True, "", fmt.successful_payloads
@@ -737,10 +675,10 @@ def restart(
 
 
 def scrub(
-        domain: str,
-        host: str,
-        primary_storage: str,
-        domain_path=None,
+    domain: str,
+    host: str,
+    primary_storage: str,
+    domain_path=None,
 ) -> Tuple[bool, str]:
     """
     description: Removes the VM

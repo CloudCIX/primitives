@@ -28,10 +28,10 @@ metadata = {
           "addresses" : [
              "10.0.0.3/24"
           ],
-	  "nameservers": {
-	      "addresses": ["8.8.8.8"],
-	      "search": ["cloudcix.com", "cix.ie"]
-	  },
+    	  "nameservers": {
+    	      "addresses": ["8.8.8.8"],
+    	      "search": ["cloudcix.com", "cix.ie"]
+    	  },
           "routes": [{
             "to": "default",
             "via": "10.0.0.1"
