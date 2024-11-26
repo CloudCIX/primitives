@@ -36,7 +36,7 @@ def build(
 ) -> Tuple[bool, str]:
     """
     description:
-        Configures a bridge on the LXD host.
+        Configures a LXD instance on the LXD host.
 
     parameters:
         
@@ -176,7 +176,7 @@ def quiesce(endpoint_url: str, project: str, name: str, instance_type: str, veri
 
     return:
         description: |
-            A tuple with a boolean flag stating the build was successful or not and
+            A tuple with a boolean flag stating the quiesce was successful or not and
             the output or error message.
         type: tuple
     """
@@ -229,13 +229,13 @@ def quiesce(endpoint_url: str, project: str, name: str, instance_type: str, veri
 
 def restart(endpoint_url: str, project: str, name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
     """
-    description: Shutdown the LXD Instance
+    description: Restart the LXD Instance
 
     parameters:
 
     return:
         description: |
-            A tuple with a boolean flag stating the build was successful or not and
+            A tuple with a boolean flag stating the restart was successful or not and
             the output or error message.
         type: tuple
     """
@@ -283,4 +283,62 @@ def restart(endpoint_url: str, project: str, name: str, instance_type: str, veri
     if status is False:
         return status, msg
 
-    return True, f'1400: {messages[1500]}'
+    return True, f'1500: {messages[1500]}'
+
+
+def scrub(endpoint_url: str, project: str, name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
+    """
+    description: Scrub the LXD Instance
+
+    parameters:
+
+    return:
+        description: |
+            A tuple with a boolean flag stating the scrub was successful or not and
+            the output or error message.
+        type: tuple
+    """
+    # Define message
+    messages = {
+        1100: f'Successfully scruubbed {instance_type} {name} on {endpoint_url}',
+        3111: f'Invalid instance_type "{instance_type}" sent. Suuported instance types are "containers" and "virtual_machines"',
+
+        3121: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
+        3122: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
+    }
+
+    # validation
+    if instance_type not in SUPPORTED_INSTANCES:
+        return False, f'3411: {messages[3111]}'
+
+    def run_host(endpoint_url, prefix, successful_payloads):
+
+        project_rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project)
+        fmt = HostErrorFormatter(
+            endpoint_url,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads,
+        )
+
+        # Get instances client obj
+        ret = project_rcc.run(cli=f'{instance_type}.get', name=name)
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
+        if ret["payload_code"] != API_SUCCESS:
+            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+
+        # Stop the instance.
+        instance = ret['payload_message']
+        state = instance.state()
+        if state.status == 'Running':
+            instance.stop(force=False, wait=True)
+
+        instance.delete(wait=True)
+
+        return True, '', fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(endpoint_url, 3120, {})
+    if status is False:
+        return status, msg
+
+    return True, f'1100: {messages[1100]}'
