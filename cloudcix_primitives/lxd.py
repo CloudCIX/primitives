@@ -40,7 +40,7 @@ def build(
 
     parameters:
         endpoint_url:
-            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            description: The endpoint URL for the LXD Host where the service will be built.
             type: string
             required: true
         project: 
@@ -147,7 +147,7 @@ def build(
     # Define message
     messages = {
         1000: f'Successfully created {instance_type} {name} on {endpoint_url}',
-        3011: f'Invalid instance_type "{instance_type}" sent. Suuported instance types are "containers" and "virtual_machines"',
+        3011: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
         3021: f'Failed to connect to {endpoint_url} for projects.exists payload',
         3022: f'Failed to run projects.exists payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to connect to {endpoint_url} for projects.create payload',
@@ -271,7 +271,7 @@ def quiesce(endpoint_url: str, project: str, name: str, instance_type: str, veri
 
     parameters:
         endpoint_url:
-            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            description: The endpoint URL for the LXD Host where the service will be quiesced.
             type: string
             required: true
         project: 
@@ -300,11 +300,11 @@ def quiesce(endpoint_url: str, project: str, name: str, instance_type: str, veri
     # Define message
     messages = {
         1400: f'Successfully quiesced {instance_type} {name} on {endpoint_url}',
-        3411: f'Invalid instance_type "{instance_type}" sent. Suuported instance types are "containers" and "virtual_machines"',
+        3411: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
 
         3421: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
         3422: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
-        3423: f'Failed to quiesce {instance_type} on {endpoint_url}. Instance was found in an uxecpected state of ',
+        3423: f'Failed to quiesce {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
     }
 
     # validation
@@ -350,7 +350,7 @@ def restart(endpoint_url: str, project: str, name: str, instance_type: str, veri
 
     parameters:
         endpoint_url:
-            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            description: The endpoint URL for the LXD Host where the service will be restarted.
             type: string
             required: true
         project: 
@@ -379,17 +379,16 @@ def restart(endpoint_url: str, project: str, name: str, instance_type: str, veri
     # Define message
     messages = {
         1500: f'Successfully restarted {instance_type} {name} on {endpoint_url}',
-        3511: f'Invalid instance_type "{instance_type}" sent. Suuported instance types are "containers" and "virtual_machines"',
+        3511: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
 
         3521: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
         3522: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
-        3523: f'Failed to restart {instance_type} on {endpoint_url}. Instance was found in an uxecpected state of ',
+        3523: f'Failed to restart {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
     }
 
     # validation
     if instance_type not in SUPPORTED_INSTANCES:
         return False, f'3511: {messages[3511]}'
-
     def run_host(endpoint_url, prefix, successful_payloads):
 
         project_rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project)
@@ -430,7 +429,7 @@ def read(endpoint_url: str, project: str, name: str, instance_type: str, verify_
 
     parameters:
         endpoint_url:
-            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            description: The endpoint URL for the LXD Host where the service will be read.
             type: string
             required: true
         project: 
@@ -459,7 +458,7 @@ def read(endpoint_url: str, project: str, name: str, instance_type: str, verify_
     # Define message
     messages = {
         1200: f'Successfully read {instance_type} {name} on {endpoint_url}.',
-        3211: f'Invalid instance_type "{instance_type}" sent. Suuported instance types are "containers" and "virtual_machines"',
+        3211: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
 
         3221: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
         3222: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
@@ -508,7 +507,7 @@ def scrub(endpoint_url: str, project: str, name: str, instance_type: str, verify
 
     parameters:
         endpoint_url:
-            description: The endpoint URL for the LXD Host where the service will be scrubbed
+            description: The endpoint URL for the LXD Host where the service will be scrubbed.
             type: string
             required: true
         project: 
@@ -537,7 +536,7 @@ def scrub(endpoint_url: str, project: str, name: str, instance_type: str, verify
     # Define message
     messages = {
         1100: f'Successfully scruubbed {instance_type} {name} on {endpoint_url}',
-        3111: f'Invalid instance_type "{instance_type}" sent. Suuported instance types are "containers" and "virtual_machines"',
+        3111: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
 
         3121: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
         3122: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
