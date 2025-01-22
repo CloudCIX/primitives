@@ -4,7 +4,7 @@ Primitive for Private Bridge in LXD
 # stdlib
 from typing import Tuple
 # libs
-from cloudcix.rcc import API_SUCCESS, comms_lxd, CHANNEL_SUCCESS
+from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd
 # local
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
 

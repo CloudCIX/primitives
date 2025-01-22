@@ -2,14 +2,14 @@
 Primitive for Storage drives on HyperV hosts
 """
 # stdlib
+import re
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
-import re
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from cloudcix_primitives.utils import (
-    SSHCommsWrapper,
     HostErrorFormatter,
+    SSHCommsWrapper,
 )
 
 __all__ = [
@@ -20,6 +20,7 @@ __all__ = [
 ]
 
 SUCCESS_CODE = 0
+
 
 def build(
         host: str,
@@ -113,6 +114,85 @@ def build(
         return status, msg
 
     return True, messages[1000]
+
+
+def read(
+    host: str,
+    domain_path: str,
+    storage: str,
+):
+    """
+    description:
+        Gets the status of the <domain_path><storage> file info on the given Host <host>.
+
+    parameters:
+        host:
+            description: The dns or ipadddress of the Host on which this storage_hyperv is built
+            type: string
+            required: true
+        domain_path:
+            description: The location or directory path where this storage_hyperv is read
+            type: string
+            required: true
+        storage:
+            description: The name of the storage_hyperv to be read
+            type: string
+            required: true
+    return:
+        description: |
+            A tuple with a boolean flag stating the read was successful or not and
+            the output or error message.
+        type: tuple
+    """
+    # Define message
+    messages = {
+        1300: f'Successfully read storage image {storage}',
+
+        3321: f'Failed to connect to the Host {host} for payload read_storage_file: ',
+        3322: f'Failed to run read_storage_file payload on the Host {host}. Payload exited with status '
+    }
+    message_list = []
+    data_dict = {
+        host: {}
+    }
+
+    def run_host(host, prefix, successful_payloads):
+        retval = True
+        data_dict[host] = {}
+
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
+
+        payloads = {
+            'read_storage_file': f'Get-VHD -Path {domain_path}{storage}',
+        }
+
+        ret = rcc.run(payloads['read_storage_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix + 1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix + 2]), fmt.successful_payloads
+        else:
+            data_dict[host] = ret["payload_message"].strip()
+            fmt.add_successful('read_storage_file', ret)
+
+        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+
+    retval, msg_list, successful_payloads, data_dict = run_host(host, 3320, {})
+    message_list.extend(msg_list)
+
+    if not retval:
+        return retval, data_dict, message_list
+    else:
+        return True, data_dict, [messages[1300]]
+
+
 
 def scrub(
     host: str,
@@ -266,80 +346,3 @@ def update(
         return status, msg
 
     return True, messages[1200]
-
-
-def read(
-    host: str,
-    domain_path: str,
-    storage: str,
-):
-    """
-    description:
-        Gets the status of the <domain_path><storage> file info on the given Host <host>.
-
-    parameters:
-        host:
-            description: The dns or ipadddress of the Host on which this storage_hyperv is built
-            type: string
-            required: true
-        domain_path:
-            description: The location or directory path where this storage_hyperv is read
-            type: string
-            required: true
-        storage:
-            description: The name of the storage_hyperv to be read
-            type: string
-            required: true
-    return:
-        description: |
-            A tuple with a boolean flag stating the read was successful or not and
-            the output or error message.
-        type: tuple
-    """
-    # Define message
-    messages = {
-        1300: f'Successfully read storage image {storage}',
-
-        3321: f'Failed to connect to the Host {host} for payload read_storage_file: ',
-        3322: f'Failed to run read_storage_file payload on the Host {host}. Payload exited with status '
-    }
-    message_list = []
-    data_dict = {
-        host: {}
-    }
-
-    def run_host(host, prefix, successful_payloads):
-        retval = True
-        data_dict[host] = {}
-
-        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
-        fmt = HostErrorFormatter(
-            host,
-            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
-            successful_payloads
-        )
-
-        payloads = {
-            'read_storage_file': f'Get-VHD -Path {domain_path}{storage}',
-        }
-
-        ret = rcc.run(payloads['read_storage_file'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            retval = False
-            fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix + 1]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            retval = False
-            fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix + 2]), fmt.successful_payloads
-        else:
-            data_dict[host] = ret["payload_message"].strip()
-            fmt.add_successful('read_storage_file', ret)
-
-        return retval, fmt.message_list, fmt.successful_payloads, data_dict
-
-    retval, msg_list, successful_payloads, data_dict = run_host(host, 3320, {})
-    message_list.extend(msg_list)
-
-    if not retval:
-        return retval, data_dict, message_list
-    else:
-        return True, data_dict, [messages[1300]]

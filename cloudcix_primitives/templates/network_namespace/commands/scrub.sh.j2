@@ -1,8 +1,0 @@
-{
-{# Scrub the Namespace #}
-if ! sudo ip netns delete {{ namespace_identifier }}; then
-    echo "massages['300']"
-    exit 1
-fi
-echo "massages['000']"
-}

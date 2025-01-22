@@ -1,19 +1,30 @@
 """
 Primitive for RadOS Block Device on Ceph cluster
 """
+# stdlib
+from typing import Tuple
+# lib
+# local
 
 
-def build():
+__all__ = [
+    'build',
+    'read',
+    'scrub',
+    'update',
+]
+
+def build() -> Tuple[bool, str]:
     return(False, 'Not Implemted')
 
 
-def scrub():
+def read() -> Tuple[bool, str]:
     return(False, 'Not Implemted')
 
 
-def updatequiesced():
+def scrub() -> Tuple[bool, str]:
     return(False, 'Not Implemted')
 
 
-def updaterunning():
+def updateq() -> Tuple[bool, str]:
     return(False, 'Not Implemted')

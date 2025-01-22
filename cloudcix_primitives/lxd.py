@@ -4,14 +4,16 @@ Primitive for managing an LXD instance.
 # stdlib
 from typing import Tuple
 # libs
-from cloudcix.rcc import API_SUCCESS, comms_lxd, CHANNEL_SUCCESS
+from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd
 # local
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
 
 
 __all__ = [
     'build',
+    'quiesce',
     'read',
+    'restart',
     'scrub',
 ]
 
@@ -344,84 +346,6 @@ def quiesce(endpoint_url: str, project: str, name: str, instance_type: str, veri
     return True, f'1400: {messages[1400]}'
 
 
-def restart(endpoint_url: str, project: str, name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
-    """
-    description: Restart the LXD Instance
-
-    parameters:
-        endpoint_url:
-            description: The endpoint URL for the LXD Host where the service will be restarted.
-            type: string
-            required: true
-        project: 
-            description: Unique identification name of the LXD Project on the LXD Host.
-            type: string
-            required: true
-        name:
-            description: Unique identification name for the LXD instance on the LXD Host.
-            type: string
-            required: true
-        instance_type:
-            description: The name of the type of the LXD instacne to build. Valid options are "containers" and "virtual_machines".
-            type: string
-            required: true
-        verify_lxd_certs:
-            description: Boolean to verify LXD certs.
-            type: boolean
-            required: false
-
-    return:
-        description: |
-            A tuple with a boolean flag stating the restart was successful or not and
-            the output or error message.
-        type: tuple
-    """
-    # Define message
-    messages = {
-        1500: f'Successfully restarted {instance_type} {name} on {endpoint_url}',
-        3511: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
-
-        3521: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
-        3522: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
-        3523: f'Failed to restart {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
-    }
-
-    # validation
-    if instance_type not in SUPPORTED_INSTANCES:
-        return False, f'3511: {messages[3511]}'
-    def run_host(endpoint_url, prefix, successful_payloads):
-
-        project_rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project)
-        fmt = HostErrorFormatter(
-            endpoint_url,
-            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
-            successful_payloads,
-        )
-
-        # Get instances client obj
-        ret = project_rcc.run(cli=f'{instance_type}.get', name=name)
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
-        if ret["payload_code"] != API_SUCCESS:
-            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
-
-        # Stop the instance.
-        instance = ret['payload_message']
-        state = instance.state()
-        if state.status == 'Stopped':
-            instance.start(force=False, wait=True)
-        elif state.status != 'Running':
-            return False, f"{prefix+3}: {messages[prefix+3]} {state.status}"
-
-        return True, '', fmt.successful_payloads
-
-    status, msg, successful_payloads = run_host(endpoint_url, 3520, {})
-    if status is False:
-        return status, msg
-
-    return True, f'1500: {messages[1500]}'
-
-
 def read(endpoint_url: str, project: str, name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
     """
     description:
@@ -499,6 +423,84 @@ def read(endpoint_url: str, project: str, name: str, instance_type: str, verify_
         return retval, data_dict, message_list
     else:
         return True, data_dict, f'1200: {messages[1200]}'
+
+
+def restart(endpoint_url: str, project: str, name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
+    """
+    description: Restart the LXD Instance
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host where the service will be restarted.
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
+            type: string
+            required: true
+        name:
+            description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The name of the type of the LXD instacne to build. Valid options are "containers" and "virtual_machines".
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+
+    return:
+        description: |
+            A tuple with a boolean flag stating the restart was successful or not and
+            the output or error message.
+        type: tuple
+    """
+    # Define message
+    messages = {
+        1500: f'Successfully restarted {instance_type} {name} on {endpoint_url}',
+        3511: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
+
+        3521: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
+        3522: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
+        3523: f'Failed to restart {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
+    }
+
+    # validation
+    if instance_type not in SUPPORTED_INSTANCES:
+        return False, f'3511: {messages[3511]}'
+    def run_host(endpoint_url, prefix, successful_payloads):
+
+        project_rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project)
+        fmt = HostErrorFormatter(
+            endpoint_url,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads,
+        )
+
+        # Get instances client obj
+        ret = project_rcc.run(cli=f'{instance_type}.get', name=name)
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
+        if ret["payload_code"] != API_SUCCESS:
+            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+
+        # Stop the instance.
+        instance = ret['payload_message']
+        state = instance.state()
+        if state.status == 'Stopped':
+            instance.start(force=False, wait=True)
+        elif state.status != 'Running':
+            return False, f"{prefix+3}: {messages[prefix+3]} {state.status}"
+
+        return True, '', fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(endpoint_url, 3520, {})
+    if status is False:
+        return status, msg
+
+    return True, f'1500: {messages[1500]}'
 
 
 def scrub(endpoint_url: str, project: str, name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
@@ -596,3 +598,4 @@ def scrub(endpoint_url: str, project: str, name: str, instance_type: str, verify
         return status, msg
 
     return True, f'1100: {messages[1100]}'
+

@@ -26,11 +26,11 @@ done, you can activate the virtual environment as follows:
 . myvenv/bin/activate
 ```
 
-Now you can run test scripts such as `tools/test_ns_primitive.py` as long as
+Now you can run test scripts such as `tools/test_ns.py` as long as
 you remain in the shell where you sourced the `activate` script:
 
 ```
-$ tools/test_ns_primitive.py build mytestns
+$ tools/test_ns.py build mytestns
 Status: True
 
 Message:

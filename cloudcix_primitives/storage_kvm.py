@@ -3,14 +3,14 @@ Primitive for Storage drives (QEMU images) on KVM hosts
 """
 
 # stdlib
+import re
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
-import re
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from cloudcix_primitives.utils import (
-    SSHCommsWrapper,
     HostErrorFormatter,
+    SSHCommsWrapper,
 )
 
 __all__ = [
@@ -108,6 +108,97 @@ def build(
         return status, msg
 
     return True, messages[1000]
+
+
+def read(
+    host: str,
+    domain_path: str,
+    storage: str,
+):
+    """
+    description:
+        Gets the status of the <domain_path><storage> file info on the given Host <host>.
+
+    parameters:
+        host:
+            description: The dns or ipadddress of the Host on which this storage_kvm is built
+            type: string
+            required: true
+        domain_path:
+            description: The location or directory path where this storage_kvm is read
+            type: string
+            required: true
+        storage:
+            description: The name of the storage_kvm to be read
+            type: string
+            required: true
+    return:
+        description: |
+            A tuple with a boolean flag stating the read was successful or not and
+            the output or error message.
+        type: tuple
+    """
+    # Define message
+    messages = {
+        1200: f'1200: Successfully read storage image {storage}',
+        3221: f'3221: Failed to connect to the Host {host} for the payload read_storage_file',
+        3222: f'3222: Failed to read storage image {domain_path}{storage} on the Host {host}'
+    }
+    message_list = []
+    data_dict = {
+        host: {
+            'image': None,
+            'size': None,
+        }
+    }
+
+    def run_host(host, prefix, successful_payloads):
+        retval = True
+        data_dict[host] = {}
+
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
+
+        payloads = {
+            'read_storage_file': f'qemu-img info {domain_path}{storage}',
+        }
+
+        ret = rcc.run(payloads['read_storage_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
+        else:
+            # Extract the image path
+            image_match = re.search(r'image: (\S+)', ret["payload_message"].strip())
+            image = image_match.group(1) if image_match else None
+
+            # Extract the disk size
+            size_match = re.search(r'virtual size: (\S+)', ret["payload_message"].strip())
+            size = size_match.group(1) if size_match else None
+
+            data_dict[host] = {
+                'image': image,
+                'size': size,
+            }
+
+            fmt.add_successful('read_storage_file', ret)
+
+        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+
+    retval, msg_list, successful_payloads, data_dict = run_host(host, 3220, {})
+    message_list.extend(msg_list)
+
+    if not retval:
+        return retval, data_dict, message_list
+    else:
+        return True, data_dict, [messages[1200]]
 
 
 def update(
@@ -240,94 +331,3 @@ def scrub(
         return status, msg
 
     return True, messages[1100]
-
-
-def read(
-    host: str,
-    domain_path: str,
-    storage: str,
-):
-    """
-    description:
-        Gets the status of the <domain_path><storage> file info on the given Host <host>.
-
-    parameters:
-        host:
-            description: The dns or ipadddress of the Host on which this storage_kvm is built
-            type: string
-            required: true
-        domain_path:
-            description: The location or directory path where this storage_kvm is read
-            type: string
-            required: true
-        storage:
-            description: The name of the storage_kvm to be read
-            type: string
-            required: true
-    return:
-        description: |
-            A tuple with a boolean flag stating the read was successful or not and
-            the output or error message.
-        type: tuple
-    """
-    # Define message
-    messages = {
-        1200: f'1200: Successfully read storage image {storage}',
-        3221: f'3221: Failed to connect to the Host {host} for the payload read_storage_file',
-        3222: f'3222: Failed to read storage image {domain_path}{storage} on the Host {host}'
-    }
-    message_list = []
-    data_dict = {
-        host: {
-            'image': None,
-            'size': None,
-        }
-    }
-
-    def run_host(host, prefix, successful_payloads):
-        retval = True
-        data_dict[host] = {}
-
-        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
-        fmt = HostErrorFormatter(
-            host,
-            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
-            successful_payloads
-        )
-
-        payloads = {
-            'read_storage_file': f'qemu-img info {domain_path}{storage}',
-        }
-
-        ret = rcc.run(payloads['read_storage_file'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            retval = False
-            fmt.channel_error(ret, messages[prefix + 1]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            retval = False
-            fmt.payload_error(ret, messages[prefix + 2]), fmt.successful_payloads
-        else:
-            # Extract the image path
-            image_match = re.search(r'image: (\S+)', ret["payload_message"].strip())
-            image = image_match.group(1) if image_match else None
-
-            # Extract the disk size
-            size_match = re.search(r'virtual size: (\S+)', ret["payload_message"].strip())
-            size = size_match.group(1) if size_match else None
-
-            data_dict[host] = {
-                'image': image,
-                'size': size,
-            }
-
-            fmt.add_successful('read_storage_file', ret)
-
-        return retval, fmt.message_list, fmt.successful_payloads, data_dict
-
-    retval, msg_list, successful_payloads, data_dict = run_host(host, 3220, {})
-    message_list.extend(msg_list)
-
-    if not retval:
-        return retval, data_dict, message_list
-    else:
-        return True, data_dict, [messages[1200]]

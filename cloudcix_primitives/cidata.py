@@ -1,22 +1,21 @@
 """
 Primitive to Build, Read and Scrub cloud-init userdata/metadata payloads on PodNet HA
 """
-
 # stdlib
-import json
 import ipaddress
+import json
 from pathlib import Path
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS, VALIDATION_ERROR, CONNECTION_ERROR
-from cloudcix_primitives.utils import load_pod_config, SSHCommsWrapper, PodnetErrorFormatter
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh, CONNECTION_ERROR, VALIDATION_ERROR
 # local
+from cloudcix_primitives.utils import load_pod_config, PodnetErrorFormatter, SSHCommsWrapper
 
 
 __all__ = [
     'build',
-    'scrub',
     'read',
+    'scrub',
 ]
 
 SUCCESS_CODE = 0
@@ -161,102 +160,6 @@ def build(
     return True, messages[1000]
 
 
-def scrub(
-        domain_path: str,
-        config_file=None,
-) -> Tuple[bool, str]:
-    """
-    description:
-        Removes cloud-init user data and meta data files for a virtual machine on PodNet HA.
-
-    parameters:
-        domain_path:
-            description: path to the virtual machine's cloud-init directory.
-                         This must be the full path, up to and including the
-                         version component.
-            type: string
-            required: true
-        config_file:
-            description: path to the config.json file
-            type: string
-            required: false
-    return:
-        description: |
-            A tuple with a boolean flag stating if the scrub was successful or not and
-            the output or error message.
-        type: tuple
-    """
-    # Define message
-    messages = {
-        1100: f'Successfully removed {domain_path}/metadata and {domain_path}/userdata on both PodNet nodes.',
-        3121: f'Failed to connect to the enabled PodNet for remove_metadata payload: ',
-        3122: f'Failed to run remove_metadata payload on the enabled PodNet. Payload exited with status ',
-        3123: f'Failed to connect to the enabled PodNet for remove_userdata payload: ',
-        3124: f'Failed to run remove_userdata payload on the enabled PodNet. Payload exited with status ',
-
-        3131: f'Failed to connect to the disabled PodNet for remove_metadata payload: ',
-        3132: f'Failed to run remove_metadata payload on the disabled PodNet. Payload exited with status ',
-        3133: f'Failed to connect to the disabled PodNet for remove_userdata payload: ',
-        3134: f'Failed to run remove_userdata payload on the disabled PodNet. Payload exited with status ',
-    }
-
-    # Default config_file if it is None
-    if config_file is None:
-        config_file = '/opt/robot/config.json'
-
-    status, config_data, msg = load_pod_config(config_file)
-    if not status:
-      if config_data['raw'] is None:
-          return False, msg
-      else:
-          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
-              indent=2,
-              sort_keys=True)
-    enabled = config_data['processed']['enabled']
-    disabled = config_data['processed']['disabled']
-
-    def run_podnet(podnet_node, prefix, successful_payloads):
-        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
-        fmt = PodnetErrorFormatter(
-            config_file,
-            podnet_node,
-            podnet_node == enabled,
-            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
-            successful_payloads
-        )
-
-        payloads = {
-            'remove_metadata': f'rm -f {domain_path}/userdata',
-            'remove_userdata': f'rm -f {domain_path}/metadata',
-        }
-
-
-        ret = rcc.run(payloads['remove_metadata'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
-        fmt.add_successful('remove_metadata', ret)
-
-        ret = rcc.run(payloads['remove_userdata'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
-        fmt.add_successful('remove_userdata', ret)
-
-        return True, "", fmt.successful_payloads
-
-    status, msg, successful_payloads = run_podnet(enabled, 3120, {})
-    if status == False:
-        return status, msg
-
-    status, msg, successful_payloads = run_podnet(disabled, 3130, successful_payloads)
-    if status == False:
-        return status, msg
-
-    return True, messages[1100]
-
 def read(
         domain_path: str,
         config_file: None
@@ -395,3 +298,100 @@ def read(
         return False, data_dict, msg_list
     else:
        return True, data_dict, (messages[1200])
+
+
+def scrub(
+        domain_path: str,
+        config_file=None,
+) -> Tuple[bool, str]:
+    """
+    description:
+        Removes cloud-init user data and meta data files for a virtual machine on PodNet HA.
+
+    parameters:
+        domain_path:
+            description: path to the virtual machine's cloud-init directory.
+                         This must be the full path, up to and including the
+                         version component.
+            type: string
+            required: true
+        config_file:
+            description: path to the config.json file
+            type: string
+            required: false
+    return:
+        description: |
+            A tuple with a boolean flag stating if the scrub was successful or not and
+            the output or error message.
+        type: tuple
+    """
+    # Define message
+    messages = {
+        1100: f'Successfully removed {domain_path}/metadata and {domain_path}/userdata on both PodNet nodes.',
+        3121: f'Failed to connect to the enabled PodNet for remove_metadata payload: ',
+        3122: f'Failed to run remove_metadata payload on the enabled PodNet. Payload exited with status ',
+        3123: f'Failed to connect to the enabled PodNet for remove_userdata payload: ',
+        3124: f'Failed to run remove_userdata payload on the enabled PodNet. Payload exited with status ',
+
+        3131: f'Failed to connect to the disabled PodNet for remove_metadata payload: ',
+        3132: f'Failed to run remove_metadata payload on the disabled PodNet. Payload exited with status ',
+        3133: f'Failed to connect to the disabled PodNet for remove_userdata payload: ',
+        3134: f'Failed to run remove_userdata payload on the disabled PodNet. Payload exited with status ',
+    }
+
+    # Default config_file if it is None
+    if config_file is None:
+        config_file = '/opt/robot/config.json'
+
+    status, config_data, msg = load_pod_config(config_file)
+    if not status:
+      if config_data['raw'] is None:
+          return False, msg
+      else:
+          return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
+              indent=2,
+              sort_keys=True)
+    enabled = config_data['processed']['enabled']
+    disabled = config_data['processed']['disabled']
+
+    def run_podnet(podnet_node, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
+        fmt = PodnetErrorFormatter(
+            config_file,
+            podnet_node,
+            podnet_node == enabled,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
+
+        payloads = {
+            'remove_metadata': f'rm -f {domain_path}/userdata',
+            'remove_userdata': f'rm -f {domain_path}/metadata',
+        }
+
+
+        ret = rcc.run(payloads['remove_metadata'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+        fmt.add_successful('remove_metadata', ret)
+
+        ret = rcc.run(payloads['remove_userdata'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+        fmt.add_successful('remove_userdata', ret)
+
+        return True, "", fmt.successful_payloads
+
+    status, msg, successful_payloads = run_podnet(enabled, 3120, {})
+    if status == False:
+        return status, msg
+
+    status, msg, successful_payloads = run_podnet(disabled, 3130, successful_payloads)
+    if status == False:
+        return status, msg
+
+    return True, messages[1100]

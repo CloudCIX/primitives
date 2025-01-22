@@ -4,11 +4,12 @@ Primitive for Virtual Machine Snapshot on HyperV hosts
 # stdlib
 from typing import Any, Dict, List, Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from cloudcix_primitives.utils import (
-    SSHCommsWrapper,
     HostErrorFormatter,
+    hyperv_dictify,
+    SSHCommsWrapper,
 )
 
 __all__ = [
@@ -122,16 +123,6 @@ def build(
     return True, f'1000: {messages[1000]}'
 
 
-def dictify(data):
-    lines = data.strip().split('\r\n')
-    # Splitting both lines by whitespace
-    items_line1 = lines[0].split()  # Header line
-    items_line3 = lines[2].split()  # info line
-    # Converting the paired data into a dictionary
-    data_dict = dict(zip(items_line1, items_line3))
-    return data_dict
-
-
 def read(
         domain: str,
         host: str,
@@ -212,7 +203,7 @@ def read(
             fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         else:
             # Load the domain info into dict
-            data_dict[host] = dictify(ret["payload_message"])
+            data_dict[host] = hyperv_dictify(ret["payload_message"])
             fmt.add_successful('read_snapshot_info', ret)
 
         return retval, fmt.message_list, fmt.successful_payloads, data_dict

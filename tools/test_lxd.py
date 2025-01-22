@@ -7,12 +7,9 @@ from cloudcix_primitives import lxd
 
 # Run the following test scripts before this one:
 #
-# * `tools/test_directorymain_primitive.py build /etc/netns/mynetns` to ensure the directories needed
-#   are in place.
-# * `tools/test_ns_primitive.py build mynetns to ensure the name space we want to run dhcpns in exists
-# * `tools/test_vlanifns_primitive.py build {vlan} to ensure vlan tagged interface exists on podnet
-# * `tools/test_bridge_lxd.py build br4000 to ensure the LXD bridge exists to connect to the vlan tagged interface
-# * `tools/test_bridge_kvm_primitive.py build {vlan} to ensure vlan tagged interface exists on KVM Host
+# * `tools/test_ns.py build mynetns to ensure the name space we want exists
+# * `tools/test_vlanif_ns.py build {vlan} to ensure vlan tagged interface exists on podnet
+# * `tools/test_bridge_lxd.py build br4000 to ensure the LXD brißßÍdge exists to connect to the vlan tagged interface
 
 cmd = sys.argv[1]
 

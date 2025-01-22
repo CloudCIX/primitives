@@ -5,7 +5,7 @@ Primitive for Private VLAN Bridge (KVM only)
 import os
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from cloudcix_primitives.utils import (
     check_template_data,
@@ -199,6 +199,140 @@ def build(
     return True, messages[1000]
 
 
+def read(
+        host: str,
+        vlan: int,
+) -> Tuple[bool, dict, str]:
+    """
+    description:
+        Reads the service and the vlan tagged bridge on the host .
+
+    parameters:
+        host:
+            description: Host where the service will be read
+            type: string
+            required: true
+        vlan:
+          description: Vlan ID
+          type: integer
+          required: true
+
+    return:
+        description: |
+            A tuple with a boolean flag stating if the read was successful or not and
+            the output or error message.
+        type: tuple
+    """
+
+    up_script_path = f'/usr/local/bin/bridge_kvm_br{vlan}_up.sh'
+    down_script_path = f'/usr/local/bin/bridge_kvm_br{vlan}_down.sh'
+    service_file_path= f'/etc/systemd/system/bridge_kvm_br{vlan}.service'
+
+    # Define message
+    messages = {
+        1200: f'Successfully read bridge_kvm_br{vlan}.service on kvm {host}.',
+        1201: f'bridge_kvm_br{vlan}.service does not exists on kvm {host}',
+
+        3221: f'Failed to connect to the host {host} for find_service payload: ',
+        3222: f'Failed to connect to the host {host} for read_bridge payload: ',
+        3223: f'Failed to run read_bridge payload on the host {host}. Payload exited with status ',
+        3224: f'Failed to connect to the host {host} for read_down_script payload: ',
+        3225: f'Failed to run read_down_script payload on the host {host}. Payload exited with status ',
+        3226: f'Failed to connect to the host {host} for read_up_script payload: ',
+        3227: f'Failed to run read_up_script payload on the host {host}. Payload exited with status ',
+        3228: f'Failed to connect to the host {host} for read_service_file payload: ',
+        3229: f'Failed to run read_service_file payload on the host {host}. Payload exited with status ',
+    }
+
+    def run_host(host, prefix, successful_payloads, data_dict):
+        retval = True
+        data_dict[host] = {}
+
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads,
+        )
+
+        # define payloads
+        payloads = {
+            'find_service': f'systemctl status bridge_kvm_br{vlan}.service',
+            'read_bridge': f'ip link show br{vlan}',
+            'read_up_script': f'cat {up_script_path}',
+            'read_down_script': f'cat {down_script_path}',
+            'read_service_file': f'cat {service_file_path}',
+        }
+
+        ret = rcc.run(payloads['find_service'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
+        elif ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"1201: " + messages[1201])
+        else:
+            data_dict[host]['service'] = ret["payload_message"].strip()
+            fmt.add_successful('find_service', ret)
+
+        ret = rcc.run(payloads['read_bridge'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+2}: " + messages[prefix+2])
+        elif ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+3}: " + messages[prefix+3])
+        else:
+            data_dict[host]['bridge'] = ret["payload_message"].strip()
+            fmt.add_successful('read_bridge', ret)
+
+        ret = rcc.run(payloads['read_down_script'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+4}: " + messages[prefix+4])
+        elif ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+5}: " + messages[prefix+5])
+        else:
+            data_dict[host]['down_script'] = ret["payload_message"].strip()
+            fmt.add_successful('read_down_script', ret)
+
+        ret = rcc.run(payloads['read_up_script'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+6}: " + messages[prefix+6])
+        elif ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+7}: " + messages[prefix+7])
+        else:
+            data_dict[host]['up_script'] = ret["payload_message"].strip()
+            fmt.add_successful('read_up_script', ret)
+
+        ret = rcc.run(payloads['read_service_file'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+8}: " + messages[prefix+8])
+        elif ret["payload_code"] != SUCCESS_CODE:
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+9}: " + messages[prefix+9])
+        else:
+            data_dict[host]['service_file'] = ret["payload_message"].strip()
+            fmt.add_successful('read_file_service', ret)
+
+
+        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+
+    retval, msg_list, successful_payloads, data_dict = run_host(host, 3220, {}, {})
+    message_list = list()
+    message_list.extend(msg_list)
+
+
+    if not retval:
+        return retval, data_dict, message_list
+    else:
+        return True, data_dict, [messages[1200]]
+
+
 def scrub(
         host: str,
         vlan: int,
@@ -355,137 +489,3 @@ def scrub(
         return status, msg
 
     return True, messages[1100]
-
-
-def read(
-        host: str,
-        vlan: int,
-) -> Tuple[bool, dict, str]:
-    """
-    description:
-        Reads the service and the vlan tagged bridge on the host .
-
-    parameters:
-        host:
-            description: Host where the service will be read
-            type: string
-            required: true
-        vlan:
-          description: Vlan ID
-          type: integer
-          required: true
-
-    return:
-        description: |
-            A tuple with a boolean flag stating if the read was successful or not and
-            the output or error message.
-        type: tuple
-    """
-
-    up_script_path = f'/usr/local/bin/bridge_kvm_br{vlan}_up.sh'
-    down_script_path = f'/usr/local/bin/bridge_kvm_br{vlan}_down.sh'
-    service_file_path= f'/etc/systemd/system/bridge_kvm_br{vlan}.service'
-
-    # Define message
-    messages = {
-        1200: f'Successfully read bridge_kvm_br{vlan}.service on kvm {host}.',
-        1201: f'bridge_kvm_br{vlan}.service does not exists on kvm {host}',
-
-        3221: f'Failed to connect to the host {host} for find_service payload: ',
-        3222: f'Failed to connect to the host {host} for read_bridge payload: ',
-        3223: f'Failed to run read_bridge payload on the host {host}. Payload exited with status ',
-        3224: f'Failed to connect to the host {host} for read_down_script payload: ',
-        3225: f'Failed to run read_down_script payload on the host {host}. Payload exited with status ',
-        3226: f'Failed to connect to the host {host} for read_up_script payload: ',
-        3227: f'Failed to run read_up_script payload on the host {host}. Payload exited with status ',
-        3228: f'Failed to connect to the host {host} for read_service_file payload: ',
-        3229: f'Failed to run read_service_file payload on the host {host}. Payload exited with status ',
-    }
-
-    def run_host(host, prefix, successful_payloads, data_dict):
-        retval = True
-        data_dict[host] = {}
-
-        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
-        fmt = HostErrorFormatter(
-            host,
-            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
-            successful_payloads,
-        )
-
-        # define payloads
-        payloads = {
-            'find_service': f'systemctl status bridge_kvm_br{vlan}.service',
-            'read_bridge': f'ip link show br{vlan}',
-            'read_up_script': f'cat {up_script_path}',
-            'read_down_script': f'cat {down_script_path}',
-            'read_service_file': f'cat {service_file_path}',
-        }
-
-        ret = rcc.run(payloads['find_service'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            retval = False
-            fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
-        elif ret["payload_code"] != SUCCESS_CODE:
-            retval = False
-            fmt.store_payload_error(ret, f"1201: " + messages[1201])
-        else:
-            data_dict[host]['service'] = ret["payload_message"].strip()
-            fmt.add_successful('find_service', ret)
-
-        ret = rcc.run(payloads['read_bridge'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            retval = False
-            fmt.store_channel_error(ret, f"{prefix+2}: " + messages[prefix+2])
-        elif ret["payload_code"] != SUCCESS_CODE:
-            retval = False
-            fmt.store_payload_error(ret, f"{prefix+3}: " + messages[prefix+3])
-        else:
-            data_dict[host]['bridge'] = ret["payload_message"].strip()
-            fmt.add_successful('read_bridge', ret)
-
-        ret = rcc.run(payloads['read_down_script'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            retval = False
-            fmt.store_channel_error(ret, f"{prefix+4}: " + messages[prefix+4])
-        elif ret["payload_code"] != SUCCESS_CODE:
-            retval = False
-            fmt.store_payload_error(ret, f"{prefix+5}: " + messages[prefix+5])
-        else:
-            data_dict[host]['down_script'] = ret["payload_message"].strip()
-            fmt.add_successful('read_down_script', ret)
-
-        ret = rcc.run(payloads['read_up_script'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            retval = False
-            fmt.store_channel_error(ret, f"{prefix+6}: " + messages[prefix+6])
-        elif ret["payload_code"] != SUCCESS_CODE:
-            retval = False
-            fmt.store_payload_error(ret, f"{prefix+7}: " + messages[prefix+7])
-        else:
-            data_dict[host]['up_script'] = ret["payload_message"].strip()
-            fmt.add_successful('read_up_script', ret)
-
-        ret = rcc.run(payloads['read_service_file'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            retval = False
-            fmt.store_channel_error(ret, f"{prefix+8}: " + messages[prefix+8])
-        elif ret["payload_code"] != SUCCESS_CODE:
-            retval = False
-            fmt.store_payload_error(ret, f"{prefix+9}: " + messages[prefix+9])
-        else:
-            data_dict[host]['service_file'] = ret["payload_message"].strip()
-            fmt.add_successful('read_file_service', ret)
-
-
-        return retval, fmt.message_list, fmt.successful_payloads, data_dict
-
-    retval, msg_list, successful_payloads, data_dict = run_host(host, 3220, {}, {})
-    message_list = list()
-    message_list.extend(msg_list)
-
-
-    if not retval:
-        return retval, data_dict, message_list
-    else:
-        return True, data_dict, [messages[1200]]

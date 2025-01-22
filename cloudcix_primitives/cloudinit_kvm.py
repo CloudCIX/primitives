@@ -1,18 +1,17 @@
 """
 Primitive for Cloud-init VM on KVM hosts
 """
-
 # stdlib
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from .controllers import KVMInterface
 from cloudcix_primitives.utils import (
-    SSHCommsWrapper,
     HostErrorFormatter,
+    SSHCommsWrapper,
 )
 
 __all__ = [

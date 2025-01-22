@@ -1,143 +1,83 @@
 # Primitives
 
-## directorymain
-Primitive to Build and Delete directories on PodNet HA
+## PodNet Primitives
 
-supported verbs:
+### firewall_main (build, read)
 
-- build:
-    - path: str
-    - config_file: optional str
+### net_main (build, quiesce, restart, read)
 
-- read:
-    - path: str
-    - config_file: optional str
-    
-- scrub:
-    - path: str
-    - config_file: optional str
-    
-## firewallns
-Primitive to Build and Delete nftables tables of Network Namespace on PodNet HA
+### vpns2s_main (build, read)
 
-supported verbs:
+### bridge_main (build, read)
 
-- build:
-    - namespace: str
-    - table: str
-    - config_file: optional str
-    - chains: optional dict
-      - prerouting: optional dict
-        - priority: int
-        - policy: string
-        - rules: optional array
-          - version: int
-            source: array
-              - str
-            destination: array
-              - str
-            protocol: str
-            port: array
-              - str
-            action: bool
-            log: bool
-            iiface: str
-            oiface: str
-            order: int
-      - input: optional dict, dict object same as prerouting
-      - forward: optional dict, dict object same as prerouting
-      - output: optional dict, dict object same as prerouting
-      - postrouting: optional dict, dict object same as prerouting
-    - nats: optional dict
-        - prerouting: optional dict
-          - priority: int
-          - policy: optional string
-          - rules: optional array        
-            - public: str
-              private: str
-              iiface: str
-        - postrouting: optional array
-          - priority: int
-          - policy: optional string
-          - rules: optional array 
-            - public: str
-              private: str
-              oiface: str
-    - sets: optional array
-        - name: str
-          type: str
-          elements: array
-            - ip_address: str
-                        
-- read:
-    - namespace: str
-    - table: str
-    - config_file: optional str
+### default_firewall_ns (build, read, scrub)
 
-- scrub:
-    - namespace: str
-    - table: str
-    - config_file: optional str
+### project_firewall_ns (build, read, scrub)
 
-## storage_kvm
-Primitive for Storage drives (QEMU images) on KVM hosts
+### nat_firewall_ns (build, read, scrub)
 
-supported verbs:
+### geo_a_firewall_ns (build, read, scrub)
 
-- build
-    - host: str
-    - domain_path: str
-    - storage: str
-    - size: int
+### geo_b_firewall_ns (build, read, scrub)
 
-- read:
-    - host: str
-    - domain_path: str
-    - storage: str
-    
-- scrub:
-    - host: str
-    - domain_path: str
-    - storage: str
+### external_firewall_ns (build, read, scrub)
 
-- update:
-    - host: str
-    - domain_path: str
-    - storage: str
-    - size: int
+### vpns2s_firewall_ns (build, read, scrub)
 
-## cloudinit_kvm
-Primitive for Cloud-init VM on KVM hosts
+### vpndyn_firewall_ns (build, read, scrub)
 
-supported verbs:
+### set_firewall_ns (build, update, read, scrub)
 
-- build:
-    - cloudimage: str
-    - cpu: int
-    - domain: str
-    - domain_path: str
-    - gateway_interface: dict
-    - host: str
-    - primary_storage: str
-    - ram: int
-    - size: int
-    - secondary_interfaces: optional list
-    - secondary_storages: optional list
+### ns (build, read, scrub)
 
-- read:
-    - domain: str
-    - host: str
+### network_ns (build, read, scrub)
 
-- quiesce:
-    - domain: str
-    - host: str
+### bridgeif_ns (build, read, scrub) - 
 
-- restart:
-    - domain: str
-    - host: str
+### vlanif_ns (build, read, scrub)
 
-- scrub:
-    - domain: str
-    - domain_path: str
-    - host: str
-    - primary_storage: str
+### vpnif_ns (build, read, scrub)
+
+### route_ns (build, read, scrub)
+
+### vpns2s_ns (build, read, scrub)
+
+### vpndyn_ns (build, read, scrub)
+
+
+## Compute LXD Primitives
+
+### lxd (build, quiesce, restart, read, scrub)
+
+### bridge_lxd (build, read, scrub) - 
+
+### storage_lxd (build, update, read, scrub)
+
+### cpu_lxd (update)
+
+### ram_lxd (update)
+
+### backup_lxd (build, read, scrub)
+
+### snapshot_lxd (build, update, read, scrub)
+
+### gpu_lxd (build, read, scrub) - 
+
+### rbd (build, update, read, scrub)
+
+### rbd_lxd (build, read, scrub)
+
+
+## Compute HyperV Primitives
+
+### hyperv (build, quiesce, restart, read, scrub)
+
+### storage_hyperv (build, update, read, scrub)
+
+### cpu_hyperv (update)
+
+### ram_hyperv (update)
+
+### backup_hyperv (build, read, scrub) -
+
+### snapshot_hyperv (build, update, read, scrub)

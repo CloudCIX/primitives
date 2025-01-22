@@ -6,11 +6,12 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 # lib
-from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from cloudcix_primitives.utils import (
-    SSHCommsWrapper,
     HostErrorFormatter,
+    hyperv_dictify,
+    SSHCommsWrapper,
 )
 
 __all__ = [
@@ -22,16 +23,6 @@ __all__ = [
 ]
 
 SUCCESS_CODE = 0
-
-
-def dictify(data):
-    lines = data.strip().split('\r\n')
-    # Splitting both lines by whitespace
-    items_line1 = lines[0].split()  # Header line
-    items_line3 = lines[2].split()  # info line
-    # Converting the paired data into a dictionary
-    data_dict = dict(zip(items_line1, items_line3))
-    return data_dict
 
 
 def build(
@@ -425,7 +416,7 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         else:
-            if dictify(ret['payload_message'])['State'] == 'Off':
+            if hyperv_dictify(ret['payload_message'])['State'] == 'Off':
                 quiesced = True
         fmt.add_successful('read_domstate_0', ret)
 
@@ -455,7 +446,7 @@ def quiesce(domain: str, host: str) -> Tuple[bool, str]:
                     ret, f'{prefix + 6}: Attempt #{attempt}-{messages[prefix + 6]}'
                 ), fmt.successful_payloads
             else:
-                if dictify(ret['payload_message'])['State'] == 'Off':
+                if hyperv_dictify(ret['payload_message'])['State'] == 'Off':
                     turnoff = True
                 else:
                     # wait interval is 0.5 seconds
@@ -557,7 +548,7 @@ def read(
             fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         else:
             # Load the domain info(in XML) into dict
-            data_dict[host] = dictify(ret["payload_message"])
+            data_dict[host] = hyperv_dictify(ret["payload_message"])
             fmt.add_successful('read_domain_info', ret)
 
         return retval, fmt.message_list, fmt.successful_payloads, data_dict
@@ -627,7 +618,7 @@ def restart(
         if ret["payload_code"] != SUCCESS_CODE:
             fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         else:
-            if dictify(ret['payload_message'])['State'] == 'Running':
+            if hyperv_dictify(ret['payload_message'])['State'] == 'Running':
                 running = True
         fmt.add_successful('read_domstate_0', ret)
 
@@ -653,7 +644,7 @@ def restart(
             if ret["payload_code"] != SUCCESS_CODE:
                 fmt.payload_error(ret, f'{prefix + 6}: Attempt #{attempt}-{messages[prefix + 6]}'), fmt.successful_payloads
             else:
-                if dictify(ret['payload_message'])['State'] == 'Running':
+                if hyperv_dictify(ret['payload_message'])['State'] == 'Running':
                     running = True
                 else:
                     # wait interval is 0.5 seconds
@@ -752,7 +743,7 @@ def scrub(
                 return True, "", fmt.successful_payloads
             fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         else:
-            if dictify(ret['payload_message'])['State'] == 'Off':
+            if hyperv_dictify(ret['payload_message'])['State'] == 'Off':
                 turnoff = True
         fmt.add_successful('read_domstate', ret)
 
@@ -785,3 +776,4 @@ def scrub(
         return status, msg
 
     return True, f'1100: {messages[1100]}'
+
