@@ -12,19 +12,19 @@
 
 ### default_firewall_ns (build, read, scrub)
 
-### project_firewall_ns (build, read, scrub)
+### project_firewall_ns (build, read)
 
-### nat_firewall_ns (build, read, scrub)
+### nat_firewall_ns (build, read)
 
-### geo_a_firewall_ns (build, read, scrub)
+### geo_a_firewall_ns (build, read)
 
-### geo_b_firewall_ns (build, read, scrub)
+### geo_b_firewall_ns (build, read)
 
-### external_firewall_ns (build, read, scrub)
+### external_firewall_ns (build, read)
 
-### vpns2s_firewall_ns (build, read, scrub)
+### vpns2s_firewall_ns (build, read)
 
-### vpndyn_firewall_ns (build, read, scrub)
+### vpndyn_firewall_ns (build, read)
 
 ### set_firewall_ns (build, update, read, scrub)
 

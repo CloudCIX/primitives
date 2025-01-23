@@ -7,7 +7,6 @@ from typing import Tuple
 __all__ = [
     'build',
     'read',
-    'scrub',
 ]
 
 
@@ -16,8 +15,4 @@ def build() -> Tuple[bool, str]:
 
 
 def read() -> Tuple[bool, str]:
-    return(False, 'Not Implemted')
-
-
-def scrub() -> Tuple[bool, str]:
     return(False, 'Not Implemted')
