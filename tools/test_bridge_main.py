@@ -24,10 +24,14 @@ data = None
 
 if cmd == 'build':
     status, msg = bridge_main.build(bridge=bridge, address_range=address_range)
-if cmd == 'scrub':
-    status, msg = bridge_main.scrub(bridge=bridge)
-if cmd == 'read':
+elif cmd == 'read':
     status, data, msg = bridge_main.read(bridge=bridge)
+elif cmd == 'scrub':
+    status, msg = bridge_main.scrub(bridge=bridge)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
+
 
 print("Status: %s" % status)
 print()

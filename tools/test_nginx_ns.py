@@ -11,7 +11,7 @@ from cloudcix_primitives import nginx_ns
 # * `tools/test_cidata.py build /etc/netns/mynetns/cloudcix-metadata/10.0.0.3/v1` to give the web server something to serve
 
 cmd = sys.argv[1]
-
+config_file = "/etc/cloudcix/pod/configs/config.json"
 namespace = 'mynetns'
 
 if len(sys.argv) > 2:
@@ -22,11 +22,14 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = nginx_ns.build(namespace, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'scrub':
-    status, msg = nginx_ns.scrub(namespace, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'read':
-    status, data, msg = nginx_ns.read(namespace, "/etc/cloudcix/pod/configs/config.json")
+    status, msg = nginx_ns.build(namespace, config_file)
+elif cmd == 'read':
+    status, data, msg = nginx_ns.read(namespace, config_file)
+elif cmd == 'scrub':
+    status, msg = nginx_ns.scrub(namespace, config_file)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
 
 print("Status: %s" %  status)
 print()

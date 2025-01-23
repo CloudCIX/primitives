@@ -109,16 +109,7 @@ if cmd == 'build':
         secondary_interfaces=secondary_interfaces,
         verify_lxd_certs=verify_lxd_certs,
     )
-if cmd == 'read':
-    status, data, msg = lxd.read(
-        endpoint_url=endpoint_url,
-        project=project,
-        name=name,
-        instance_type=instance_type,
-        verify_lxd_certs=verify_lxd_certs,
-    )
-
-if cmd == 'quiesce':
+elif cmd == 'quiesce':
     status, msg = lxd.quiesce(
         endpoint_url=endpoint_url,
         project=project,
@@ -126,7 +117,15 @@ if cmd == 'quiesce':
         instance_type=instance_type,
         verify_lxd_certs=verify_lxd_certs,
     )
-if cmd == 'restart':
+elif cmd == 'read':
+    status, data, msg = lxd.read(
+        endpoint_url=endpoint_url,
+        project=project,
+        name=name,
+        instance_type=instance_type,
+        verify_lxd_certs=verify_lxd_certs,
+    )
+elif cmd == 'restart':
     status, msg = lxd.restart(
         endpoint_url=endpoint_url,
         project=project,
@@ -134,8 +133,7 @@ if cmd == 'restart':
         instance_type=instance_type,
         verify_lxd_certs=verify_lxd_certs,
     )
-
-if cmd == 'scrub':
+elif cmd == 'scrub':
     status, msg = lxd.scrub(
         endpoint_url=endpoint_url,
         project=project,
@@ -143,6 +141,10 @@ if cmd == 'scrub':
         instance_type=instance_type,
         verify_lxd_certs=verify_lxd_certs,
     )
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
+
 
 print("Status: %s" %  status)
 print()

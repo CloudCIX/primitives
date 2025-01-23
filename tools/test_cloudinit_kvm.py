@@ -64,23 +64,34 @@ data = None
 
 if cmd == 'build':
     status, msg = cloudinit_kvm.build(
-        host=host, domain_path=domain_path, domain=domain, size=size, primary_storage=primary_storage,
-        cloudimage=cloudimage, cpu=cpu, ram=ram, osvariant=osvariant, gateway_interface=gateway_interface,
+        host=host,
+        domain_path=domain_path,
+        domain=domain,
+        size=size,
+        primary_storage=primary_storage,
+        cloudimage=cloudimage,
+        cpu=cpu,
+        ram=ram,
+        osvariant=osvariant,
+        gateway_interface=gateway_interface,
     )
-
-if cmd == 'read':
-    status, data, msg = cloudinit_kvm.read(domain=domain, host=host)
-
-if cmd == 'quiesce':
+elif cmd == 'quiesce':
     status, msg = cloudinit_kvm.quiesce(domain=domain, host=host)
-
-if cmd == 'restart':
+elif cmd == 'read':
+    status, data, msg = cloudinit_kvm.read(domain=domain, host=host)
+elif cmd == 'restart':
     status, msg = cloudinit_kvm.restart(domain=domain, host=host)
-
-if cmd == 'scrub':
+elif cmd == 'scrub':
     status, msg = cloudinit_kvm.scrub(
-        domain=domain, host=host, domain_path=domain_path, primary_storage=primary_storage,
+        domain=domain,
+        host=host,
+        domain_path=domain_path,
+        primary_storage=primary_storage,
     )
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
+
 
 print("Status: %s" % status)
 print()

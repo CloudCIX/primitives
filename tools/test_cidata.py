@@ -14,6 +14,7 @@ from cloudcix_primitives import cidata
 
 cmd = sys.argv[1]
 
+config_file = "/etc/cloudcix/pod/configs/config.json"
 domain_path = '/etc/netns/mynetns/cloudinit-metadata/10.0.0.3/v1'
 
 metadata = {
@@ -69,11 +70,15 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = cidata.build(domain_path, metadata, userdata, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'scrub':
-    status, msg = cidata.scrub(domain_path, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'read':
-    status, data, msg = cidata.read(domain_path, "/etc/cloudcix/pod/configs/config.json")
+    status, msg = cidata.build(domain_path, metadata, userdata, config_file)
+elif cmd == 'scrub':
+    status, msg = cidata.scrub(domain_path, config_file)
+elif cmd == 'read':
+    status, data, msg = cidata.read(domain_path, config_file)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
+
 
 print("Status: %s" %  status)
 print()

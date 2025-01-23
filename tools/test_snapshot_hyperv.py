@@ -40,17 +40,17 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = snapshot_hyperv.build(
-        host=host, domain=domain, snapshot=snapshot,
-    )
-if cmd == 'update':
-    status, msg = snapshot_hyperv.update(
-        host=host, domain=domain, snapshot=snapshot,
-    )
-if cmd == 'scrub':
-    status, msg = snapshot_hyperv.scrub(host=host, domain=domain, snapshot=snapshot, remove_subtree=remove_subtree)
-if cmd == 'read':
+    status, msg = snapshot_hyperv.build(host=host, domain=domain, snapshot=snapshot)
+elif cmd == 'read':
     status, data, msg = snapshot_hyperv.read(host=host, domain=domain, snapshot=snapshot)
+elif cmd == 'scrub':
+    status, msg = snapshot_hyperv.scrub(host=host, domain=domain, snapshot=snapshot, remove_subtree=remove_subtree)
+elif cmd == 'update':
+    status, msg = snapshot_hyperv.update(host=host, domain=domain, snapshot=snapshot)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
+
 
 print("Status: %s" % status)
 print()

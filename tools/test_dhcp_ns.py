@@ -12,6 +12,7 @@ from cloudcix_primitives import dhcp_ns
 # * `tools/test_ns.py build mynetns to ensure the name space we want to run dhcpns in exists
 
 cmd = sys.argv[1]
+config_file = "/etc/cloudcix/pod/configs/config.json"
 
 namespace = 'mynetns'
 
@@ -48,11 +49,15 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = dhcp_ns.build(namespace, dhcp_ranges, dhcp_hosts, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'scrub':
-    status, msg = dhcp_ns.scrub(namespace, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'read':
-    status, data, msg = dhcp_ns.read(namespace, "/etc/cloudcix/pod/configs/config.json")
+    status, msg = dhcp_ns.build(namespace, dhcp_ranges, dhcp_hosts, config_file)
+elif cmd == 'read':
+    status, data, msg = dhcp_ns.read(namespace, config_file)
+elif cmd == 'scrub':
+    status, msg = dhcp_ns.scrub(namespace, config_file)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
+
 
 print("Status: %s" %  status)
 print()

@@ -345,7 +345,6 @@ def read(
 
 
 
-
 def scrub(
         namespace: str,
         config_file=None

@@ -10,7 +10,7 @@ from cloudcix_primitives import vlanif_ns
 # * `tools/test_ns.py build mynetns to ensure the name space we want exists
 
 cmd = sys.argv[1]
-
+config_file = "/etc/cloudcix/pod/configs/config.json"
 namespace = 'mynetns'
 
 vlan = 4000
@@ -30,11 +30,14 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = vlanif_ns.build(vlan, ifname, namespace, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'scrub':
-    status, msg = vlanif_ns.scrub(vlan, ifname, namespace, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'read':
-    status, data, msg = vlanif_ns.read(vlan, ifname, namespace, "/etc/cloudcix/pod/configs/config.json")
+    status, msg = vlanif_ns.build(vlan, ifname, namespace, config_file)
+elif cmd == 'scrub':
+    status, msg = vlanif_ns.scrub(vlan, ifname, namespace, config_file)
+elif cmd == 'read':
+    status, data, msg = vlanif_ns.read(vlan, ifname, namespace, config_file)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
 
 
 print("Status: %s" %  status)

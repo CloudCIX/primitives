@@ -36,10 +36,14 @@ data = None
 
 if cmd == 'build':
     status, msg = bridge_kvm.build(host=host, vlan=vlan, ifname=ifname)
-if cmd == 'scrub':
-    status, msg = bridge_kvm.scrub(host=host, vlan=vlan)
-if cmd == 'read':
+elif cmd == 'read':
     status, data, msg = bridge_kvm.read(host=host, vlan=vlan)
+elif cmd == 'scrub':
+    status, msg = bridge_kvm.scrub(host=host, vlan=vlan)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
+
 
 print("Status: %s" %  status)
 print()

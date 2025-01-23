@@ -232,7 +232,6 @@ def build(
     return True, messages[1000]
 
 
-
 def read(
         name: str,
         lo_addr='169.254.169.254',
@@ -481,8 +480,6 @@ def read(
         return False, data_dict, msg_list
     else:
        return True, data_dict, (messages[1200])
-
-
 
 
 def scrub(

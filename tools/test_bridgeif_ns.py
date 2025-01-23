@@ -6,7 +6,9 @@ from cloudcix_primitives import bridgeif_ns
 
 # Fetch command and arguments
 cmd = sys.argv[1] if len(sys.argv) > 1 else None
-bridgename, namespace_name = "testbridge", "testns"
+bridgename = "testbridge"
+namespace_name = "testns"
+config_file = "/etc/cloudcix/pod/configs/config.json"
 
 if len(sys.argv) > 2:
     bridgename = sys.argv[2]
@@ -19,14 +21,15 @@ data = None
 
 # Check and execute command
 if cmd == 'build':
-    status, msg = bridgeif_ns.build(bridgename, namespace_name, "/etc/cloudcix/pod/configs/config.json")
-elif cmd == 'scrub':
-    status, msg = bridgeif_ns.scrub(bridgename, namespace_name, "/etc/cloudcix/pod/configs/config.json")
+    status, msg = bridgeif_ns.build(bridgename, namespace_name, config_file)
 elif cmd == 'read':
-    status, data, msg = bridgeif_ns.read(bridgename, namespace_name,  "/etc/cloudcix/pod/configs/config.json")
+    status, data, msg = bridgeif_ns.read(bridgename, namespace_name, config_file)
+elif cmd == 'scrub':
+    status, msg = bridgeif_ns.scrub(bridgename, namespace_name, config_file)
 else:
    print(f"Unknown command: {cmd}")
    sys.exit(1)
+
 
 # Output the status and messages
 print("Status: %s" % status)

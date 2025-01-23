@@ -33,17 +33,17 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = storage_hyperv.build(
-        host=host, domain_path=domain_path, storage=storage, size=size
-    )
-if cmd == 'update':
-    status, msg = storage_hyperv.update(
-        host=host, domain_path=domain_path, storage=storage, size=size
-    )
-if cmd == 'scrub':
-    status, msg = storage_hyperv.scrub(host=host, domain_path=domain_path, storage=storage)
-if cmd == 'read':
+    status, msg = storage_hyperv.build(host=host, domain_path=domain_path, storage=storage, size=size)
+elif cmd == 'read':
     status, data, msg = storage_hyperv.read(host=host, domain_path=domain_path, storage=storage)
+elif cmd == 'scrub':
+    status, msg = storage_hyperv.scrub(host=host, domain_path=domain_path, storage=storage)
+elif cmd == 'update':
+    status, msg = storage_hyperv.update(host=host, domain_path=domain_path, storage=storage, size=size)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
+
 
 print("Status: %s" % status)
 print()

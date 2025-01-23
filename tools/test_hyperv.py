@@ -51,27 +51,33 @@ data = None
 
 if cmd == 'build':
     if robot_drive_url is None:
-        print('`robot_drive_url` is required, please supply the host as third argument.')
+        print('`robot_drive_url` is required, please supply the host as third argument for build.')
         exit()
     status, msg = hyperv.build(
-        host=host, domain=domain, size=size, primary_storage=primary_storage,
-        image=image, cpu=cpu, ram=ram, gateway_vlan=gateway_vlan, secondary_vlans=secondary_vlans,
-        secondary_storages=secondary_storages, robot_drive_url=robot_drive_url,
+        host=host,
+        domain=domain,
+        size=size,
+        primary_storage=primary_storage,
+        image=image,
+        cpu=cpu,
+        ram=ram,
+        gateway_vlan=gateway_vlan,
+        secondary_vlans=secondary_vlans,
+        secondary_storages=secondary_storages,
+        robot_drive_url=robot_drive_url,
     )
-
-if cmd == 'read':
-    status, data, msg = hyperv.read(domain=domain, host=host)
-
-if cmd == 'quiesce':
+elif cmd == 'quiesce':
     status, msg = hyperv.quiesce(domain=domain, host=host)
-
-if cmd == 'restart':
+elif cmd == 'read':
+    status, data, msg = hyperv.read(domain=domain, host=host)
+elif cmd == 'restart':
     status, msg = hyperv.restart(domain=domain, host=host)
+elif cmd == 'scrub':
+    status, msg = hyperv.scrub(domain=domain, host=host, primary_storage=primary_storage)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
 
-if cmd == 'scrub':
-    status, msg = hyperv.scrub(
-        domain=domain, host=host, primary_storage=primary_storage,
-    )
 
 print("Status: %s" % status)
 print()

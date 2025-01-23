@@ -15,7 +15,7 @@ namespace = 'mynetns'
 
 address_range = '10.0.0.1/24'
 device = 'private0.4000' 
-
+config_file = "/etc/cloudcix/pod/configs/config.json"
 
 if len(sys.argv) > 2:
     namespace = sys.argv[2]
@@ -30,11 +30,14 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = network_ns.build(address_range, device, namespace, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'scrub':
-    status, msg = network_ns.scrub(address_range, device, namespace, "/etc/cloudcix/pod/configs/config.json")
-if cmd == 'read':
-    status, data, msg = network_ns.read(address_range, device, namespace, "/etc/cloudcix/pod/configs/config.json")
+    status, msg = network_ns.build(address_range, device, namespace, config_file)
+elif cmd == 'read':
+    status, data, msg = network_ns.read(address_range, device, namespace, config_file)
+elif cmd == 'scrub':
+    status, msg = network_ns.scrub(address_range, device, namespace, config_file)
+else:
+   print(f"Unknown command: {cmd}")
+   sys.exit(1)
 
 print("Status: %s" %  status)
 print()
