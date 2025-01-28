@@ -145,6 +145,34 @@ def load_pod_config(config_file=None, prefix=4000) -> Tuple[bool, Dict[str, Opti
 
     return True, config_data, f'{prefix + 10}: {messages[10]}'
 
+def write_rule(namespace: str, rule: Dict[str, Optional[Any]], user_chain: str) -> str:
+    """
+    Builds an ip/ip6 command string to write a rule to the provided chain.
+    :param namespace: network namespace to write the rule to.
+    :param rule: dictionary object containing rule configuration.
+    :param user_chain: nftables chain to add the rule to.
+    """
+    v = '' if str(rule['version']) == '4' else '6'
+
+    command = [f'ip{v} netns exec {namespace} nft add rule inet FILTER {user_chain} ip saddr {rule["source"]} ip daddr {rule["destination"]}']
+
+    if rule['protocol'] == 'icmp' and str(rule['version']) == '4':
+        command.append('icmp type { echo-reply, destination-unreachable, echo-request, time-exceeded }')
+    elif rule['protocol'] == 'icmp' and str(rule['version']) == '6':
+        command.append('icmpv6 type { echo-request, mld-listener-query, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert }')
+    elif rule['protocol'] != 'any':
+        command.append(f'{rule['protocol']}')
+
+    if rule['port'] is not None:
+        command.append(f'dport {{ {rule['port']} }}')
+    
+    if rule['log']:
+        command.append(f'log prefix "Namespace_{namespace}_Table_FILTER" level debug')
+
+    command.append(rule["action"])
+
+    return " ".join(command)
+
 
 class HostErrorFormatter:
     """Formats error messages occurring on KVM/HyperV/Ceph hosts and keeps error/success message state if needed"""
