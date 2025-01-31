@@ -20,6 +20,33 @@ def build(
     outbound: List[str],
     config_file=None
 ) -> Tuple[bool, str]:
+    """
+    description:
+        Adds the nftables sets inbound and outbound to the GEO_IN_BLOCK and GEO_OUT_BLOCK packet dropping chains respectively.
+
+    parameters:
+        namespace:
+            description: VRF network name space's identifier, such as 'VRF453'
+            type: string
+            required: true
+        inbound:
+            description: list of nftable sets to add to the GEO_IN_BLOCK chain.
+            type: list
+            required: true
+        outbound:
+            description: list of nftable sets to add to the GEO_OUT_BLOCK chain.
+            type: list
+            required: true
+        config_file:
+            description: path to the config.json file
+            type: string
+            required: false
+    return:
+        description: |
+            A tuple with a boolean flag stating if the build was successful or not and 
+            the output or error message.
+        type: tuple
+    """
     messages = {
         1000: f'1000: Successfully created block rulesets in namespace {namespace}',
 
@@ -72,9 +99,9 @@ def build(
             'flush_in_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_IN_BLOCK',
             'flush_out_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_OUT_BLOCK',
             'create_inbound_rule': f'ip netns exec {namespace} nft add rule inet FILTER GEO_IN_BLOCK '
-                                    'ip saddr @%(chain_name)s drop',
+                                    'ip saddr @%(set_name)s drop',
             'create_outbound_rule': f'ip netns exec {namespace} nft add rule inet FILTER GEO_OUT_BLOCK '
-                                    'ip daddr @%(chain_name)s drop'
+                                    'ip daddr @%(set_name)s drop'
         }
 
         ret = rcc.run(payloads['flush_in_chain'])
@@ -92,7 +119,7 @@ def build(
         fmt.add_successful('flush_out_chain', ret)
 
         for inb in inbound:
-            ret = rcc.run(payloads['create_inbound_rule'] % {'chain_name': inb})
+            ret = rcc.run(payloads['create_inbound_rule'] % {'set_name': inb})
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
@@ -100,7 +127,7 @@ def build(
             fmt.add_successful('create_inbound_rule', ret)
 
         for out in outbound:
-            ret = rcc.run(payloads['create_outbound_rule'] % {'chain_name': out})
+            ret = rcc.run(payloads['create_outbound_rule'] % {'set_name': out})
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
@@ -116,6 +143,8 @@ def build(
     status, msg, successful_payloads = run_podnet(disabled, 3060, successful_payloads)
     if status == False:
         return status, msg
+    
+    return True, messages[1000]
 
 
 def read() -> Tuple[bool, dict, str]:
