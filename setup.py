@@ -27,13 +27,13 @@ setup(
     CloudCIX drivers use to effect changes on the cloud's infrastructure (e.g.
     PodNet nodes, hypervisors).""",
     classifiers=[
-    "Development Status :: 5 - Production/Stable",
-    "Environment :: Console",
-    "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: Apache Software License",
-    "Operating System :: Unix",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3.7",
-    "Topic :: Software Development :: Libraries",
+        "Development Status :: 5 - Production/Stable",
+        "Environment :: Console",
+        "Intended Audience :: End Users/Desktop",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: Unix",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.7",
+        "Topic :: Software Development :: Libraries",
     ],
-    )
+)
