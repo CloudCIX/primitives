@@ -72,9 +72,9 @@ def build(
             'flush_in_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_IN_BLOCK',
             'flush_out_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_OUT_BLOCK',
             'create_inbound_rule': f'ip netns exec {namespace} nft add rule FILTER GEO_IN_BLOCK '
-                                    'ip saddr @%(set_name)s drop',
+                                    'ip saddr @%(chain_name)s drop',
             'create_outbound_rule': f'ip netns exec {namespace} nft add rule FILTER GEO_OUT_BLOCK '
-                                    'ip daddr @%(set_name)s drop'
+                                    'ip daddr @%(chain_name)s drop'
         }
 
         ret = rcc.run(payloads['flush_in_chain'])
@@ -92,7 +92,7 @@ def build(
         fmt.add_successful('flush_out_chain', ret)
 
         for inb in inbound:
-            ret = rcc.run(payloads['create_inbound_rule'])
+            ret = rcc.run(payloads['create_inbound_rule'] % {'chain_name': inb})
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
@@ -100,7 +100,7 @@ def build(
             fmt.add_successful('create_inbound_rule', ret)
 
         for out in outbound:
-            ret = rcc.run(payloads['create_outbound_rule'])
+            ret = rcc.run(payloads['create_outbound_rule'] % {'chain_name': out})
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
