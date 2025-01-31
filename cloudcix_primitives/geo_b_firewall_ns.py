@@ -23,19 +23,19 @@ def build(
     messages = {
         1000: f'1000: Successfully created block rulesets in namespace {namespace}',
 
-        3021: f'3021: Failed to connect to the enabled PodNet for flush_in_ruleset payload:  ',
-        3022: f'3022: Failed to flush GEO_IN_BLOCK ruleset in namespace {namespace} on the enabled PodNet for payload flush_in_ruleset:  ',
-        3023: f'3023: Failed to connect to the enabled PodNet for flush_out_ruleset payload:  ',
-        3024: f'3024: Failed to flush GEO_OUT_BLOCK ruleset in namespace {namespace} on the enabled PodNet for payload flush_out_ruleset:  ',
+        3021: f'3021: Failed to connect to the enabled PodNet for flush_in_chain payload:  ',
+        3022: f'3022: Failed to flush GEO_IN_BLOCK chain in namespace {namespace} on the enabled PodNet for payload flush_in_chain:  ',
+        3023: f'3023: Failed to connect to the enabled PodNet for flush_out_chain payload:  ',
+        3024: f'3024: Failed to flush GEO_OUT_BLOCK chain in namespace {namespace} on the enabled PodNet for payload flush_out_chain:  ',
         3025: f'3025: Failed to connect to the enabled PodNet for create_inbound_rule payload:  ',
         3026: f'3026: Failed to create inbound block rule in namespace {namespace} on the enabled PodNet for payload create_inbound_rule:  ',
         3027: f'3027: Failed to connect to the enabled PodNet for create_outbound_rule payload:  ',
         3028: f'3028: Failed to create outbound block rule in namespace {namespace} on the enabled PodNet for payload create_outbound_rule:  ',
 
-        3051: f'3051: Failed to connect to the disabled PodNet for flush_in_ruleset payload:  ',
-        3052: f'3052: Failed to flush GEO_IN_BLOCK ruleset in namespace {namespace} on the disabled PodNet for payload flush_in_ruleset:  ',
-        3053: f'3053: Failed to connect to the disabled PodNet for flush_out_ruleset payload:  ',
-        3054: f'3054: Failed to flush GEO_OUT_BLOCK ruleset in namespace {namespace} on the disabled PodNet for payload flush_out_ruleset:  ',
+        3051: f'3051: Failed to connect to the disabled PodNet for flush_in_chain payload:  ',
+        3052: f'3052: Failed to flush GEO_IN_BLOCK chain in namespace {namespace} on the disabled PodNet for payload flush_in_chain:  ',
+        3053: f'3053: Failed to connect to the disabled PodNet for flush_out_chain payload:  ',
+        3054: f'3054: Failed to flush GEO_OUT_BLOCK chain in namespace {namespace} on the disabled PodNet for payload flush_out_chain:  ',
         3055: f'3055: Failed to connect to the disabled PodNet for create_inbound_rule payload:  ',
         3056: f'3056: Failed to create inbound block rule in namespace {namespace} on the disabled PodNet for payload create_inbound_rule:  ',
         3057: f'3057: Failed to connect to the disabled PodNet for create_outbound_rule payload:  ',
@@ -69,27 +69,27 @@ def build(
         )
 
         payloads = {
-            'flush_in_ruleset': f'ip netns exec {namespace} nft flush set inet FILTER GEO_IN_BLOCK',
-            'flush_out_ruleset': f'ip netns exec {namespace} nft flush set inet FILTER GEO_OUT_BLOCK',
+            'flush_in_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_IN_BLOCK',
+            'flush_out_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_OUT_BLOCK',
             'create_inbound_rule': f'ip netns exec {namespace} nft add rule FILTER GEO_IN_BLOCK '
                                     'ip saddr @%(set_name)s drop',
             'create_outbound_rule': f'ip netns exec {namespace} nft add rule FILTER GEO_OUT_BLOCK '
                                     'ip daddr @%(set_name)s drop'
         }
 
-        ret = rcc.run(payloads['flush_in_ruleset'])
+        ret = rcc.run(payloads['flush_in_chain'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
-        fmt.add_successful('flush_in_ruleset', ret)
+        fmt.add_successful('flush_in_chain', ret)
 
-        ret = rcc.run(payloads['flush_out_ruleset'])
+        ret = rcc.run(payloads['flush_out_chain'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
-        fmt.add_successful('flush_out_ruleset', ret)
+        fmt.add_successful('flush_out_chain', ret)
 
         for inb in inbound:
             ret = rcc.run(payloads['create_inbound_rule'])
