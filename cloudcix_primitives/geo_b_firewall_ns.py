@@ -71,9 +71,9 @@ def build(
         payloads = {
             'flush_in_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_IN_BLOCK',
             'flush_out_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_OUT_BLOCK',
-            'create_inbound_rule': f'ip netns exec {namespace} nft add rule FILTER GEO_IN_BLOCK '
+            'create_inbound_rule': f'ip netns exec {namespace} nft add rule inet FILTER GEO_IN_BLOCK '
                                     'ip saddr @%(chain_name)s drop',
-            'create_outbound_rule': f'ip netns exec {namespace} nft add rule FILTER GEO_OUT_BLOCK '
+            'create_outbound_rule': f'ip netns exec {namespace} nft add rule inet FILTER GEO_OUT_BLOCK '
                                     'ip daddr @%(chain_name)s drop'
         }
 
