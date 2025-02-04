@@ -99,9 +99,9 @@ def build(
             'flush_in_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_IN_BLOCK',
             'flush_out_chain': f'ip netns exec {namespace} nft flush chain inet FILTER GEO_OUT_BLOCK',
             'create_inbound_rule': f'ip netns exec {namespace} nft add rule inet FILTER GEO_IN_BLOCK '
-                                    'ip saddr @%(set_name)s drop',
+                                    'ip%(ip_version)s saddr @%(set_name)s drop',
             'create_outbound_rule': f'ip netns exec {namespace} nft add rule inet FILTER GEO_OUT_BLOCK '
-                                    'ip daddr @%(set_name)s drop'
+                                    'ip%(ip_version)s daddr @%(set_name)s drop'
         }
 
         ret = rcc.run(payloads['flush_in_chain'])
@@ -111,6 +111,19 @@ def build(
             return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
         fmt.add_successful('flush_in_chain', ret)
 
+        for inb in inbound:
+            if inb.endswith('_V4'):
+                ip_version = ''
+            elif inb.endswith('_V6'):
+                ip_version = '6'
+
+            ret = rcc.run(payloads['create_inbound_rule'] % {'set_name': inb, 'ip_version': ip_version})
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+            fmt.add_successful('create_inbound_rule', ret)
+
         ret = rcc.run(payloads['flush_out_chain'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
@@ -118,16 +131,13 @@ def build(
             return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
         fmt.add_successful('flush_out_chain', ret)
 
-        for inb in inbound:
-            ret = rcc.run(payloads['create_inbound_rule'] % {'set_name': inb})
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-            if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
-            fmt.add_successful('create_inbound_rule', ret)
-
         for out in outbound:
-            ret = rcc.run(payloads['create_outbound_rule'] % {'set_name': out})
+            if out.endswith('_V4'):
+                ip_version = ''
+            elif out.endswith('_V6'):
+                ip_version = '6'
+
+            ret = rcc.run(payloads['create_outbound_rule'] % {'set_name': out, 'ip_version': ip_version})
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
