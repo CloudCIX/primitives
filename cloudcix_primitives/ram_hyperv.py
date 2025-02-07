@@ -10,4 +10,4 @@ __all__ = [
 
 
 def update() -> Tuple[bool, str]:
-    return(False, 'Not Implemted')
+    return(False, 'Not Implemented')

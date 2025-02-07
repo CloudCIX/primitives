@@ -11,8 +11,8 @@ __all__ = [
 
 
 def build() -> Tuple[bool, str]:
-    return(False, 'Not Implemted')
+    return(False, 'Not Implemented')
 
 
 def read() -> Tuple[bool, dict, str]:
-    return(False, {}, 'Not Implemted')
+    return(False, {}, 'Not Implemented')
