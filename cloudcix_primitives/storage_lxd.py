@@ -16,16 +16,16 @@ __all__ = [
 
 
 def build() -> Tuple[bool, str]:
-    return(False, 'Not Implemted')
+    return(False, 'Not Implemented')
 
 
 def read():
-    return(False, 'Not Implemted')
+    return(False, 'Not Implemented')
 
 
 def scrub(): -> Tuple[bool, str]:
-    return(False, 'Not Implemted')
+    return(False, 'Not Implemented')
 
 
 def update() -> Tuple[bool, str]:
-    return(False, 'Not Implemted')
+    return(False, 'Not Implemented')
