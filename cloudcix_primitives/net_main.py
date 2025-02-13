@@ -5,7 +5,7 @@ Primitive for Global Network (Netplan interface config) on PodNet
 import logging
 from typing import Tuple
 # lib
-from cloudcix.rcc import deploy_lsh, deploy_ssh, CouldNotConnectException
+from cloudcix.rcc import comms_lsh, comms_ssh, CHANNEL_SUCCESS, CONNECTION_ERROR
 # local
 from cloudcix_primitives.utils import JINJA_ENV, check_template_data
 
@@ -18,6 +18,7 @@ __all__ = [
 BUILD_TEMPLATE = 'net_main/commands/build.sh.j2'
 LOGGER = 'primitives.net_main'
 
+SUCCESS_CODE = 0
 
 def build(
         host: str,
@@ -149,41 +150,18 @@ def build(
 
     success, output = False, ''
     # Deploy the bash script to the Host
-    try:
-        if host in ['127.0.0.1', None, '', 'localhost']:
-            stdout, stderr = deploy_lsh(
-                payload=bash_script,
-            )
-        else:
-            stdout, stderr = deploy_ssh(
-                host_ip=host,
-                payload=bash_script,
-                username='robot',
-            )
-    except CouldNotConnectException as e:
-        return False, str(e)
+    if host in ['127.0.0.1', None, '', 'localhost']:
+        ret = comms_lsh(payload=bash_script)
+    else:
+        ret = comms_ssh(host_ip=host, payload=bash_script, username='robot')
 
-    if stdout:
-        logger.debug(
-            f'Netplan interface #{standard_name} on #{host} build commands generated stdout.'
-            f'\n{stdout}',
-        )
-        for code, message in messages.items():
-            if message in stdout:
-                output += message
-                if int(code) < 100:
-                    success = True
+    if ret['channel_code'] != CHANNEL_SUCCESS:
+        return False, f'{ret["channel_message"]}\nError: {ret["channel_error"]}'
+    if ret['payload_code'] != SUCCESS_CODE:
+        return False, f'{ret["payload_message"]}\nError: {ret["payload_error"]}'
 
-    if stderr:
-        logger.error(
-            f'Netplan interface #{standard_name} on #{host} build commands generated stderr.'
-            f'\n{stderr}',
-        )
-        output += stderr
-
-    return success, output
-
+    return True, ret["payload_message"]
 
 
 def read() -> Tuple[bool, dict, str]:
-    return(False, {}, 'Not Implemted')
+    return(False, {}, 'Not Implemented')

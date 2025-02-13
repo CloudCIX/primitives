@@ -158,4 +158,4 @@ def build(
 
 
 def read() -> Tuple[bool, dict, str]:
-    return(False, {}, 'Not Implemted')
+    return(False, {}, 'Not Implemented')

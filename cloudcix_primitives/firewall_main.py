@@ -6,7 +6,7 @@ import logging
 from collections import deque
 from typing import Tuple
 # lib
-from cloudcix.rcc import deploy_lsh, CouldNotExecuteException
+from cloudcix.rcc import comms_lsh, CHANNEL_SUCCESS, CONNECTION_ERROR
 # local
 from .controllers import FirewallPodNet
 from cloudcix_primitives.utils import JINJA_ENV, check_template_data
@@ -19,6 +19,7 @@ __all__ = [
 BUILD_TEMPLATE = 'firewall_main/commands/build.sh.j2'
 LOGGER = 'primitives.firewall_main'
 
+SUCCESS_CODE = 0
 
 def complete_rule(rule, iiface, oiface, log_setup):
     v = '' if rule['version'] == '4' else '6'
@@ -216,27 +217,14 @@ def build(
     logger.debug(f'Generated PodNet Firewall build bash script#\n{bash_script}')
 
     # Deploy the bash script to the Host
-    try:
-        stdout, stderr = deploy_lsh(
-            payload=bash_script,
-        )
-    except CouldNotExecuteException as e:
-        return False, str(e)
+    ret = comms_lsh(payload=bash_script)
+    if ret['channel_code'] != CHANNEL_SUCCESS:
+        return False, f'{ret["channel_message"]}\nError: {ret["channel_error"]}'
+    if ret['payload_code'] != SUCCESS_CODE:
+        return False, f'{ret["payload_message"]}\nError: {ret["payload_error"]}'
 
-    if stdout:
-        logger.debug(f'Firewall rules for PodNet build commands generated stdout.\n{stdout}')
-        for code, message in messages.items():
-            if message in stdout:
-                output += message
-                if int(code) < 100:
-                    success = True
-    if stderr:
-        logger.error(f'Firewall rules for PodNet build commands generated stderr.\n{stderr}')
-        output += stderr
-
-    return success, output
-
+    return True, ret["payload_message"]
 
 
 def read() -> Tuple[bool, dict, str]:
-    return(False, {}, 'Not Implemted')
+    return(False, {}, 'Not Implemented')
