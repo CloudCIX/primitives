@@ -6,7 +6,6 @@ import sys
 from typing import Tuple
 # libs
 from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd
-from pylxd import Client  # Import pylxd Client
 # local
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
 
@@ -54,6 +53,7 @@ def update_cpu_lxd(
         3423: f'Failed to quiesce {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
         3025: f'Failed to set CPU limit for {instance_type} {name}',
         3523: f'Failed to restart {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
+        'default': 'An unexpected error occurred. Error code: ',
     }
 
     # validation
@@ -85,21 +85,13 @@ def update_cpu_lxd(
         elif state.status != 'Stopped':
             return False, f"{prefix+3}: {messages[3423]} {state.status}", fmt.successful_payloads
             
-        # Update the CPU limit using pylxd
+        # Update the CPU limit using LXDCommsWrapper
         try:
-            client = Client(endpoint=endpoint_url, verify=verify_lxd_certs)
-            if instance_type == "containers":
-                instance = client.containers.get(name)
-            elif instance_type == "virtual_machines":
-                instance = client.virtual_machines.get(name)
-            else:
-                raise ValueError(f"Unsupported instance type: {instance_type}")
-
-            config = instance.config
-            config['limits.cpu'] = str(cpu)
-            instance.save()  # Use pylxd's save method
+            instance.config['limits.cpu'] = str(cpu)
+            instance.save(wait=True)
+            fmt.add_successful(f'{instance_type}.set', {'limits.cpu': str(cpu)})
         except Exception as e:
-            return False, fmt.payload_error(ret, f"{prefix+5}: {messages[3025]}: {e}"), fmt.successful_payloads
+            return False, f"{prefix+4}: {messages[3025]}: {e}", fmt.successful_payloads
 
         # Restart the instance
         try:
