@@ -6,7 +6,6 @@ import sys
 from typing import Tuple
 # libs
 from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd
-from pylxd import Client  # Import pylxd Client
 # local
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
 
@@ -28,7 +27,7 @@ def update_ram_lxd(
     """ Update the RAM of an LXD instance.
 
     :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name. 
+    :param project: The LXD project name.
     :param name: The name of the LXD instance.
     :param instance_type: The type of the LXD instance, either "containers" or "virtual_machines".
     :param ram: The amount of RAM to set, in GB.
@@ -77,21 +76,13 @@ def update_ram_lxd(
         elif state.status != 'Stopped':
             return False, f"{prefix+3}: {messages[3423]} {state.status}", fmt.successful_payloads
             
-        # Update the memory limit using pylxd
+        # Update the memory limit using LXDCommsWrapper
         try:
-            client = Client(endpoint=endpoint_url, verify=verify_lxd_certs)
-            if instance_type == "containers":
-                instance = client.containers.get(name)
-            elif instance_type == "virtual_machines":
-                instance = client.virtual_machines.get(name)
-            else:
-                raise ValueError(f"Unsupported instance type: {instance_type}")
-
-            config = instance.config
-            config['limits.memory'] = f'{ram}GB'
-            instance.save()  # Use pylxd's save method
+            instance.config['limits.memory'] = f'{ram}GB'
+            instance.save(wait=True)
+            fmt.add_successful(f'{instance_type}.set', {'limits.memory': f'{ram}GB'})
         except Exception as e:
-            return False, fmt.payload_error(ret, f"{prefix+5}: {messages[3025]}: {e}"), fmt.successful_payloads
+            return False, f"{prefix+4}: {messages[3025]}: {e}", fmt.successful_payloads
 
         # Restart the instance
         try:
