@@ -1,19 +1,14 @@
 '''
 POC: CPU limit update for LXD instances.
-CLI Usage: 
-    python3 cpu_lxd.py https://10.254.3.9:8443 default container01 containers 4 true
 '''
 # stdlib
 import sys
-import logging
 from typing import Tuple
 # libs
 from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd
 from pylxd import Client  # Import pylxd Client
 # local
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
-
-logging.basicConfig(level=logging.DEBUG)
 
 __all__ = [
     'update_cpu_lxd',
@@ -63,7 +58,6 @@ def update_cpu_lxd(
 
     # validation
     if instance_type not in SUPPORTED_INSTANCES:
-        logging.error(f'Invalid instance_type: {instance_type}')
         return False, f'3011: {messages[3011]}', {}
 
     def run_host(endpoint_url, prefix, successful_payloads):
