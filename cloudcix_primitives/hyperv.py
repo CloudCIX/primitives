@@ -228,7 +228,7 @@ def build(
         payloads = {
             # check if vm exists already
             'read_vm_info':             f'Get-VM -Name {vm_identifier} ',
-            'create_dir_structure':     f'New-Item -ItemType Directory -Path {vm_path}\\mount',
+            'create_dir_structure':     f'New-Item -ItemType Directory -Path {vm_path}\\mount -Force',
             'create_primary_storage':   f'New-PSDrive -Name drive_{vm_identifier} -PSProvider FileSystem -Root {host_mount_path}; '
                                         f'Copy-Item drive_{vm_identifier}:\\HyperV\\VHDXs\\{image}  -Destination {storage_path}',
             'resize_primary_storage':   f'Resize-VHD -Path {storage_path} -SizeBytes {gb}GB',

@@ -34,7 +34,7 @@ gateway_network = {
     }]
 }
 secondary_networks = []
-local_mount_path = '/etc/cloudcix/robot/'
+local_mount_path = '/etc/cloudcix/robot'
 
 if len(sys.argv) > 2:
     host = sys.argv[2]
