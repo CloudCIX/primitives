@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Network>
+    <NetAdapters>
+{% for address in gateway_network['ips'] %}
+        <NetAdapter Name="vNIC-{{ gateway_network['vlan'] }}" IP="{{ address['ip'] }}" Netmask="{{ address['netmask'] }}" GW="{{ address['gateway'] }}" DNS="{{ address['dns'] }}"  RegisterDNS="1" />
+{% endfor %}
+    </NetAdapters>
+{% for network in secondary_networks %}
+    <NetAdapters>
+{% for address in network['ips'] %}
+        <NetAdapter Name="vNIC-{{ network['vlan'] }}" IP="{{ address['ip'] }}" Netmask="{{ address['netmask'] }}" />
+{% endfor %}
+    </NetAdapters>
+{% endfor %}
+</Network>
