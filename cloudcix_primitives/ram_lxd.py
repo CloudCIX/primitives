@@ -10,12 +10,12 @@ from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
 
 __all__ = [
-    'update_ram_lxd',
+    'update',
 ]
 
 SUPPORTED_INSTANCES = ['virtual_machines', 'containers']
 
-def update_ram_lxd(
+def update(
         endpoint_url: str,
         project: str,
         name: str,
@@ -34,7 +34,6 @@ def update_ram_lxd(
     :param verify_lxd_certs: Boolean to verify LXD certs.
     :return: A tuple with a boolean flag indicating success or failure, a message, and a dictionary of successful payloads.
     """
-
     # Define message
     messages = {
         1000: f'Successfully updated the RAM for {instance_type} {name} on {endpoint_url}',
@@ -69,14 +68,14 @@ def update_ram_lxd(
         instance = ret['payload_message']
         fmt.add_successful(f'{instance_type}.get', ret)
 
-        # Quiesce the instance (stop the instance)
+        # Quiesce the instance
         state = instance.state()
         if state.status == 'Running':
             instance.stop(force=False, wait=True)
         elif state.status != 'Stopped':
             return False, f"{prefix+3}: {messages[3423]} {state.status}", fmt.successful_payloads
             
-        # Update the memory limit using LXDCommsWrapper
+        # Update the memory limit
         try:
             instance.config['limits.memory'] = f'{ram}GB'
             instance.save(wait=True)
@@ -114,5 +113,5 @@ if __name__ == "__main__":
     ram = int(sys.argv[5])
     verify_lxd_certs = sys.argv[6].lower() == 'true'
 
-    success, message, payload = update_ram_lxd(endpoint_url, project, name, instance_type, ram, verify_lxd_certs)
+    success, message, payload = update(endpoint_url, project, name, instance_type, ram, verify_lxd_certs)
     print(message)
