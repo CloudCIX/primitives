@@ -239,7 +239,7 @@ def build(
                                         '[System.UInt64]$size = (Get-PartitionSupportedSize -DiskNumber $mountedVHD.Number '
                                         '-PartitionNumber $partitions[-1].PartitionNumber).SizeMax; '
                                         'Resize-Partition -DiskNumber $mountedVHD.Number -PartitionNumber $partitions[-1].PartitionNumber -Size $size',
-            'create_local_mount_dir':   f'mkdir {vm_local_mount_path}',
+            'create_local_mount_dir':   f'mkdir --parents {vm_local_mount_path}',
             'create_unattend_file':     f'cat > {vm_local_mount_path}/unatted.xml <<EOF{unattend_xml}EOF',
             'create_network_file':      f'cat > {vm_local_mount_path}/network.xml <<EOF{network_xml}EOF',
             'copy_unattend_file':       f'New-PSDrive -Name drive_{vm_identifier} -PSProvider FileSystem -Root {host_mount_path}; '

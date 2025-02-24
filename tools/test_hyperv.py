@@ -16,8 +16,8 @@ cmd = sys.argv[1]
 
 host = None
 region_url = None
-vm_identifier = '123_234'
-storage_identifier = 'HDD_234.vhdx'
+vm_identifier = '1234_5678'
+storage_identifier = 'HDD_5678.vhdx'
 image = 'WindowsServer-2019-Standard_Gen-2_v2.vhdx'
 administrator_password = 'cloudcix'
 cpu = 2
@@ -85,7 +85,7 @@ else:
    sys.exit(1)
 
 
-print("Status: %s" % status)
+print("Status: %s" %  status)
 print()
 print("Message:")
 if type(msg) == list:
