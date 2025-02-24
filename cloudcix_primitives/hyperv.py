@@ -251,7 +251,7 @@ def build(
             'remove_local_mount_dir':   f'rm --force --recursive {vm_local_mount_path}',
             'create_vm':                f'New-VM -Name {vm_identifier} -Path {vm_path} -Generation 2 -SwitchName "Virtual Switch" -VHDPath {storage_path}',
             'set_cpu':                  f'Set-VMProcessor {vm_identifier} -Count {cpu}',
-            'set_ram':                  f'Set-VMMemory {vm_identifier} -DynamicMemoryEnabled $false -StartupBytes {ram}MB',
+            'set_ram':                  f'Set-VMMemory {vm_identifier} -DynamicMemoryEnabled $false -StartupBytes {ram}GB',
             'remove_default_nic':       f'Remove-VMNetworkAdapter -VMName {vm_identifier}',
             'add_vlan_template':        f'Add-VMNetworkAdapter -VMName {vm_identifier} -Name "vNIC-%(vlan)s" -SwitchName "Virtual Switch" -DeviceNaming On; '
                                         f'Set-VMNetworkAdapterVlan -VMName {vm_identifier} -VMNetworkAdapterName "vNIC-%(vlan)s" -Access -VlanId %(vlan)s',
