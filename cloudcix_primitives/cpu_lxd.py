@@ -10,20 +10,12 @@ from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
 
 __all__ = [
-    'update_cpu_lxd',
+    'update',
 ]
 
 SUPPORTED_INSTANCES = ['virtual_machines', 'containers']
 
-def success(response, payload_number):
-    if response['channel_code'] != CHANNEL_SUCCESS:
-        return False, f'{payload_number}: {response["channel_message"]}', {}
-    elif response['payload_code'] != API_SUCCESS:
-        return False, f'{payload_number + 1}: {response["payload_message"]}', {}
-    else:
-        return True, '', response['payload_message']
-
-def update_cpu_lxd(
+def update(
         endpoint_url: str,
         project: str,
         name: str,
@@ -42,7 +34,6 @@ def update_cpu_lxd(
     :param verify_lxd_certs: Boolean to verify LXD certs.
     :return: A tuple with a boolean flag indicating success or failure, a message, and a dictionary of successful payloads.
     """
-
     # Define message
     messages = {
         1000: f'Successfully updated the CPU limit for {instance_type} {name} on {endpoint_url}',
@@ -78,14 +69,14 @@ def update_cpu_lxd(
         instance = ret['payload_message']
         fmt.add_successful(f'{instance_type}.get', ret)
 
-        # Quiesce the instance (stop the instance)
+        # Quiesce the instance
         state = instance.state()
         if state.status == 'Running':
             instance.stop(force=False, wait=True)
         elif state.status != 'Stopped':
             return False, f"{prefix+3}: {messages[3423]} {state.status}", fmt.successful_payloads
             
-        # Update the CPU limit using LXDCommsWrapper
+        # Update the CPU limit
         try:
             instance.config['limits.cpu'] = str(cpu)
             instance.save(wait=True)
@@ -123,5 +114,5 @@ if __name__ == "__main__":
     cpu = int(sys.argv[5])
     verify_lxd_certs = sys.argv[6].lower() == 'true'
 
-    success, message, payload = update_cpu_lxd(endpoint_url, project, name, instance_type, cpu, verify_lxd_certs)
+    success, message, payload = update(endpoint_url, project, name, instance_type, cpu, verify_lxd_certs)
     print(message)
