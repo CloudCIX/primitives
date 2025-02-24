@@ -240,7 +240,7 @@ def build(
                                         '-PartitionNumber $partitions[-1].PartitionNumber).SizeMax; '
                                         'Resize-Partition -DiskNumber $mountedVHD.Number -PartitionNumber $partitions[-1].PartitionNumber -Size $size',
             'create_local_mount_dir':   f'mkdir --parents {vm_local_mount_path}',
-            'create_unattend_file':     f'printf "%s" "{unattend_xml}" > {vm_local_mount_path}/unatted.xml',
+            'create_unattend_file':     f'printf "%s" "{unattend_xml}" > {vm_local_mount_path}/unattend.xml',
             'create_network_file':      f'printf "%s" "{network_xml}" > {vm_local_mount_path}/network.xml',
             'copy_unattend_file':       f'New-PSDrive -Name drive_{vm_identifier} -PSProvider FileSystem -Root {host_mount_path}; '
                                         f'Copy-Item drive_{vm_identifier}:\\HyperV\\VMs\\{vm_identifier}\\unattend.xml {vm_path}\\mount\\unattend.xml',
