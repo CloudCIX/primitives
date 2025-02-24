@@ -7,6 +7,7 @@ from cloudcix_primitives import hyperv
 
 # Run the following test scripts before this one:
 # * `tools/test_ns.py build mynetns` to ensure the name space exists
+# * `tools/test_network_ns.py build mynetns` to ensure the name space exists
 # * `tools/test_vlanif_ns.py build {vlan} to ensure vlan tagged interface exists on podnet
 
 
@@ -24,12 +25,12 @@ ram = 2
 gb = 50 
 
 gateway_network = {
-    'vlan': 1002,
+    'vlan': 1010,
     'ips': [{
-        'ip': '',
-        'netwask': '',
-        'gateway': '',
-        'dns': '',
+        'ip': '10.0.0.3',
+        'netwask': '24',
+        'gateway': '10.0.0.1',
+        'dns': '8.8.8.8,8.8.4.4',
     }]
 }
 secondary_networks = []

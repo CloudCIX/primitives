@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Tuple
 from cloudcix.rcc import CHANNEL_SUCCESS, comms_lsh, comms_ssh
 # local
 from cloudcix_primitives.utils import (
+    check_template_data,
     HostErrorFormatter,
     hyperv_dictify,
     JINJA_ENV,
