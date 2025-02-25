@@ -428,7 +428,7 @@ def quiesce(host: str, vm_identifier: str) -> Tuple[bool, str]:
     messages = {
         1400: f'Successfully quiesced VM {vm_identifier} on host {host}',
         3421: f'Failed to connect to the host {host} for payload shutdown_vm',
-        3423: f'Failed to quiesce VM {vm_identifier} on host {host}',
+        3422: f'Failed to quiesce VM {vm_identifier} on host {host}',
         3423: f'Failed to connect to the host {host} for payload get_state',
         3424: f'Failed to read VM {vm_identifier} state from host {host}',
         3425: f'Expected State of VM after shutdown_vm payload is not "Off", it is ',

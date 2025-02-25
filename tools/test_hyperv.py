@@ -46,7 +46,7 @@ if host is None:
     print('Host is required, please supply the host as second argument.')
     exit()
 
-if region_url is None:
+if region_url is None and cmd == 'build':
     print('region_url is required, please supply the region_url as third argument.')
     exit()
 
