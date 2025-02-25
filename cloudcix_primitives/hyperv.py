@@ -470,6 +470,7 @@ def quiesce(host: str, vm_identifier: str) -> Tuple[bool, str]:
         return True, "", fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3420, {})
+
     if status is False:
         return status, msg
 
