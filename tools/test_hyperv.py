@@ -21,11 +21,11 @@ storage_identifier = 'HDD_5678'
 image = 'WindowsServer-2019-Standard_Gen-2_v2.vhdx'
 administrator_password = 'cloudcix'
 cpu = 2
-ram = 2 
-gb = 50 
+ram = 4
+gb = 50
 
 gateway_network = {
-    'vlan': 1010,
+    'vlan': 1002,
     'ips': [{
         'ip': '10.0.0.3',
         'netwask': '24',
