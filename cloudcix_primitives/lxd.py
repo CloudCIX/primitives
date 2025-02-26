@@ -74,15 +74,15 @@ def build(
             required: true
         gateway_interface:
             type: object
-                properties:
-                    vlan:
-                        description: The VLAN ID of the gateway interface for the LXD instance
-                        type: string
-                        required: true
-                    mac_address:
-                        description: The MAC address of the the gateway interface for the LXD instance
-                        type: string
-                        required: true
+            properties:
+                vlan:
+                    description: The VLAN ID of the gateway interface for the LXD instance
+                    type: string
+                    required: true
+                mac_address:
+                    description: The MAC address of the the gateway interface for the LXD instance
+                    type: string
+                    required: true
         ram: 
             description: RAM property of the LXD instance, must be in GBs
             type: integer

@@ -17,9 +17,9 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = ns.build(namespace_name, "169.254.169.254", config_file)
+    status, msg = ns.build(namespace_name, config_file)
 elif cmd == 'read':
-    status, data, msg = ns.read(namespace_name, "169.254.169.254", config_file)
+    status, data, msg = ns.read(namespace_name, config_file)
 elif cmd == 'scrub':
     status, msg = ns.scrub(namespace_name, config_file)
 else:

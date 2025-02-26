@@ -13,7 +13,7 @@ from cloudcix_primitives import bridge_lxd
 cmd = sys.argv[1]
 
 endpoint_url = None
-name = 'br4000'
+name = 'br1002'
 verify_lxd_certs = False
 config = {
     'ipv6.address': 'none',

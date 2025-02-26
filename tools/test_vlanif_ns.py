@@ -13,7 +13,7 @@ cmd = sys.argv[1]
 config_file = "/etc/cloudcix/pod/configs/config.json"
 namespace = 'mynetns'
 
-vlan = 4000
+vlan = 1002
 ifname = 'private0'
 
 
