@@ -18,7 +18,7 @@ __all__ = [
 SUCCESS_CODE = 0
 
 
-def build(
+def update(
     host: str,
     vm_identifier: str,
     ram: int,
@@ -41,12 +41,10 @@ def build(
             required: true
     return:
         description: |
-            A tuple with a boolean flag stating the build was successful or not and
+            A tuple with a boolean flag stating the update was successful or not and
             the output or error message.
         type: tuple
     """
-
-    # Path Variables required by the payloads to build a VM.
 
     # Define message
     messages = {

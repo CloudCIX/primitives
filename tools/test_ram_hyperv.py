@@ -39,8 +39,8 @@ status = None
 msg = None
 data = None
 
-if cmd == 'build':
-    status, msg = ram_hyperv.build(
+if cmd == 'update':
+    status, msg = ram_hyperv.update(
         host=host,
         vm_identifier=vm_identifier,
         ram=ram,
