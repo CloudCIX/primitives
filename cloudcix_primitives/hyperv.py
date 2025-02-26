@@ -600,7 +600,7 @@ def restart(host: str, vm_identifier: str) -> Tuple[bool, str]:
         )
 
         payloads = {
-            'restart_vm': f'Restart-VM -Name "{vm_identifier}" -Wait -Timeout 300 -For IPAddress -Force',
+            'restart_vm': f'Start-VM -Name "{vm_identifier}" -Wait -Timeout 300 -For IPAddress -Force',
             'get_state':  f'$state = Get-VM -Name "{vm_identifier}"; $state.State',
         }
 
