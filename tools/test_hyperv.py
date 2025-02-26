@@ -7,8 +7,8 @@ from cloudcix_primitives import hyperv
 
 # Run the following test scripts before this one:
 # * `tools/test_ns.py build mynetns` to ensure the name space exists
-# * `tools/test_network_ns.py build mynetns` to ensure the name space exists
 # * `tools/test_vlanif_ns.py build {vlan} to ensure vlan tagged interface exists on podnet
+# * `tools/test_network_ns.py build mynetns` to ensure the name space exists
 
 
 

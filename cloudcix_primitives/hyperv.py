@@ -463,7 +463,7 @@ def quiesce(host: str, vm_identifier: str) -> Tuple[bool, str]:
         fmt.add_successful('get_state', ret)
 
         if ret['payload_message'] != "Off":
-            return False, f'{prefix + 5}: {messages[prefix + 5]} {ret["payload_message"]}'
+            return False, f'{prefix + 5}: {messages[prefix + 5]} {ret["payload_message"]}', fmt.successful_payloads
 
         return True, "", fmt.successful_payloads
 
