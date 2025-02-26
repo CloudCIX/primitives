@@ -2,8 +2,6 @@
 Primitive for Virtual Machine on Windows hypervisor
 """
 # stdlib
-import time
-from datetime import datetime
 from typing import Any, Dict, List, Tuple
 # lib
 from cloudcix.rcc import CHANNEL_SUCCESS, comms_lsh, comms_ssh
@@ -154,8 +152,8 @@ def build(
     messages = {
         1000: f'Successfully created VM {vm_identifier} on Host {host}',
         # templates
-        3010: f'Failed to render jinja2 template for unattend.xml',
-        3011: f'Failed to render jinja2 template for network.xml',
+        3010: 'Failed to render jinja2 template for unattend.xml',
+        3011: 'Failed to render jinja2 template for network.xml',
         # payload execution
         3031: f'Failed to connect to the host {host} for the payload read_vm_info',
         3032: f'Failed to create VM, the requested VM {vm_identifier} already exists on the Host {host}',
@@ -431,7 +429,7 @@ def quiesce(host: str, vm_identifier: str) -> Tuple[bool, str]:
         3422: f'Failed to quiesce VM {vm_identifier} on host {host}',
         3423: f'Failed to connect to the host {host} for payload get_state',
         3424: f'Failed to read VM {vm_identifier} state from host {host}',
-        3425: f'Expected State of VM after shutdown_vm payload is not "Off", it is ',
+        3425: 'Expected State of VM after shutdown_vm payload is not "Off", it is ',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -590,7 +588,7 @@ def restart(host: str, vm_identifier: str) -> Tuple[bool, str]:
         3522: f'Failed to run restart command for VM {vm_identifier} on host {host}',
         3523: f'Failed to connect to the host {host} for payload get_state',
         3524: f'Failed to read VM {vm_identifier} state from host {host}',
-        3525: f'Expected State of VM after restart_vm payload is not "Running", it is ',
+        3525: 'Expected State of VM after restart_vm payload is not "Running", it is ',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -602,7 +600,7 @@ def restart(host: str, vm_identifier: str) -> Tuple[bool, str]:
         )
 
         payloads = {
-            'restart_vm': f'Start-VM -Name "{vm_identifier}" -Wait -Timeout 300 -For IPAddress -Force',
+            'restart_vm': f'Restart-VM -Name "{vm_identifier}" -Wait -Timeout 300 -For IPAddress -Force',
             'get_state':  f'$state = Get-VM -Name "{vm_identifier}"; $state.State',
         }
 
