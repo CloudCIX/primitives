@@ -155,42 +155,41 @@ def build(
         3010: 'Failed to render jinja2 template for unattend.xml',
         3011: 'Failed to render jinja2 template for network.xml',
         # payload execution
-        3031: f'Failed to connect to the host {host} for the payload read_vm_info',
-        3032: f'Failed to create VM, the requested VM {vm_identifier} already exists on the Host {host}',
-        3033: f'Failed to connect the Host {host} for the payload create_dir_structure',
-        3034: f'Failed to create directory {vm_path}/mount on Host {host}',
-        3035: f'Failed to connect the Host {host} for the payload create_primary_storage',
-        3036: f'Failed to create primary storage vhdx image file {image} in {storage_path} on Host {host}.',
-        3037: f'Failed to connect the Host {host} for the payload resize_primary_storage',
-        3038: f'Failed to resize the primary storage image to {gb}GB on Host {host}',
-        3039: f'Failed to connect the Host {host} for the payload mount_primary_storage',
-        3040: f'Failed to mount primary storage on Host {host}',
-        3041: f'Failed to create directory for {vm_identifier} in {vm_local_mount_path} ',
-        3042: f'Failed to create unattend.xml file in {vm_local_mount_path}.',
-        3043: f'Failed to create network.xml file in {vm_local_mount_path}.',
-        3044: f'Failed to connect the Host {host} for the payload copy_unattend_file',
-        3045: f'Failed to copy unattend.xml to {vm_path}\\mount on Host {host}',
-        3046: f'Failed to connect the Host {host} for the payload copy_network_file',
-        3047: f'Failed to copy network.xml to {vm_path}\\mount on Host {host}',
-        3048: f'Failed to connect the Host {host} for the payload dismount_primary_storage',
-        3049: f'Failed to dismount primary storage at {vm_path}\\mount on Host {host}',
-        3050: f'Failed to connect the Host {host} for the payload remove_mount_dir',
-        3051: f'Failed to remove mount dir {vm_path}\\mount on Host {host}',
-        3052: f'Failed to remoce directory for {vm_identifier} in {vm_local_mount_path}.',
-        3053: f'Failed to connect the Host {host} for the payload create_vm',
-        3054: f'Failed to create VM {vm_identifier} on Host {host}',
-        3055: f'Failed to connect the Host {host} for the payload set_cpu',
-        3056: f'Failed to set CPU for VM {vm_identifier} on Host {host}',
-        3057: f'Failed to connect the Host {host} for the payload set_ram',
-        3058: f'Failed to set RAM for VM {vm_identifier} on Host {host}',
-        3059: f'Failed to connect the Host {host} for the remove_default_nic',
-        3060: f'Failed to remove default nic from VM {vm_identifier} on Host {host}',
-        3061: f'Failed to connect the Host {host} for the gateway_vlan_payload',
-        3062: f'Failed to add gateway VLAN to VM {vm_identifier} on Host {host}',
-        3063: f'Failed to connect the Host {host} for the secondary_vlan_payload',
-        3064: f'Failed to add secondary VLAN to VM {vm_identifier} on Host {host}',
-        3065: f'Failed to connect the Host {host} for the start_vm',
-        3066: f'Failed to start VM {vm_identifier} on Host {host}',
+        3031: f'Failed to connect to the host {host} for the payload vm_exists',
+        3032: f'Failed to connect the Host {host} for the payload create_dir_structure',
+        3033: f'Failed to create directory {vm_path}/mount on Host {host}',
+        3034: f'Failed to connect the Host {host} for the payload create_primary_storage',
+        3035: f'Failed to create primary storage vhdx image file {image} in {storage_path} on Host {host}.',
+        3036: f'Failed to connect the Host {host} for the payload resize_primary_storage',
+        3037: f'Failed to resize the primary storage image to {gb}GB on Host {host}',
+        3038: f'Failed to connect the Host {host} for the payload mount_primary_storage',
+        3039: f'Failed to mount primary storage on Host {host}',
+        3040: f'Failed to create directory for {vm_identifier} in {vm_local_mount_path} ',
+        3041: f'Failed to create unattend.xml file in {vm_local_mount_path}.',
+        3042: f'Failed to create network.xml file in {vm_local_mount_path}.',
+        3043: f'Failed to connect the Host {host} for the payload copy_unattend_file',
+        3044: f'Failed to copy unattend.xml to {vm_path}\\mount on Host {host}',
+        3045: f'Failed to connect the Host {host} for the payload copy_network_file',
+        3046: f'Failed to copy network.xml to {vm_path}\\mount on Host {host}',
+        3047: f'Failed to connect the Host {host} for the payload dismount_primary_storage',
+        3048: f'Failed to dismount primary storage at {vm_path}\\mount on Host {host}',
+        3049: f'Failed to connect the Host {host} for the payload remove_mount_dir',
+        3050: f'Failed to remove mount dir {vm_path}\\mount on Host {host}',
+        3051: f'Failed to remoce directory for {vm_identifier} in {vm_local_mount_path}.',
+        3052: f'Failed to connect the Host {host} for the payload create_vm',
+        3053: f'Failed to create VM {vm_identifier} on Host {host}',
+        3054: f'Failed to connect the Host {host} for the payload set_cpu',
+        3055: f'Failed to set CPU for VM {vm_identifier} on Host {host}',
+        3056: f'Failed to connect the Host {host} for the payload set_ram',
+        3057: f'Failed to set RAM for VM {vm_identifier} on Host {host}',
+        3058: f'Failed to connect the Host {host} for the remove_default_nic',
+        3059: f'Failed to remove default nic from VM {vm_identifier} on Host {host}',
+        3060: f'Failed to connect the Host {host} for the gateway_vlan_payload',
+        3061: f'Failed to add gateway VLAN to VM {vm_identifier} on Host {host}',
+        3062: f'Failed to connect the Host {host} for the secondary_vlan_payload',
+        3063: f'Failed to add secondary VLAN to VM {vm_identifier} on Host {host}',
+        3064: f'Failed to connect the Host {host} for the start_vm',
+        3065: f'Failed to start VM {vm_identifier} on Host {host}',
     }
 
     # template data for required files
@@ -225,7 +224,7 @@ def build(
 
         payloads = {
             # check if vm exists already
-            'read_vm_info':             f'Get-VM -Name {vm_identifier} ',
+            'vm_exists':                f'(Get-VM -Name {vm_identifier}) -as [bool]',
             'create_dir_structure':     f'New-Item -ItemType Directory -Path {vm_path}\\mount -Force',
             'create_primary_storage':   f'New-PSDrive -Name drive_{vm_identifier} -PSProvider FileSystem -Root {host_mount_path}; '
                                         f'Copy-Item drive_{vm_identifier}:\\HyperV\\VHDXs\\{image}  -Destination {storage_path}',
@@ -256,125 +255,123 @@ def build(
             'start_vm':                 f'Start-VM -Name {vm_identifier}; Wait-VM -Name {vm_identifier} -For IPAddress',
         }
 
-        ret = rcc.run(payloads['read_vm_info'])
+        ret = rcc.run(payloads['vm_exists'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
-        if ret["payload_code"] == SUCCESS_CODE:
-            # if vm exists already then we should not build it again,
-            # by mistake same vm is requested to build again so return with error
-            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
-        fmt.add_successful('read_vm_info', ret)
+        fmt.add_successful('vm_exists', ret)
+        if ret['payload_message'].strip() == 'True':
+            True, '', fmt.successful_payloads
 
         ret = rcc.run(payloads['create_dir_structure'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
         fmt.add_successful('create_dir_structure', ret)
 
         ret = rcc.run(payloads['create_primary_storage'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
         fmt.add_successful('create_primary_storage', ret)
 
         ret = rcc.run(payloads['resize_primary_storage'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
         fmt.add_successful('resize_primary_storage', ret)
 
         ret = rcc.run(payloads['mount_primary_storage'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 10}: {messages[prefix + 12]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
         fmt.add_successful('mount_primary_storage', ret)
 
         ret = comms_lsh(payloads['create_local_mount_dir'])
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 11}: {messages[prefix + 11]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 10}: {messages[prefix + 10]}'), fmt.successful_payloads
         fmt.add_successful('create_local_mount_dir', ret)
 
         ret = comms_lsh(payloads['create_unattend_file'])
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 12}: {messages[prefix + 12]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 11}: {messages[prefix + 11]}'), fmt.successful_payloads
         fmt.add_successful('create_unattend_file', ret)
 
         ret = comms_lsh(payloads['create_network_file'])
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 13}: {messages[prefix + 13]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 12}: {messages[prefix + 12]}'), fmt.successful_payloads
         fmt.add_successful('create_network_file', ret)
 
         ret = rcc.run(payloads['copy_unattend_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 14}: {messages[prefix + 14]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 13}: {messages[prefix + 13]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 15}: {messages[prefix + 15]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 14}: {messages[prefix + 14]}'), fmt.successful_payloads
         fmt.add_successful('copy_unattend_file', ret)
 
         ret = rcc.run(payloads['copy_network_file'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 16}: {messages[prefix + 16]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 15}: {messages[prefix + 15]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 17}: {messages[prefix + 17]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 16}: {messages[prefix + 16]}'), fmt.successful_payloads
         fmt.add_successful('copy_network_file', ret)
 
         ret = rcc.run(payloads['dismount_primary_storage'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 18}: {messages[prefix + 18]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 17}: {messages[prefix + 17]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 19}: {messages[prefix + 19]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 18}: {messages[prefix + 18]}'), fmt.successful_payloads
         fmt.add_successful('dismount_primary_storage', ret)
 
         ret = rcc.run(payloads['remove_mount_dir'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 20}: {messages[prefix + 20]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 19}: {messages[prefix + 19]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 21}: {messages[prefix + 21]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 20}: {messages[prefix + 20]}'), fmt.successful_payloads
         fmt.add_successful('remove_mount_dir', ret)
 
         ret = comms_lsh(payloads['remove_local_mount_dir'])
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 22}: {messages[prefix + 22]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 21}: {messages[prefix + 21]}'), fmt.successful_payloads
         fmt.add_successful('remove_local_mount_dir', ret)
 
         ret = rcc.run(payloads['create_vm'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 23}: {messages[prefix + 23]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 22}: {messages[prefix + 22]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 24}: {messages[prefix + 24]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 23}: {messages[prefix + 23]}'), fmt.successful_payloads
         fmt.add_successful('create_vm', ret)
 
         ret = rcc.run(payloads['set_cpu'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 25}: {messages[prefix + 25]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 24}: {messages[prefix + 24]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 26}: {messages[prefix + 26]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 25}: {messages[prefix + 25]}'), fmt.successful_payloads
         fmt.add_successful('set_cpu', ret)
 
         ret = rcc.run(payloads['set_ram'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 27}: {messages[prefix + 27]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 26}: {messages[prefix + 26]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 28}: {messages[prefix + 28]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 27}: {messages[prefix + 27]}'), fmt.successful_payloads
         fmt.add_successful('set_ram', ret)
 
         ret = rcc.run(payloads['remove_default_nic'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 29}: {messages[prefix + 29]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 28}: {messages[prefix + 28]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 30}: {messages[prefix + 30]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 29}: {messages[prefix + 29]}'), fmt.successful_payloads
         fmt.add_successful('remove_default_nic', ret)
 
         gateway_vlan_payload = payloads['add_vlan_template'] % {'vlan': gateway_network['vlan']}
         ret = rcc.run(gateway_vlan_payload)
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 31}: {messages[prefix + 31]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 30}: {messages[prefix + 30]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 32}: {messages[prefix + 32]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 31}: {messages[prefix + 31]}'), fmt.successful_payloads
         fmt.add_successful('add_vlan_template(%s)' % gateway_vlan_payload, ret)
 
         for network in secondary_networks:
@@ -382,16 +379,16 @@ def build(
 
             ret = rcc.run(secondary_vlan_payload)
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f'{prefix + 33}: {messages[prefix + 33]}'), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f'{prefix + 32}: {messages[prefix + 32]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f'{prefix + 34}: {messages[prefix + 34]}'), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f'{prefix + 33}: {messages[prefix + 33]}'), fmt.successful_payloads
             fmt.add_successful('add_vlan_template(%s)' % secondary_vlan_payload, ret)
 
         ret = rcc.run(payloads['start_vm'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 35}: {messages[prefix + 35]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 34}: {messages[prefix + 34]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 36}: {messages[prefix + 36]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 35}: {messages[prefix + 35]}'), fmt.successful_payloads
         fmt.add_successful('start_vm', ret)
 
         return True, "", fmt.successful_payloads
