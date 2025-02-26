@@ -45,8 +45,6 @@ if cmd == 'build':
         vm_identifier=vm_identifier,
         ram=ram,
     )
-elif cmd == 'read':
-    status, data, msg = ram_hyperv.read(host=host, vm_identifier=vm_identifier)
 else:
    print(f"Unknown command: {cmd}")
    sys.exit(1)
