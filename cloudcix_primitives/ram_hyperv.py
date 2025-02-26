@@ -50,7 +50,7 @@ def build(
 
     # Define message
     messages = {
-        1000: f'Successfully set RAM for VM {vm_identifier} on Host {host} to {ram}.',
+        1000: f'Successfully set RAM for VM {vm_identifier} on Host {host} to {ram}GB.',
         # payload execution
         3031: f'Failed to connect to the host {host} for set_ram payload.',
         3032: f'Failed to to run set_ram payload on host {host}: ',
