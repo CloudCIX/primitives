@@ -16,7 +16,7 @@ from cloudcix_primitives import bridge_kvm
 cmd = sys.argv[1]
 
 host=None
-vlan=4000
+vlan=1002
 ifname='cloud0'
 
 if len(sys.argv) > 2:

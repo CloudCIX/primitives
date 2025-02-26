@@ -14,7 +14,7 @@ cmd = sys.argv[1]
 namespace = 'mynetns'
 
 address_range = '10.0.0.1/24'
-device = 'private0.4000' 
+device = 'private0.1010' 
 config_file = "/etc/cloudcix/pod/configs/config.json"
 
 if len(sys.argv) > 2:
