@@ -224,7 +224,7 @@ def build(
 
         payloads = {
             # check if vm exists already
-            'vm_exists':                f'(Get-VM -Name {vm_identifier}) -as [bool]',
+            'vm_exists':                f'$exists = (Get-VM -Name {vm_identifier} -ErrorAction SilentlyContinue) -as [bool]; $exists',
             'create_dir_structure':     f'New-Item -ItemType Directory -Path {vm_path}\\mount -Force',
             'create_primary_storage':   f'New-PSDrive -Name drive_{vm_identifier} -PSProvider FileSystem -Root {host_mount_path}; '
                                         f'Copy-Item drive_{vm_identifier}:\\HyperV\\VHDXs\\{image}  -Destination {storage_path}',
@@ -260,7 +260,7 @@ def build(
             return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
         fmt.add_successful('vm_exists', ret)
         if ret['payload_message'].strip() == 'True':
-            True, '', fmt.successful_payloads
+            return True, '', fmt.successful_payloads
 
         ret = rcc.run(payloads['create_dir_structure'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
