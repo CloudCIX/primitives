@@ -621,6 +621,8 @@ def restart(host: str, vm_identifier: str) -> Tuple[bool, str]:
         if ret['payload_message'].strip() != "Running":
             return False, f'{prefix + 5}: {messages[prefix + 5]} {ret["payload_message"]}', fmt.successful_payloads
 
+        return True, "", fmt.successful_payloads
+
     status, msg, successful_payloads = run_host(host, 3520, {})
     if status is False:
         return status, msg
