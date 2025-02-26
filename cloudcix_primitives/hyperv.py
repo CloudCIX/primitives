@@ -661,14 +661,15 @@ def scrub(
     # Define message
     messages = {
         1100: f'Successfully scrubbed VM {vm_identifier} on host {host}',
-        3121: f'Failed to connect to the host {host} for payload shutdown_vm',
-        3122: f'Failed to turnoff VM {vm_identifier} on host {host}',
-        3123: f'Failed to connect to the host {host} for payload remove_vm',
-        3124: f'Failed to remove VM {vm_identifier} on host {host}',
-        3125: f'Failed to connect to the host {host} for payload remove_storage',
-        3126: f'Failed to remove {storage_path} on host {host}',
-        3127: f'Failed to connect to the host {host} for payload remove_dir',
-        3128: f'Failed to remove {vm_path} on host {host}',
+        3121: f'Failed to connect to the host {host} for the payload vm_exists',
+        3122: f'Failed to connect to the host {host} for payload shutdown_vm',
+        3123: f'Failed to turnoff VM {vm_identifier} on host {host}',
+        3124: f'Failed to connect to the host {host} for payload remove_vm',
+        3125: f'Failed to remove VM {vm_identifier} on host {host}',
+        3126: f'Failed to connect to the host {host} for payload remove_storage',
+        3127: f'Failed to remove {storage_path} on host {host}',
+        3128: f'Failed to connect to the host {host} for payload remove_dir',
+        3129: f'Failed to remove {vm_path} on host {host}',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -680,38 +681,46 @@ def scrub(
         )
 
         payloads = {
+            'vm_exists': f'$exists = (Get-VM -Name {vm_identifier} -ErrorAction SilentlyContinue) -as [bool]; $exists',
             'shutdown_vm': f'Stop-VM -Name {vm_identifier} -TurnOff',
             'remove_vm': f'Remove-VM -Name {vm_identifier} -Force',
             'remove_storage': f'Remove-Item -Path {storage_path} -Force -Confirm:$false',
             'remove_dir': f'Remove-Item -LiteralPath {vm_path} -Force -Recurse'
         }
 
-        ret = rcc.run(payloads['shutdown_vm'])
+        ret = rcc.run(payloads['vm_exists'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        fmt.add_successful('vm_exists', ret)
+        if ret['payload_message'].strip() == 'False':
+            return True, '', fmt.successful_payloads
+
+        ret = rcc.run(payloads['shutdown_vm'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
         fmt.add_successful('shutdown_vm', ret)
 
         ret = rcc.run(payloads['remove_vm'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 3}: {messages[prefix + 3]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
         fmt.add_successful('remove_vm', ret)
 
         ret = rcc.run(payloads['remove_storage'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 6}: {messages[prefix + 6]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
         fmt.add_successful('remove_storage', ret)
 
         ret = rcc.run(payloads['remove_dir'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f'{prefix + 7}: {messages[prefix + 7]}'), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f'{prefix + 8}: {messages[prefix + 8]}'), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
         fmt.add_successful('remove_dir', ret)
 
         return True, "", fmt.successful_payloads
