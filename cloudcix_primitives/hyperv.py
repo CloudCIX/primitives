@@ -462,7 +462,7 @@ def quiesce(host: str, vm_identifier: str) -> Tuple[bool, str]:
             return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
         fmt.add_successful('get_state', ret)
 
-        if ret['payload_message'] != "Off":
+        if ret['payload_message'].strip() != "Off":
             return False, f'{prefix + 5}: {messages[prefix + 5]} {ret["payload_message"]}', fmt.successful_payloads
 
         return True, "", fmt.successful_payloads
@@ -618,8 +618,8 @@ def restart(host: str, vm_identifier: str) -> Tuple[bool, str]:
             return False, fmt.payload_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
         fmt.add_successful('get_state', ret)
 
-        if ret['payload_message'] != "Running":
-            return False, f'{prefix + 5}: {messages[prefix + 5]} {ret["payload_message"]}'
+        if ret['payload_message'].strip() != "Running":
+            return False, f'{prefix + 5}: {messages[prefix + 5]} {ret["payload_message"]}', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3520, {})
     if status is False:
