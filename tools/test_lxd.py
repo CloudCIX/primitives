@@ -23,7 +23,7 @@ image = {
 }
 cpu = 2
 gateway_interface = {
-	'vlan': 4000,
+	'vlan': 1002,
 	'mac_address': '32:30:09:00:02:7a',
 }
 ram = 2
