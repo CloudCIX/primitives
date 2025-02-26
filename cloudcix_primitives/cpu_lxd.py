@@ -18,14 +18,13 @@ SUPPORTED_INSTANCES = ['virtual_machines', 'containers']
 def update(
         endpoint_url: str,
         project: str,
-        name: str,
+        instance_name: str,
         instance_type: str,
         cpu: int,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str, dict]:
     
     """ Update the CPU limit of an LXD instance.
-
     :param endpoint_url: The endpoint URL for the LXD Host.
     :param project: The LXD project name.
     :param name: The name of the LXD instance.
@@ -36,13 +35,13 @@ def update(
     """
     # Define message
     messages = {
-        1000: f'Successfully updated the CPU limit for {instance_type} {name} on {endpoint_url}',
+        1000: f'Successfully updated the CPU limit for {instance_type} {instance_name} on {endpoint_url}',
         3011: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
         3021: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
         3022: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to update the CPU limit. Error: ',
         3423: f'Failed to quiesce {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
-        3025: f'Failed to set CPU limit for {instance_type} {name}',
+        3025: f'Failed to set CPU limit for {instance_type} {instance_name}',
         3523: f'Failed to restart {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
         'default': 'An unexpected error occurred. Error code: ',
     }
@@ -58,61 +57,25 @@ def update(
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
             successful_payloads,
         )
-
+        
         # Get the instance
-        ret = rcc.run(cli=f'{instance_type}.get', name=name)
+        ret = rcc.run(cli=f'{instance_type}.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[3021]}"), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
-            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[3022]}"), fmt.successful_payloads
-
+            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
         instance = ret['payload_message']
         fmt.add_successful(f'{instance_type}.get', ret)
 
-        # Quiesce the instance
-        state = instance.state()
-        if state.status == 'Running':
-            instance.stop(force=False, wait=True)
-        elif state.status != 'Stopped':
-            return False, f"{prefix+3}: {messages[3423]} {state.status}", fmt.successful_payloads
-            
         # Update the CPU limit
         try:
             instance.config['limits.cpu'] = str(cpu)
             instance.save(wait=True)
             fmt.add_successful(f'{instance_type}.set', {'limits.cpu': str(cpu)})
         except Exception as e:
-            return False, f"{prefix+4}: {messages[3025]}: {e}", fmt.successful_payloads
-
-        # Restart the instance
-        try:
-            state = instance.state()
-            if state.status == 'Stopped':
-                instance.start(force=False, wait=True)
-            elif state.status != 'Running':
-                return False, f"{prefix+6}: {messages[3523]} {state.status}", fmt.successful_payloads
-        except Exception as e:
-            return False, fmt.payload_error(ret, f"{prefix+7}: {messages[3523]}: {e}"), fmt.successful_payloads
+            return False, f"{prefix+4}: {messages[prefix+4]}: {e}", fmt.successful_payloads
 
         return True, '', fmt.successful_payloads
-
     status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
     if status is False:
-        return False, msg, {}
-
-    return True, f'1000: {messages[1000]}', {'instance': name}
-
-if __name__ == "__main__":
-    if len(sys.argv) != 7:
-        print("Usage: python3 cpu_lxd.py <endpoint_url> <project> <name> <instance_type> <cpu> <verify_lxd_certs>")
-        sys.exit(1)
-
-    endpoint_url = sys.argv[1]
-    project = sys.argv[2]
-    name = sys.argv[3]
-    instance_type = sys.argv[4]
-    cpu = int(sys.argv[5])
-    verify_lxd_certs = sys.argv[6].lower() == 'true'
-
-    success, message, payload = update(endpoint_url, project, name, instance_type, cpu, verify_lxd_certs)
-    print(message)
+        return False
