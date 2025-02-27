@@ -8,21 +8,23 @@ from cloudcix_primitives import storage_hyperv
 cmd = sys.argv[1]
 
 host = None
-domain_path = 'D:\HyperV\primitive_test\\'
-storage = 'primitive_test.vhdx'
+vm_identifier = '1234_5678'
+storage_identifier = None
 size = 5
 
 if len(sys.argv) > 2:
     host = sys.argv[2]
 
 if len(sys.argv) > 3:
-    domain_path = sys.argv[3]
+    vm_identifier = sys.argv[3]
 
 if len(sys.argv) > 4:
-    storage = sys.argv[4]
+    storage_identifier = sys.argv[4]
+else:
+    storage_identifier = vm_identifier + "-secondary"
 
 if len(sys.argv) > 5:
-    size = sys.argv[5]
+    size = int(sys.argv[5])
 
 if host is None:
     print('Host is required, please supply the host as second argument.')
@@ -33,13 +35,13 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = storage_hyperv.build(host=host, domain_path=domain_path, storage=storage, size=size)
+    status, msg, successful_payloads = storage_hyperv.build(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier, size=size)
 elif cmd == 'read':
-    status, data, msg = storage_hyperv.read(host=host, domain_path=domain_path, storage=storage)
+    status, data, msg = storage_hyperv.read(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier)
 elif cmd == 'scrub':
-    status, msg = storage_hyperv.scrub(host=host, domain_path=domain_path, storage=storage)
+    status, msg, successful_payloads = storage_hyperv.scrub(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier)
 elif cmd == 'update':
-    status, msg = storage_hyperv.update(host=host, domain_path=domain_path, storage=storage, size=size)
+    status, msg, successful_payloads = storage_hyperv.update(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier, size=size)
 else:
    print(f"Unknown command: {cmd}")
    sys.exit(1)
