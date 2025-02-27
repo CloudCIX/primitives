@@ -70,7 +70,7 @@ def update(
             instance.save(wait=True)
             fmt.add_successful(f'{instance_type}.set', {'limits.memory': f'{ram}GB'})
         except Exception as e:
-            return False, f"{prefix+3}: {messages[prefix+4]}: {3}", fmt.successful_payloads
+            return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
         return True, '', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
