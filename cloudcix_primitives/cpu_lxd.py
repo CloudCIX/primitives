@@ -39,11 +39,7 @@ def update(
         3011: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
         3021: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
         3022: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to update the CPU limit. Error: ',
-        3423: f'Failed to quiesce {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
-        3025: f'Failed to set CPU limit for {instance_type} {instance_name}',
-        3523: f'Failed to restart {instance_type} on {endpoint_url}. Instance was found in an unexpected state of ',
-        'default': 'An unexpected error occurred. Error code: ',
+        3023: f'Failed to set CPU limit for {instance_type} {instance_name}. Error: ',
     }
 
     # validation
@@ -73,9 +69,12 @@ def update(
             instance.save(wait=True)
             fmt.add_successful(f'{instance_type}.set', {'limits.cpu': str(cpu)})
         except Exception as e:
-            return False, f"{prefix+4}: {messages[prefix+4]}: {e}", fmt.successful_payloads
+            return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
 
         return True, '', fmt.successful_payloads
     status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
+    
     if status is False:
-        return False
+        return status, msg
+
+    return True, f'1000: {messages[1000]}'

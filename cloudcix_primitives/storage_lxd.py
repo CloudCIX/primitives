@@ -98,4 +98,4 @@ def update(
     if status is False:
         return False, msg, successful_payloads  # Updated to return successful_payloads instead of {}
 
-    return True, f'1000: {messages[1000]}', {'instance': instance_name}
+    return True, f'1000: {messages[1000]}'
