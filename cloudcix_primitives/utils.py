@@ -58,6 +58,17 @@ def hyperv_dictify(data):
     data_dict = dict(zip(items_line1, items_line3))
     return data_dict
 
+def hyperv_dictify_vertical(data):
+    lines = data.strip().split('\r\n')
+    data_dict = {}
+    for line in lines:
+        if line.strip() == "":
+            continue
+        (key, value) = line.split(' :')
+        key = key.strip()
+        value = value.strip()
+        data_dict[key] = value
+    return data_dict
 
 def load_pod_config(config_file=None, prefix=4000) -> Tuple[bool, Dict[str, Optional[Any]], str]:
     """
