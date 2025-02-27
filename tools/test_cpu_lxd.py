@@ -20,7 +20,6 @@ name = 'mynetns-1234'
 instance_type = 'containers'
 verify_lxd_certs  =  False 
 
-
 if len(sys.argv) > 2:
     endpoint_url = sys.argv[2]
 
