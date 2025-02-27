@@ -1,4 +1,5 @@
 # stdlib
+import csv
 import ipaddress
 import json
 import os
@@ -57,6 +58,16 @@ def hyperv_dictify(data):
     # Converting the paired data into a dictionary
     data_dict = dict(zip(items_line1, items_line3))
     return data_dict
+
+
+# useful for processing multi line output from tabular output piped into `ConvertTo-Csv -NoTypeInformation`
+def hyperv_dictify_csv(data):
+    rows = []
+    lines = data.strip().split('\r\n')
+    r = csv.DictReader(lines)
+    for row in r:
+        rows.append(dict(row))
+    return rows
 
 
 def load_pod_config(config_file=None, prefix=4000) -> Tuple[bool, Dict[str, Optional[Any]], str]:
