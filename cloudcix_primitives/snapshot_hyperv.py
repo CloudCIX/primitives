@@ -149,7 +149,7 @@ def read(
         description: |
             A list with 3 items: (1) a boolean status flag indicating if the
             read was successful, (2) a dict containing the data as read from
-            the both machine's current state and (3) the list of debug and or error messages.
+            the machine's current state and (3) the list of debug and or error messages.
         type: tuple
         items:
           read:
@@ -414,12 +414,32 @@ def list(
             description: The dns or ipadddress of the Host on which the domain is built
             type: string
             required: true
-
     return:
         description: |
-            A tuple with a boolean flag stating the restore was successful or not and
-            the output or error message.
+            A list with 3 items: (1) a boolean status flag indicating if the
+            read was successful, (2) a dict containing the data as read from
+            the machine's current state and (3) the list of debug and or error messages.
         type: tuple
+        items:
+          read:
+            description: True if all read operations were successful, False otherwise.
+            type: boolean
+          data:
+            type: object
+            description: |
+              file contents retrieved from Host. May be None if nothing
+              could be retrieved.
+            properties:
+              <host>:
+                description: read output data from machine <host>
+                  type: string
+          messages:
+            description: list of errors and debug messages collected before failure occurred
+            type: array
+            items:
+              <message>:
+                description: exact message of the step, either debug, info or error type
+                type: string
     """
 
     # Define message
