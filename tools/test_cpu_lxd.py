@@ -1,7 +1,7 @@
 import json
 import sys
 
-from cloudcix_primitives import lxd
+from cloudcix_primitives import cpu_lxd
 
 # Run the following test scripts before this one:
 #
@@ -14,14 +14,24 @@ from cloudcix_primitives import lxd
 cmd = sys.argv[1]
 
 endpoint_url = None
-instance_type = 'containers'
 cpu = 4
+project = 'mynetns'
+name = 'mynetns-1234'
+instance_type = 'containers'
+verify_lxd_certs  =  False 
+
 
 if len(sys.argv) > 2:
     endpoint_url = sys.argv[2]
 
 if len(sys.argv) > 3:
-    cpu = sys.argv[2]
+    cpu = sys.argv[3]
+
+if len(sys.argv) > 4:
+    project = sys.argv[4]
+
+if len(sys.argv) > 5:
+    name = sys.argv[5]
 
 if endpoint_url is None:
     print('Enpoint URL is required, please supply the host as second argument.')
@@ -29,11 +39,12 @@ if endpoint_url is None:
 
 
 if cmd == 'update':
-    status, msg = lxd.scrub(
+    status, msg = cpu_lxd.update(
         endpoint_url=endpoint_url,
         project=project,
-        name=name,
+        instance_name=name,
         instance_type=instance_type,
+        cpu=cpu,
         verify_lxd_certs=verify_lxd_certs,
     )
 else:
@@ -49,8 +60,3 @@ if type(msg) == list:
         print(item)
 else:
     print(msg)
-
-if data is not None:
-    print()
-    print("Data:")
-    print(json.dumps(data, sort_keys=True, indent=4))
