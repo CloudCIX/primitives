@@ -50,6 +50,14 @@ if region_url is None and cmd == 'build':
     print('region_url is required, please supply the region_url as third argument.')
     exit()
 
+if len(sys.argv) > 4:
+    vm_identifier = sys.argv[4]
+
+if len(sys.argv) > 5:
+    storage_identifier = sys.argv[5]
+else:
+    storage_identifier = "HDD_" + vm_identifier
+
 status = None
 msg = None
 data = None
