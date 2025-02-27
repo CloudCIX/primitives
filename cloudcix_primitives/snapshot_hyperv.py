@@ -9,6 +9,7 @@ from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 from cloudcix_primitives.utils import (
     HostErrorFormatter,
     hyperv_dictify,
+    hyperv_dictify_csv,
     SSHCommsWrapper,
 )
 
@@ -23,9 +24,9 @@ SUCCESS_CODE = 0
 
 
 def build(
-        domain: str,
+        vm_identifier: str,
         host: str,
-        snapshot: str,
+        snapshot_identifier: str,
 ) -> Tuple[bool, str]:
     """
     1. Crates a HyperV VM Snapshot
@@ -33,10 +34,10 @@ def build(
     host:
         description: Remote server ip address on which this HyperV VM is created
         type: string
-    domain:
+    vm_identifier:
         description: Identification of the HyeprV VM on the Host.
         type: string
-    snapshot:
+    snapshot_identifier:
         description: Identification of the HyperV VM's snapshot on the Host.
         type: string
     return:
@@ -47,16 +48,17 @@ def build(
     """
     # messages
     messages = {
-        1000: f'Successfully created snapshot #{snapshot} for HyperV VM {domain}',
-        3031: f'Failed to connect to the host {host} for the payload read_domain_info',
-        3032: f'Failed to create snapshot, the requested domain {domain} doesnot exists on the Host {host}',
-        3033: f'Failed to connect to the host {host} for the payload read_snapshot',
-        3034: f'Failed to connect to the host {host} for the payload set_check_point',
-        3035: f'Failed to set the check point for the snapshot {snapshot} of domain {domain}',
-        3036: f'Failed to connect to the host {host} for the payload create_snapshot',
-        3037: f'Failed to create snapshot {snapshot} for the domain {domain}',
-        3038: f'Failed to connect to the host {host} for the payload verify_snapshot',
-        3039: f'Failed to verify snapshot, snapshot {snapshot} of the domain {domain} not present on the Host {host}',
+        1000: f'Successfully created snapshot #{snapshot_identifier} for HyperV VM {vm_identifier}',
+        1001: f'Skipping creation of snapshot #{snapshot_identifier} for HyperV VM {vm_identifier}: snapshot exists',
+        3031: f'Failed to connect to host {host} for read_domain_info payload',
+        3032: f'Failed to locate domain {vm_identifier} on host {host}',
+        3033: f'Failed to connect to host {host} for read_snapshot payload',
+        3034: f'Failed to connect to host {host} for set_check_point_type payload ',
+        3035: f'Failed to run set_check_point_type payload for snapshot {snapshot_identifier} of domain {vm_identifier} ',
+        3036: f'Failed to connect to host {host} for payload create_snapshot',
+        3037: f'Failed to create snapshot {snapshot_identifier} for domain {vm_identifier}',
+        3038: f'Failed to connect to host {host} for verify_snapshot payload',
+        3039: f'Failed to run verify_snapshot payload on host {host} for snapshot {snapshot_identifier} of domain {vm_identifier}: ',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -68,13 +70,13 @@ def build(
         )
         payloads = {
             # check if vm exists already
-            'read_domain_info':  f'Get-VM -Name {domain} ',
+            'read_domain_info':  f'Get-VM -Name {vm_identifier} ',
             # check if snapshot exists already
-            'read_snapshot':     f'Get-VMSnapshot -VMName {domain} -Name {snapshot} -ea SilentlyContinue',
-            'set_check_point':   f'Set-VM -Name {domain} -CheckpointType Standard',
-            'create_snapshot':   f'Checkpoint-VM -Name {domain} -SnapshotName {snapshot} -ErrorAction Stop',
+            'read_snapshot':        f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
+            'set_check_point_type': f'Set-VM -Name {vm_identifier} -CheckpointType Standard',
+            'create_snapshot':      f'Checkpoint-VM -Name {vm_identifier} -SnapshotName {snapshot_identifier} -ErrorAction Stop',
             # verify snapshot created successfully
-            'verify_snapshot':   f'Get-VMSnapshot -VMName {domain} -Name {snapshot} -ea SilentlyContinue',
+            'verify_snapshot':   f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
         }
 
         ret = rcc.run(payloads['read_domain_info'])
@@ -93,12 +95,12 @@ def build(
         fmt.add_successful('read_snapshot', ret)
 
         if create_snapshot is True:
-            ret = rcc.run(payloads['set_check_point'])
+            ret = rcc.run(payloads['set_check_point_type'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
             if ret["payload_code"] != SUCCESS_CODE:
                 return False, fmt.payload_error(ret, f'{prefix + 5}: {messages[prefix + 5]}'), fmt.successful_payloads
-            fmt.add_successful('set_check_point', ret)
+            fmt.add_successful('set_check_point_type', ret)
 
             ret = rcc.run(payloads['create_snapshot'])
             if ret["channel_code"] != CHANNEL_SUCCESS:
@@ -113,26 +115,26 @@ def build(
             if ret["payload_code"] != SUCCESS_CODE:
                 return False, fmt.payload_error(ret, f'{prefix + 9}: {messages[prefix + 9]}'), fmt.successful_payloads
             fmt.add_successful('verify_snapshot', ret)
+        else:
+            return True, f'1001: {messages[1001]}', fmt.successful_payloads
 
-        return True, "", fmt.successful_payloads
+        return True, f'1000: {messages[1000]}', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3030, {})
-    if status is False:
-        return status, msg
 
-    return True, f'1000: {messages[1000]}'
+    return status, msg
 
 
 def read(
-        domain: str,
+        vm_identifier: str,
         host: str,
-        snapshot: str,
+        snapshot_identifier: str,
 ) -> Tuple[bool, Dict[str, Any], List[str]]:
     """
     description: Gets the snapshot information
 
     parameters:
-        domain:
+        vm_identifier:
             description: Unique identification name for the HyperV VM on the HyperV Host.
             type: string
             required: true
@@ -140,7 +142,7 @@ def read(
             description: The dns or ipadddress of the Host on which the domain is built
             type: string
             required: true
-        snapshot:
+        snapshot_identifier:
             description: Identification of the HyperV VM's snapshot on the Host.
             type: string
     return:
@@ -172,9 +174,9 @@ def read(
     """
     # Define message
     messages = {
-        1200: f'Successfully read of snapshot {snapshot} for domain {domain} from host {host}',
-        3221: f'Failed to connect to the host {host} for payload read_snapshot_info',
-        3222: f'Failed to read data of snapshot {snapshot} for the domain {domain} from host {host}',
+        1200: f'Successfully read metadata of snapshot {snapshot_identifier} for domain {vm_identifier} from host {host}',
+        3221: f'Failed to connect to host {host} for payload read_snapshot_info',
+        3222: f'Failed to read data of snapshot {snapshot_identifier} for domain {vm_identifier} from host {host}',
     }
 
     # set the outputs
@@ -191,16 +193,16 @@ def read(
         )
 
         payloads = {
-            'read_snapshot_info':   f'Get-VMSnapshot -VMName {domain} -Name {snapshot} -ea SilentlyContinue',
+            'read_snapshot_info':   f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
         }
 
         ret = rcc.run(payloads['read_snapshot_info'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+            fmt.store_channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             retval = False
-            fmt.payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+            fmt.store_payload_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
         else:
             # Load the domain info into dict
             data_dict[host] = hyperv_dictify(ret["payload_message"])
@@ -218,9 +220,9 @@ def read(
 
 
 def scrub(
-        domain: str,
+        vm_identifier: str,
         host: str,
-        snapshot: str,
+        snapshot_identifier: str,
         remove_subtree: bool,
 ) -> Tuple[bool, str]:
     """
@@ -253,12 +255,12 @@ def scrub(
 
     # Define message
     messages = {
-        1100: f'Successfully scrubbed snapshot {snapshot} of domain {domain} on host {host}',
+        1100: f'Successfully scrubbed snapshot {snapshot_identifier} of domain {vm_identifier} on host {host}',
         3121: f'Failed to connect to the host {host} for payload read_snapshot_info',
         3122: f'Failed to connect to the host {host} for payload remove_snapshot',
-        3123: f'Failed to remove snapshot {snapshot} of the domain {domain} from host {host}',
+        3123: f'Failed to remove snapshot {snapshot_identifier} of the domain {vm_identifier} from host {host}',
         3124: f'Failed to connect to the host {host} for payload remove_subtree',
-        3125: f'Failed to remove subtree of snapshot {snapshot} of the domain {domain} from host {host}',
+        3125: f'Failed to remove subtree of snapshot {snapshot_identifier} of the domain {vm_identifier} from host {host}',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -270,9 +272,9 @@ def scrub(
         )
 
         payloads = {
-            'read_snapshot_info': f'Get-VMSnapshot -VMName {domain} -Name {snapshot} -ea SilentlyContinue',
-            'remove_snapshot':    f'Remove-VMSnapshot -VMName {domain} -Name {snapshot} ',
-            'remove_subtree':     f'Remove-VMSnapshot -VMName {domain} -Name {snapshot} -IncludeAllChildSnapshots',
+            'read_snapshot_info': f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
+            'remove_snapshot':    f'Remove-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} ',
+            'remove_subtree':     f'Remove-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -IncludeAllChildSnapshots',
 
         }
 
@@ -326,15 +328,15 @@ def scrub(
 
 
 def update(
-        domain: str,
+        vm_identifier: str,
         host: str,
-        snapshot: str,
+        snapshot_identifier: str,
 ) -> Tuple[bool, str]:
     """
     description: Update a Snapshot by restoring it
 
     parameters:
-        domain:
+        vm_identifier:
             description: Unique identification name for the HyperV VM on the HyperV Host.
             type: string
             required: true
@@ -342,7 +344,7 @@ def update(
             description: The dns or ipadddress of the Host on which the domain is built
             type: string
             required: true
-        snapshot:
+        snapshot_identifier:
             description: Identification of the HyperV VM's snapshot on the Host.
             type: string
             required: true
@@ -356,11 +358,11 @@ def update(
 
     # Define message
     messages = {
-        1300: f'Successfully restored to snapshot {snapshot} for domain {domain} on host {host}',
-        3321: f'Failed to connect to the host {host} for payload read_snapshot_info',
-        3322: f'Failed to read data of snapshot {snapshot} for the domain {domain} from host {host}',
-        3323: f'Failed to connect to the host {host} for payload restore_snapshot',
-        3324: f'Failed to restore snapshot {snapshot} of the domain {domain} on host {host}',
+        1300: f'Successfully restored to snapshot {snapshot_identifier} for domain {vm_identifier} on host {host}',
+        3321: f'Failed to connect to host {host} for payload read_snapshot_info',
+        3322: f'Failed to read data of snapshot {snapshot_identifier} for domain {vm_identifier} from host {host}',
+        3323: f'Failed to connect to host {host} for payload restore_snapshot',
+        3324: f'Failed to restore snapshot {snapshot_identifier} of domain {vm_identifier} on host {host}',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -372,8 +374,8 @@ def update(
         )
 
         payloads = {
-            'read_snapshot_info': f'Get-VMSnapshot -VMName {domain} -Name {snapshot} -ea SilentlyContinue',
-            'restore_snapshot':   f'Restore-VMCheckpoint -Name {snapshot} -VMName {domain} -Confirm:$false',
+            'read_snapshot_info': f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
+            'restore_snapshot':   f'Restore-VMCheckpoint -Name {snapshot_identifier} -VMName {vm_identifier} -Confirm:$false',
         }
 
         ret = rcc.run(payloads['read_snapshot_info'])
@@ -390,10 +392,72 @@ def update(
             return False, fmt.channel_error(ret, f'{prefix + 4}: {messages[prefix + 4]}'), fmt.successful_payloads
         fmt.add_successful('restore_snapshot', ret)
 
-        return True, "", fmt.successful_payloads
+        return True, f'1300: {messages[1300]}', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3320, {})
-    if status is False:
-        return status, msg
+    return status, msg
 
-    return True, f'1300: {messages[1300]}'
+
+def list(
+        vm_identifier: str,
+        host: str,
+) -> Tuple[bool, str]:
+    """
+    description: list all snapshots for a given VM
+
+    parameters:
+        vm_identifier:
+            description: Unique identification name for the HyperV VM on the HyperV Host.
+            type: string
+            required: true
+        host:
+            description: The dns or ipadddress of the Host on which the domain is built
+            type: string
+            required: true
+
+    return:
+        description: |
+            A tuple with a boolean flag stating the restore was successful or not and
+            the output or error message.
+        type: tuple
+    """
+
+    # Define message
+    messages = {
+        1400: f'Successfully retrieved snapshot list for domain {vm_identifier} on host {host}',
+        3421: f'Failed to connect to host {host} for payload list_snapshots',
+    }
+
+    data_dict = {}
+
+    def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, 'robot')
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads
+        )
+
+        payloads = {
+            'list_snapshots': f'Get-VMSnapshot -VMName {vm_identifier} '
+                              '| Select VMName,Name,SnapshotType,CreationTime,ParentSnapshotName,Path '
+                              '| ConvertTo-Csv -NoTypeInformation',
+        }
+
+        ret = rcc.run(payloads['list_snapshots'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f'{prefix + 1}: {messages[prefix + 1]}'), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.channel_error(ret, f'{prefix + 2}: {messages[prefix + 2]}'), fmt.successful_payloads
+        fmt.add_successful('list_snapshots', ret)
+
+        data_dict[host] = hyperv_dictify_csv(ret["payload_message"])
+
+        return True, f'1400: {messages[1400]}', fmt.successful_payloads, data_dict
+
+    retval, msg, successful_payloads, data_dict = run_host(host, 3420, {})
+    if not retval:
+        return retval, data_dict, message_list
+    else:
+        return True, data_dict, [f'1400: {messages[1400]}']
+    return status, data_dict, msg
