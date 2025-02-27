@@ -440,7 +440,7 @@ def quiesce(host: str, vm_identifier: str) -> Tuple[bool, str]:
         payloads = {
             'shutdown_vm':  f'try {{ Stop-VM -Name {vm_identifier} }} catch {{}}; $timeout=300; $interval=1; $elapsed=0; '
                             f'while($elapsed -lt $timeout -and (Get-VM -Name {vm_identifier}).State -ne "Off")'
-                            '{{ Start-Sleep -Seconds $interval; $elapsed+=$interval; }}; '
+                            '{ Start-Sleep -Seconds $interval; $elapsed+=$interval; }; '
                             f'if((Get-VM -Name {vm_identifier}).State -ne "Off"){{ Stop-VM -Name $vmName -TurnOff }}',
             'get_state':    f'$state = Get-VM -Name "{vm_identifier}"; $state.State',
         }
