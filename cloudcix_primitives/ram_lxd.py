@@ -13,13 +13,13 @@ __all__ = [
     'update',
 ]
 
-SUPPORTED_INSTANCES = ['virtual_machines', 'containers']
+SUPPORTED_INSTANCES = ['containers']
 
 def update(
         endpoint_url: str,
         project: str,
         instance_name: str,
-        instance_type: str,
+        containers: str,
         ram: int,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str, dict]:
@@ -35,15 +35,15 @@ def update(
     """
     # Define message
     messages = {
-        1000: f'Successfully updated the RAM for {instance_type} {instance_name} on {endpoint_url}',
-        3011: f'Invalid instance_type "{instance_type}" sent. Supported instance types are "containers" and "virtual_machines"',
-        3021: f'Failed to connect to {endpoint_url} for {instance_type}.get payload',
-        3022: f'Failed to run {instance_type}.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to update the RAM for {instance_type} {instance_name}. Error: ',
+        1000: f'Successfully updated the RAM for {containers} {instance_name} on {endpoint_url}',
+        3011: f'Invalid instance_type "{containers}" sent. Supported instance types are "containers" and "virtual_machines"',
+        3021: f'Failed to connect to {endpoint_url} for {containers}.get payload',
+        3022: f'Failed to run {containers}.get payload on {endpoint_url}. Payload exited with status ',
+        3023: f'Failed to update the RAM for {containers} {instance_name}. Error: ',
     }
 
     # validation
-    if instance_type not in SUPPORTED_INSTANCES:
+    if containers not in SUPPORTED_INSTANCES:
         return False, f'3011: {messages[3011]}', {}
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -55,20 +55,20 @@ def update(
         )
         
         # Get the instance
-        ret = rcc.run(cli=f'{instance_type}.get', name=instance_name)
+        ret = rcc.run(cli=f'{containers}.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful(f'{instance_type}.get', ret)
+        fmt.add_successful(f'{containers}.get', ret)
             
         # Update the memory limit
         try:
             instance.config['limits.memory'] = f'{ram}GB'
             instance.save(wait=True)
-            fmt.add_successful(f'{instance_type}.set', {'limits.memory': f'{ram}GB'})
+            fmt.add_successful(f'{containers}.set', {'limits.memory': f'{ram}GB'})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
         return True, '', fmt.successful_payloads
