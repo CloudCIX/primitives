@@ -139,7 +139,7 @@ def build(
 
     status, msg, successful_payloads = run_host(host, 3020, {})
 
-    return status, msg, successful_payloads
+    return status, msg
 
 
 def read(
@@ -313,7 +313,7 @@ def scrub(
 
     status, msg, successful_payloads = run_host(host, 3120, {})
 
-    return status, msg, successful_payloads
+    return status, msg
 
 
 
@@ -403,4 +403,4 @@ def update(
         return True, messages[1200], fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3220, {})
-    return status, msg, successful_payloads
+    return status, msg

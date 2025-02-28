@@ -35,13 +35,13 @@ msg = None
 data = None
 
 if cmd == 'build':
-    status, msg, successful_payloads = storage_hyperv.build(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier, size=size)
+    status, msg = storage_hyperv.build(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier, size=size)
 elif cmd == 'read':
     status, data, msg = storage_hyperv.read(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier)
 elif cmd == 'scrub':
-    status, msg, successful_payloads = storage_hyperv.scrub(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier)
+    status, msg = storage_hyperv.scrub(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier)
 elif cmd == 'update':
-    status, msg, successful_payloads = storage_hyperv.update(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier, size=size)
+    status, msg = storage_hyperv.update(host=host, vm_identifier=vm_identifier, storage_identifier=storage_identifier, size=size)
 else:
    print(f"Unknown command: {cmd}")
    sys.exit(1)
