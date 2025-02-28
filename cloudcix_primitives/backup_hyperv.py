@@ -61,15 +61,16 @@ def build(
 
     if backup_path is None:
         backup_path = 'D:\\HyperV\\Backup'
-    backup_destination = '\\'.join(backup_path, backup_identifier)
+    backup_destination = '\\'.join([backup_path, backup_identifier])
 
     # Define message
     messages = {
         1000: f'Successfully created backup {backup_identifier} at {backup_destination}',
-        1001: f'Storage {backup_identifier} already exists on host {host} at {backup_destination}',
-        3021: f'Failed to connect to host {host} for payload read_backup: ',
-        3022: f'Failed to connect to host {host} for payload create_backup: ',
-        3023: f'Failed to run create_backup payload on host {host}. Payload exited with status ',
+        1001: f'Backup {backup_identifier} already exists on host {host} at {backup_destination}',
+        3021: f'Failed to connect to host {host} for payload check_backup: ',
+        3022: f'Failed to run check_backup payload on host {host}: ',
+        3023: f'Failed to connect to host {host} for payload create_backup: ',
+        3024: f'Failed to run create_backup payload on host {host}. Payload exited with status ',
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -81,8 +82,8 @@ def build(
         )
 
         payloads = {
-           'check_backup': f'Test-Path -Path "{backup_destination}',
-           'create_backup': f'Export-VM -Name "{vm_identifier}" -Path "backup_destination"',
+           'check_backup': f'Test-Path -Path "{backup_destination}"',
+           'create_backup': f'Export-VM -Name "{vm_identifier}" -Path "{backup_destination}"',
         }
 
         ret = rcc.run(payloads['check_backup'])
@@ -91,16 +92,19 @@ def build(
         if (ret["payload_code"] == SUCCESS_CODE) and (ret["payload_message"].strip() == "True"):
             # No need to create backup: it exists already
             return True, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
-        fmt.add_successful('check_backup', ret)
+        elif (ret["payload_code"] == SUCCESS_CODE) and (ret["payload_message"].strip() == "False"):
+            fmt.add_successful('check_backup', ret)
+        else:
+            return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix + 2]), fmt.successful_payloads
 
         ret = rcc.run(payloads['create_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix + 2]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix + 3]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix + 3]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix + 4]), fmt.successful_payloads
         fmt.add_successful('create_backup', ret)
 
-        return True, messages[1001], fmt.successful_payloads
+        return True, messages[1000], fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3020, {})
 
@@ -109,8 +113,8 @@ def build(
 
 def read(
     host: str,
-    vm_identifier: str,
     backup_identifier: str,
+    backup_path: None,
 ):
     """
     description:
@@ -119,10 +123,6 @@ def read(
     parameters:
         host:
             description: The DNS host name or IP address of the HyperV host on which the virtual machine runs
-            type: string
-            required: true
-        vm_identifier:
-            description: unique identification name for the target HyperV VM on the HyperV host
             type: string
             required: true
         backup_identifier:
@@ -151,7 +151,7 @@ def read(
                 description: backup meta data retrieved from host. May be empty if nothing could be retrieved.
                 items:
                     Sum:
-                        description: total size of backup destination in bytes
+                        description: total size of backup in bytes
                         type: string
                     Count:
                         description: total number of files in backup destination
@@ -160,7 +160,7 @@ def read(
 
     if backup_path is None:
         backup_path = 'D:\\HyperV\\Backup'
-    backup_destination = '\\'.join(backup_path, backup_identifier)
+    backup_destination = '\\'.join([backup_path, backup_identifier])
 
     # Define message
     messages = {
@@ -168,8 +168,9 @@ def read(
 
         3321: f'Failed to connect to host {host} for payload check_backup: ',
         3322: f'Backup destination for backup {backup_identifier} ({backup_destination}) does not exist.',
-        3323: f'Failed to connect to host {host} for payload get_backup_size: ',
-        3324: f'Failed to run payload get_backup size on host {host}: ',
+        3323: f'Failed to run payload check_backup on host {host}: ',
+        3324: f'Failed to connect to host {host} for payload get_backup_size: ',
+        3325: f'Failed to run payload get_backup size on host {host}: ',
     }
     message_list = []
     data_dict = {
@@ -188,7 +189,7 @@ def read(
         )
 
         payloads = {
-            'check_backup': f'Test-Path -Path "{backup_destination}',
+            'check_backup': f'Test-Path -Path "{backup_destination}"',
             'get_backup_size': f'Get-Item {backup_destination} | Get-ChildItem -Recurse -File | Measure-Object -Sum Length | Select Sum,Count'
         }
 
@@ -196,19 +197,24 @@ def read(
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
             fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix + 1]), fmt.successful_payloads
-        if (ret["payload_code"] == SUCCESS_CODE) and (ret["payload_message"].strip() == "False"):
+        if (ret["payload_code"] == SUCCESS_CODE and ret["payload_message"].strip() == "True"):
+            fmt.add_successful('check_backup', ret)
+        elif (ret["payload_code"] == SUCCESS_CODE and ret["payload_message"].strip() == "False"):
             retval = False
             fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix + 2]), fmt.successful_payloads
+            return retval, fmt.message_list, fmt.successful_payloads, data_dict
         else:
-            fmt.add_successful('check_backup', ret)
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+3}: " + messages[prefix + 3]), fmt.successful_payloads
+            return retval, fmt.message_list, fmt.successful_payloads, data_dict
 
         ret = rcc.run(payloads['get_backup_size'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix + 3]), fmt.successful_payloads
+            fmt.store_channel_error(ret, f"{prefix+4}: " + messages[prefix + 4]), fmt.successful_payloads
         if (ret["payload_code"] != SUCCESS_CODE):
             retval = False
-            fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix + 4]), fmt.successful_payloads
+            fmt.store_payload_error(ret, f"{prefix+5}: " + messages[prefix + 5]), fmt.successful_payloads
         else:
             fmt.add_successful('get_backup_size', ret)
             data_dict[host] = hyperv_dictify(ret["payload_message"])
@@ -227,20 +233,16 @@ def read(
 
 def scrub(
     host: str,
-    vm_identifier: str,
-    storage_identifier: str,
+    backup_identifier: str,
+    backup_path: None
 ):
     """
     description:
-        Removes backup <backup_identifier> of domain <vm_identifier> from host <host>.
+        Removes backup <backup_identifier> from host <host>.
 
     parameters:
         host:
             description: The DNS host name or IP address of the HyperV host on which the virtual machine runs
-            type: string
-            required: true
-        vm_identifier:
-            description: unique identification name for the target HyperV VM on the HyperV host
             type: string
             required: true
         backup_identifier:
@@ -261,7 +263,7 @@ def scrub(
     """
     if backup_path is None:
         backup_path = 'D:\\HyperV\\Backup'
-    backup_destination = '\\'.join(backup_path, backup_identifier)
+    backup_destination = '\\'.join([backup_path, backup_identifier])
 
     # Define message
     messages = {
@@ -283,8 +285,8 @@ def scrub(
         )
 
         payloads = {
-            'check_backup': f'Test-Path -Path "{backup_destination}',
-            'remove_storage_file': f'Remove-Item -Path {backup_destination} -Recurse -Force -Confirm:$false',
+            'check_backup': f'Test-Path -Path "{backup_destination}"',
+            'remove_backup': f'Remove-Item -Path {backup_destination} -Recurse -Force -Confirm:$false',
         }
 
         ret = rcc.run(payloads['check_backup'])
@@ -293,7 +295,10 @@ def scrub(
         if (ret["payload_code"] == SUCCESS_CODE) and (ret["payload_message"].strip() == "False"):
             # No need to remove backup: it does not exist
             return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
-        fmt.add_successful('check_backup', ret)
+        elif (ret["payload_code"] == SUCCESS_CODE) and (ret["payload_message"].strip() == "True"):
+            fmt.add_successful('check_backup', ret)
+        else:
+            return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix + 2]), fmt.successful_payloads
 
         ret = rcc.run(payloads['remove_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
