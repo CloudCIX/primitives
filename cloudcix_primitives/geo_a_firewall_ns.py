@@ -1,6 +1,6 @@
 # stdlib
 import json
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, TypedDict
 # lib
 from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh, CONNECTION_ERROR, VALIDATION_ERROR
 # local
@@ -15,10 +15,12 @@ __all__ = [
 
 SUCCESS_CODE = 0
 
+AddressSet = TypedDict('AddressSet', {'name': str, 'version': int})
+
 def build(
         namespace: str,
-        inbound: List[str],
-        outbound: List[str],
+        inbound: List[AddressSet],
+        outbound: List[AddressSet],
         config_file=None,
 ) -> Tuple[bool, str]:
     """
@@ -33,14 +35,14 @@ def build(
             required: true
         inbound:
           description: |
-              list of GeoIP address sets to allow as destinations for outbund
+              list of GeoIP address sets + ip versions to allow as destinations for outbund
               traffic. All sets listed must exist. Can be empty.
           type: list
           required: true
 
         outbound:
           description: |
-              list of GeoIP address sets to allow as destinations for outbund
+              list of GeoIP address sets + ip versions to allow as destinations for outbund
               traffic. All sets listed must exist. Can be empty.
           type: list
           required: true
@@ -127,12 +129,12 @@ def build(
         fmt.add_successful('flush_inbound', ret)
 
         for address_set in inbound:
-            if address_set.endswith('_V4'):
+            if address_set['version'] == 4:
                 ip_version = ''
-            if address_set.endswith('_V6'):
+            if address_set['version'] == 6:
                 ip_version = '6'
 
-            payload = rule_templates['add_inbound_set'] % {'set': address_set, 'ip_version': ip_version}
+            payload = rule_templates['add_inbound_set'] % {'set': address_set['name'], 'ip_version': ip_version}
 
             ret = rcc.run(payload)
             if ret["channel_code"] != CHANNEL_SUCCESS:
@@ -157,12 +159,12 @@ def build(
         fmt.add_successful('flush_outbound', ret)
 
         for address_set in outbound:
-            if address_set.endswith('_V4'):
+            if address_set['version'] == 4:
                 ip_version = ''
-            if address_set.endswith('_V6'):
+            if address_set['version'] == 6:
                 ip_version = '6'
 
-            payload = rule_templates['add_outbound_set'] % {'set': address_set, 'ip_version': ip_version}
+            payload = rule_templates['add_outbound_set'] % {'set': address_set['name'], 'ip_version': ip_version}
 
             ret = rcc.run(payload)
             if ret["channel_code"] != CHANNEL_SUCCESS:
