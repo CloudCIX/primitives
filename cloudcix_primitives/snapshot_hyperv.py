@@ -480,4 +480,3 @@ def list(
         return retval, data_dict, message_list
     else:
         return True, data_dict, [f'1400: {messages[1400]}']
-    return status, data_dict, msg
