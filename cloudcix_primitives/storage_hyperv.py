@@ -135,7 +135,7 @@ def build(
             return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix + 9]), fmt.successful_payloads
         fmt.add_successful('attach_storage_file', ret)
 
-        return True, messages[1001], fmt.successful_payloads
+        return True, messages[1000], fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3020, {})
 
