@@ -17,8 +17,7 @@ endpoint_url = None
 ram = 6
 project = 'mynetns'
 name = 'mynetns-1234'
-containers = 'containers'
-verify_lxd_certs  =  False 
+verify_lxd_certs = False 
 
 
 if len(sys.argv) > 2:
@@ -42,8 +41,7 @@ if cmd == 'update':
     status, msg = ram_lxd.update(
         endpoint_url=endpoint_url,
         project=project,
-        instance_name=name,
-        containers=containers,
+        container_name=name,
         ram=ram,
         verify_lxd_certs=verify_lxd_certs,
     )

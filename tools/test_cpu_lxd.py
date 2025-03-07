@@ -17,8 +17,7 @@ endpoint_url = None
 cpu = 4
 project = 'mynetns'
 name = 'mynetns-1234'
-containers = 'containers'
-verify_lxd_certs  =  False 
+verify_lxd_certs = False 
 
 if len(sys.argv) > 2:
     endpoint_url = sys.argv[2]
@@ -42,7 +41,6 @@ if cmd == 'update':
         endpoint_url=endpoint_url,
         project=project,
         instance_name=name,
-        containers=containers,
         cpu=cpu,
         verify_lxd_certs=verify_lxd_certs,
     )
