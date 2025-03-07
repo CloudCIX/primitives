@@ -40,7 +40,7 @@ if cmd == 'update':
     status, msg = cpu_lxd.update(
         endpoint_url=endpoint_url,
         project=project,
-        instance_name=name,
+        container_name=name,
         cpu=cpu,
         verify_lxd_certs=verify_lxd_certs,
     )
