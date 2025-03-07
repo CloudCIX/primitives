@@ -62,7 +62,7 @@ def update(
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
         return True, '', fmt.successful_payloads
 
-    status, msg = run_host(endpoint_url, 3020, {})
+    status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
 
     if status is False:
         return status, msg
