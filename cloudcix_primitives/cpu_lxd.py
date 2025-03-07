@@ -61,7 +61,7 @@ def update(
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
 
-        return True, '', fmt.successful_payloads
+        return True, ''
     
     status, msg = run_host(endpoint_url, 3020, {})
     
