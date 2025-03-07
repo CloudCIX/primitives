@@ -59,7 +59,7 @@ def update(
             instance.save(wait=True)
             fmt.add_successful('containers.set', {'limits.cpu': str(cpu)})
         except Exception as e:
-            return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
+            return False, f"{prefix+3}: {messages[prefix+3]}: {e}"
 
         return True, ''
     
