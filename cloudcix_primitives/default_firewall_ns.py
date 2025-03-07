@@ -177,7 +177,7 @@ def build(
             f'ip netns exec {namespace} nft add rule inet FILTER PREROUTING '
             f'iifname {namespace}.{public_bridge} jump GEO_IN_ALLOW',
 
-            f'ip netns exec ns1100 nft add rule inet FILTER PREROUTING '
+            f'ip netns exec {namespace} nft add rule inet FILTER PREROUTING '
             f'iifname {namespace}.{public_bridge} jump GEO_IN_BLOCK',
 
 
@@ -192,28 +192,28 @@ def build(
             f'oifname {namespace}.{public_bridge} jump GEO_OUT_BLOCK',
 
             # FORWARD
-            f'ip netns exec ns1100 nft add rule inet FILTER FORWARD '
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
             'ct state established,related accept',
 
-            f'ip netns exec ns1100 nft add rule inet FILTER FORWARD '
-            'iifname @PRIVATE oifname ns1100.br-B1 jump PROJECT_OUT',
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
+            f'iifname @PRIVATE oifname {namespace}.{public_bridge} jump PROJECT_OUT',
 
-            f'ip netns exec ns1100 nft add rule inet FILTER FORWARD '
-            'iifname ns1100.br-B1 oifname @PRIVATE jump PROJECT_IN',
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
+            f'iifname {namespace}.{public_bridge} oifname @PRIVATE jump PROJECT_IN',
 
-            f'ip netns exec ns1100 nft add rule inet FILTER FORWARD '
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
             'iifname @PRIVATE oifname @S2S_TUNNEL jump VPNS2S',
 
-            f'ip netns exec ns1100 nft add rule inet FILTER FORWARD '
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
             'iifname @S2S_TUNNEL oifname @PRIVATE jump VPNS2S',
 
-            f'ip netns exec ns1100 nft add rule inet FILTER FORWARD '
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
             'iifname @PRIVATE oifname @DYN_TUNNEL jump VPNDYN',
 
-            f'ip netns exec ns1100 nft add rule inet FILTER FORWARD '
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
             'iifname @DYN_TUNNEL oifname @PRIVATE jump VPNDYN',
 
-            f'ip netns exec ns1100 nft add rule inet FILTER FORWARD '
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
             'iifname @PRIVATE oifname @PRIVATE jump PRVT_2_PRVT',
 
         ]
