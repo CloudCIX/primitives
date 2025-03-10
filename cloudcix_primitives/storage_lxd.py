@@ -13,26 +13,26 @@ __all__ = [
 ]
 
 def update(
-        endpoint_url: str,
-        project: str,
-        instance_name: str,
-        new_size: str,
-        verify_lxd_certs: bool = True,
+    endpoint_url: str,
+    project: str,
+    container_name: str,
+    new_size: int,
+    verify_lxd_certs: bool = True,
 ) -> Tuple[bool, str, dict]:
     """ Update the root disk size of an LXD container.
     :param endpoint_url: The endpoint URL for the LXD Host.
     :param project: The LXD project name.
     :param instance_name: The name of the LXD instance.
-    :param new_size: The new size for the root disk (e.g., '20GB').
+    :param new_size: The new size for the root disk in GB (integer).
     :param verify_lxd_certs: Boolean to verify LXD certs.
     :return: A tuple with a boolean flag indicating success or failure, a message, and a dictionary of successful payloads.
     """
     # Define message
     messages = {
-        1000: f'Successfully updated root disk size for containers {instance_name} on {endpoint_url}',
+        1000: f'Successfully updated root disk size for containers {container_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to get containers {instance_name} configuration',
-        3023: f'Failed to update root disk size for containers {instance_name}. Error: ',
+        3022: f'Failed to get containers {container_name} configuration',
+        3023: f'Failed to update root disk size for containers {container_name}. Error: ',
         3024: f'Root disk not found in containers devices',
     }
 
@@ -45,7 +45,7 @@ def update(
         )
 
         # Get the container
-        ret = rcc.run(cli='containers.get', name=instance_name)
+        ret = rcc.run(cli='containers.get', name=container_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
@@ -59,9 +59,9 @@ def update(
             return False, f"{prefix+4}: {messages[prefix+4]}", fmt.successful_payloads
         
         try:
-            container.devices['root']['size'] = new_size
+            container.devices['root']['size'] = f'{new_size}GB'
             container.save(wait=True)
-            fmt.add_successful('container.set', {'root.size': new_size})
+            fmt.add_successful('container.set', {'root.size': f'{new_size}GB'})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
 
