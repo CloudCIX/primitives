@@ -18,14 +18,14 @@ def update(
     container_name: str,
     new_size: int,
     verify_lxd_certs: bool = True,
-) -> Tuple[bool, str, dict]:
+) -> Tuple[bool, str]:
     """ Update the root disk size of an LXD container.
     :param endpoint_url: The endpoint URL for the LXD Host.
     :param project: The LXD project name.
     :param instance_name: The name of the LXD instance.
     :param new_size: The new size for the root disk in GB (integer).
     :param verify_lxd_certs: Boolean to verify LXD certs.
-    :return: A tuple with a boolean flag indicating success or failure, a message, and a dictionary of successful payloads.
+    :return: A tuple with a boolean flag indicating success or failure and a message.
     """
     # Define message
     messages = {
@@ -70,6 +70,6 @@ def update(
     status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
     
     if status is False:
-        return status, msg, successful_payloads
+        return status, msg
 
-    return True, f'1000: {messages[1000]}', successful_payloads
+    return True, f'1000: {messages[1000]}'
