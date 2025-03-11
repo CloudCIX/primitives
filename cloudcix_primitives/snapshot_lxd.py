@@ -20,17 +20,14 @@ def build(
         project: str,
         container_name: str,
         snapshot_name: str,
-        stateful: bool = False,
         verify_lxd_certs: bool = True
-) -> Tuple[bool, str, dict]:
+) -> Tuple[bool, str]:
     """Create a snapshot for an LXD container.
     
     :param endpoint_url: The endpoint URL for the LXD Host.
     :param project: The LXD project name.
-    :param instance_name: The name of the LXD container to snapshot.
+    :param container_name: The name of the LXD container to snapshot.
     :param snapshot_name: The name to give the snapshot.
-    :param stateful: Whether to include the runtime state in the snapshot. 
-    NOTE: Stateful Containers require CRIU installation and config migration.stateful = true. 
     :param verify_lxd_certs: Boolean to verify LXD certs.
     
     :return: A tuple with a boolean flag indicating success or failure, a message.
@@ -63,8 +60,8 @@ def build(
         
         # Create the snapshot
         try:
-            instance.snapshots.create(snapshot_name, stateful=stateful)
-            fmt.add_successful('snapshot.create', {'snapshot_name': snapshot_name, 'stateful': stateful})
+            instance.snapshots.create(snapshot_name, stateful=False)
+            fmt.add_successful('snapshot.create', {'snapshot_name': snapshot_name})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}{e}", fmt.successful_payloads
             
@@ -83,7 +80,7 @@ def read(
         project: str,
         container_name: str,
         verify_lxd_certs: bool = True
-) -> Tuple[bool, dict, str]:
+) -> Tuple[bool, str]:
     """Retrieve details for the current snapshot from an LXD container.
     
     NOTE: Using ZFS filesystem, only one snapshot can exist at a time.
@@ -144,7 +141,6 @@ def read(
             snapshot_data = {
                 'name': snapshot.name,
                 'created_at': snapshot.created_at,
-                'stateful': snapshot.stateful
             }
             
             # If there's config data, add it
@@ -180,7 +176,7 @@ def scrub(
         container_name: str,
         snapshot_name: str,
         verify_lxd_certs: bool = True
-) -> Tuple[bool, str, dict]:
+) -> Tuple[bool, str]:
     """Delete a snapshot from an LXD container.
     
     :param endpoint_url: The endpoint URL for the LXD Host.
@@ -223,7 +219,8 @@ def scrub(
             # Get the snapshot
             snapshot = instance.snapshots.get(snapshot_name)
             if not snapshot:
-                return False, f"{prefix+3}: {messages[prefix+3]}", fmt.successful_payloads
+                fmt.add_successful('snapshot.not_found', {'snapshot_name': snapshot_name})
+                return True, f"1100: {messages[1100]}", fmt.successful_payloads
             
             # Delete the snapshot with wait=True to ensure the operation completes before continuing
             snapshot.delete(wait=True)
@@ -247,9 +244,8 @@ def update(
         project: str,
         container_name: str,
         snapshot_name: str,
-        restore_stateful: bool = False,
         verify_lxd_certs: bool = True
-) -> Tuple[bool, str, dict]:
+) -> Tuple[bool, str]:
     """Restore a container from a snapshot.
     
     NOTE: Since we're using ZFS filesystem, only one snapshot can exist at a time,
@@ -259,7 +255,6 @@ def update(
     :param project: The LXD project name.
     :param container_name: The name of the LXD container containing the snapshot.
     :param snapshot_name: The name of the snapshot to restore from.
-    :param restore_stateful: Boolean to restore the container with its runtime state if the snapshot was stateful.
     :param verify_lxd_certs: Boolean to verify LXD certs.
     
     :return: A tuple with a boolean flag indicating success or failure, a message, and a dictionary of successful payloads.
@@ -298,16 +293,9 @@ def update(
             if not snapshot:
                 return False, f"{prefix+5}: {messages[3325]}", fmt.successful_payloads
                 
-            # Perform the restore operation with the stateful parameter
-            restore_options = {}
-            if restore_stateful and snapshot.stateful:
-                restore_options['restore_state'] = True
-                
-            snapshot.restore(wait=True, **restore_options)
-            fmt.add_successful('snapshot.restore', {
-                'snapshot_name': snapshot_name,
-                'restore_stateful': restore_stateful
-            })
+            # Perform the restore operation with default parameters
+            snapshot.restore(wait=True)
+            fmt.add_successful('snapshot.restore', {'snapshot_name': snapshot_name})
             
         except Exception as e:
             return False, f"{prefix+4}: {messages[3324]}{e}", fmt.successful_payloads
