@@ -28,13 +28,13 @@ def build(
     :param project: The LXD project name.
     :param container_name: The name of the LXD container.
     :param device_identifier: The ID of the GPU to attach (PCI address like "0000:01:00.0").
-                              This will also be used as the device name (with any colons replaced with hyphens (LXD formatting requirement)).
+                              This will also be used as the device name.
     :param verify_lxd_certs: Boolean to verify LXD certs.
     :return: A tuple with a boolean flag indicating success or failure, and a message.
     """
     
-    # Create device name from identifier
-    device_name = device_identifier.replace(':', '-')
+    # Use the device identifier directly as the device name
+    device_name = device_identifier
     
     messages = {
         1000: f'Successfully attached GPU {device_identifier} to container {container_name} on {endpoint_url}',
@@ -194,7 +194,7 @@ def scrub(
     :param project: The LXD project name.
     :param container_name: The name of the LXD container.
     :param device_identifier: The identifier of the specific GPU to detach.
-                             This can be either a PCI ID or device name (same as the PCI ID with colons replaced by hyphens).
+                             This can be either a PCI ID or device name (which are now identical).
     :param verify_lxd_certs: Boolean to verify LXD certs.
     :return: A tuple with a boolean flag indicating success or failure, and a message.
     """
