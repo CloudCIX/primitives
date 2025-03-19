@@ -381,7 +381,7 @@ def read(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> T
             fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix+2])
         else:
             data_dict[endpoint_url][f'containers["{name}"].get'] = ret["payload_message"].json()
-            fmt.add_successful(f'container["{name}"].get', ret)
+            fmt.add_successful(f'containers["{name}"].get', ret)
 
         return retval, fmt.message_list, fmt.successful_payloads, data_dict
 
