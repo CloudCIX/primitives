@@ -372,7 +372,7 @@ def read(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> T
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
             successful_payloads,
         )
-        ret = project_rcc.run(cli=f'container["{name}"].get', api=True)
+        ret = project_rcc.run(cli=f'containers["{name}"].get', api=True)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
             fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
