@@ -14,7 +14,6 @@ from cloudcix_primitives import lxd
 cmd = sys.argv[1]
 
 endpoint_url = None
-instance_type = 'containers'
 name = 'mynetns-1234'
 project = 'mynetns'
 image = {
@@ -98,7 +97,6 @@ if cmd == 'build':
         endpoint_url=endpoint_url,
         project=project,
         name=name,
-        instance_type=instance_type,
         image=image,
         cpu=cpu,
         gateway_interface=gateway_interface,
@@ -114,7 +112,6 @@ elif cmd == 'quiesce':
         endpoint_url=endpoint_url,
         project=project,
         name=name,
-        instance_type=instance_type,
         verify_lxd_certs=verify_lxd_certs,
     )
 elif cmd == 'read':
@@ -122,7 +119,6 @@ elif cmd == 'read':
         endpoint_url=endpoint_url,
         project=project,
         name=name,
-        instance_type=instance_type,
         verify_lxd_certs=verify_lxd_certs,
     )
 elif cmd == 'restart':
@@ -130,7 +126,6 @@ elif cmd == 'restart':
         endpoint_url=endpoint_url,
         project=project,
         name=name,
-        instance_type=instance_type,
         verify_lxd_certs=verify_lxd_certs,
     )
 elif cmd == 'scrub':
@@ -138,7 +133,6 @@ elif cmd == 'scrub':
         endpoint_url=endpoint_url,
         project=project,
         name=name,
-        instance_type=instance_type,
         verify_lxd_certs=verify_lxd_certs,
     )
 else:
