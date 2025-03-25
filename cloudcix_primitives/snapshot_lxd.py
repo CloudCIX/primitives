@@ -22,15 +22,36 @@ def build(
         snapshot_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """Create a snapshot for an LXD container.
+    """
+    description:
+        Create a snapshot for an LXD container.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
+            type: string
+            required: true
+        container_name:
+            description: The name of the LXD container to snapshot.
+            type: string
+            required: true
+        snapshot_name:
+            description: The name to give the snapshot.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
     
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param container_name: The name of the LXD container to snapshot.
-    :param snapshot_name: The name to give the snapshot.
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    
-    :return: A tuple with a boolean flag indicating success or failure, a message.
+    return:
+        description: |
+            A tuple with a boolean flag indicating success or failure, a message.
+        type: tuple
     """
     # Define messages
     messages = {
@@ -60,7 +81,7 @@ def build(
         
         # Create the snapshot
         try:
-            instance.snapshots.create(snapshot_name, stateful=False)
+            instance.snapshots.create(snapshot_name)
             fmt.add_successful('snapshot.create', {'snapshot_name': snapshot_name})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}{e}", fmt.successful_payloads
@@ -72,7 +93,7 @@ def build(
     if status is False:
         return status, msg, successful_payloads
 
-    return True, f'1000: {messages[1000]}', successful_payloads
+    return True, f'1000: {messages[1000]}'
 
 
 def read(
@@ -81,16 +102,33 @@ def read(
         container_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """Retrieve details for the current snapshot from an LXD container.
+    """
+    description:
+        Retrieve details for the current snapshot from an LXD container.
+        NOTE: Using ZFS filesystem, only one snapshot can exist at a time.
     
-    NOTE: Using ZFS filesystem, only one snapshot can exist at a time.
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
+            type: string
+            required: true
+        container_name:
+            description: The name of the LXD container containing the snapshot.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
     
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param container_name: The name of the LXD container containing the snapshot.
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    
-    :return: A tuple with a boolean flag indicating success or failure, a dictionary containing snapshot data, and a message.
+    return:
+        description: |
+            A tuple with a boolean flag indicating success or failure, a dictionary containing snapshot data, and a message.
+        type: tuple
     """
     # Define message
     messages = {
@@ -119,13 +157,11 @@ def read(
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads, result
         
-        # Store the container
         container = ret['payload_message']
         fmt.add_successful('containers.get', ret)
         
-        # Get snapshot (should be only one with ZFS)
         try:
-            # Get snapshot
+            # Get snapshots
             snapshots = list(container.snapshots.all())
             
             if not snapshots:
@@ -134,16 +170,16 @@ def read(
                 fmt.add_successful('snapshots.list', {'count': 0})
                 return True, '', fmt.successful_payloads, result
             
-            # Get the first snapshot
+            # Get the first snapshot (ZFS only allows one)
             snapshot = snapshots[0]
             
-            # Convert snapshot to dict for return value
+            # Extract snapshot data into a dictionary
             snapshot_data = {
                 'name': snapshot.name,
                 'created_at': snapshot.created_at,
             }
             
-            # If there's config data, add it
+            # Add config if available
             if hasattr(snapshot, 'config'):
                 snapshot_data['config'] = snapshot.config
             
@@ -151,23 +187,25 @@ def read(
             fmt.add_successful('containers.snapshots.get', {'snapshot': snapshot_data})
                 
         except Exception as e:
-            return False, fmt.store_error(str(e), f"{prefix+3}: {messages[prefix+3]}{str(e)}"), fmt.successful_payloads, result
+            error_msg = f"{prefix+3}: {messages[prefix+3]}{str(e)}"
+            return False, fmt.store_error(str(e), error_msg), fmt.successful_payloads, result
 
         return True, '', fmt.successful_payloads, result
 
+    # Run the host function and get results
     status, msg, successful_payloads, result = run_host(endpoint_url, 3220, {})
 
     if not status:
         return False, {}, msg
     
-    # Prepare return data
+    # Prepare response data
     data = {endpoint_url: result}
     
-    # Check if snapshot found
+    # Select appropriate message based on whether a snapshot was found
     if result.get('snapshot') is None:
         return True, data, f'1201: {messages[1201]}'
-    else:
-        return True, data, f'1200: {messages[1200]}'
+    
+    return True, data, f'1200: {messages[1200]}'
 
 
 def scrub(
@@ -181,7 +219,7 @@ def scrub(
     
     :param endpoint_url: The endpoint URL for the LXD Host.
     :param project: The LXD project name.
-    :param instance_name: The name of the LXD container containing the snapshot.
+    :param container_name: The name of the LXD container containing the snapshot.
     :param snapshot_name: The name of the snapshot to delete.
     :param verify_lxd_certs: Boolean to verify LXD certs.
     
@@ -236,7 +274,7 @@ def scrub(
     if status is False:
         return status, msg, successful_payloads
 
-    return True, f'1100: {messages[1100]}', successful_payloads
+    return True, f'1100: {messages[1100]}'
 
 
 def update(
@@ -246,18 +284,38 @@ def update(
         snapshot_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """Restore a container from a snapshot.
+    """
+    description:
+        Restore a container from a snapshot.
+        NOTE: Since we're using ZFS filesystem, only one snapshot can exist at a time,
+        so the snapshot_name parameter is required to identify the snapshot.
     
-    NOTE: Since we're using ZFS filesystem, only one snapshot can exist at a time,
-    so the snapshot_name parameter is required to identify the snapshot.
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
+            type: string
+            required: true
+        container_name:
+            description: The name of the LXD container containing the snapshot.
+            type: string
+            required: true
+        snapshot_name:
+            description: The name of the snapshot to restore from.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
     
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param container_name: The name of the LXD container containing the snapshot.
-    :param snapshot_name: The name of the snapshot to restore from.
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    
-    :return: A tuple with a boolean flag indicating success or failure, a message, and a dictionary of successful payloads.
+    return:
+        description: |
+            A tuple with a boolean flag indicating success or failure, a message, and a dictionary of successful payloads.
+        type: tuple
     """
     # Define messages
     messages = {
@@ -307,5 +365,4 @@ def update(
     if status is False:
         return status, msg, successful_payloads
 
-    return True, f'1300: {messages[1300]}', successful_payloads
-
+    return True, f'1300: {messages[1300]}'
