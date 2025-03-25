@@ -21,16 +21,35 @@ def build(
         device_identifier: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """Attach a GPU to an LXD container.
-    NOTE: Each unique GPU can only be attached once to a container to prevent duplicate references.
+    """ description: Attach a GPU to an LXD container.
 
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param container_name: The name of the LXD container.
-    :param device_identifier: The ID of the GPU to attach (PCI address like "0000:01:00.0").
-                              This will also be used as the device name.
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    :return: A tuple with a boolean flag indicating success or failure, and a message.
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        container_name:
+            description: The name of the LXD container.
+            type: string
+            required: true
+        device_identifier:
+            description: The ID of the GPU to attach (PCI address like "0000:01:00.0").
+                         This will also be used as the device name.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+            
+    return:
+        description: |
+            A tuple with a boolean flag indicating success or failure, and a message.
+        type: tuple
     """
     
     # Use the device identifier directly as the device name
@@ -38,7 +57,7 @@ def build(
     
     messages = {
         1000: f'Successfully attached GPU {device_identifier} to container {container_name} on {endpoint_url}',
-        1001: f'GPU {device_identifier} is already attached to container {container_name}',
+        1001: f'GPU {device_identifier} is already attached to container {container_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for containers.get payload',
         3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to attach GPU to container {container_name}. Error: ',
@@ -104,20 +123,37 @@ def build(
     
     return True, f'1000: {messages[1000]}'
 
-
 def read(
         endpoint_url: str,
         project: str,
         container_name: str,
         verify_lxd_certs: bool = True
-) -> Tuple[bool, str]:
-    """Read information about attached GPUs from an LXD container.
-    
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param container_name: The name of the LXD container.
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    :return: A tuple with a boolean flag indicating success or failure and a message with GPU information.
+) -> Tuple[bool, str, dict]:
+    """ description: Read information about attached GPUs from an LXD container.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        container_name:
+            description: The name of the LXD container.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+            
+    return:
+        description: |
+            A tuple with a boolean flag indicating success or failure, a message with GPU information,
+            and a dictionary containing detailed GPU device information.
+        type: tuple
     """
     # Define messages for different statuses
     messages = {
@@ -175,10 +211,18 @@ def read(
 
     status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
     
-    if status is False:
-        return False, msg
-        
-    return True, msg
+    if status:
+        if 'gpu_devices' in successful_payloads:
+            gpu_details = successful_payloads['gpu_devices']
+            # Format the output to match repository standards
+            devices_info = [f"{name} (PCI: {details['id']})" for name, details in gpu_details.items()]
+            devices_str = ", ".join(devices_info) if devices_info else "None"
+            
+            return True, f'1000: {messages[1000]} - Devices: {devices_str}', gpu_details
+        else:
+            return True, f'1001: {messages[1001]}', {}
+    else:
+        return False, msg, {}
 
 
 def scrub(
@@ -188,15 +232,35 @@ def scrub(
         device_identifier: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """Detach a GPU from an LXD container.
-    
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param container_name: The name of the LXD container.
-    :param device_identifier: The identifier of the specific GPU to detach.
-                             This can be either a PCI ID or device name (which are now identical).
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    :return: A tuple with a boolean flag indicating success or failure, and a message.
+    """ description: Detach a GPU from an LXD container.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        container_name:
+            description: The name of the LXD container.
+            type: string
+            required: true
+        device_identifier:
+            description: The identifier of the specific GPU to detach.
+                         This can be either a PCI ID or device name (which are now identical).
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+            
+    return:
+        description: |
+            A tuple with a boolean flag indicating success or failure, and a message.
+        type: tuple
     """
     # Define messages for different statuses
     messages = {
@@ -239,7 +303,6 @@ def scrub(
             # Check if it matches either the PCI ID or device name
             if config.get('pci') == device_identifier or dev_name == device_identifier:
                 gpu_devices.append(dev_name)
-                break
                 
         # If no GPU devices were found
         if not gpu_devices:
