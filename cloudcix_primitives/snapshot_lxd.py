@@ -230,7 +230,6 @@ def scrub(
         1100: f'Successfully deleted snapshot {snapshot_name} from container {container_name} on {endpoint_url}',
         3121: f'Failed to connect to {endpoint_url} for containers.get payload',
         3122: f'Failed to run containers.get payload on {endpoint_url}',
-        3123: f'Failed to find snapshot {snapshot_name} for container {container_name}',
         3124: f'Failed to delete snapshot {snapshot_name}. Error: ',
     }
 
