@@ -321,7 +321,6 @@ def update(
         1300: f'Successfully restored container {container_name} from snapshot {snapshot_name} on {endpoint_url}',
         3321: f'Failed to connect to {endpoint_url} for containers.get payload',
         3322: f'Failed to run containers.get payload on {endpoint_url}',
-        3323: f'No snapshots found for container {container_name}',
         3324: f'Failed to restore from snapshot. Error: ',
         3325: f'Snapshot {snapshot_name} not found for container {container_name}',
     }
