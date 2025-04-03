@@ -1,10 +1,9 @@
 """
-LXD Container Backup Management
+Primitive for Backups on LXD hosts
 """
 # stdlib
 import json
 import os
-import time
 from typing import Dict, List, Tuple
 
 # lib
@@ -18,6 +17,7 @@ __all__ = [
     'scrub',
 ]
 
+SUCCESS_CODE = 0
 
 def build(
         host: str,
@@ -27,110 +27,112 @@ def build(
         backup_dir: str,
 ) -> Tuple[bool, str]:
     """
-    Creates a container backup on the LXD host and exports it to storage.
-    
-    Parameters:
-        host: LXD host IP
-        username: SSH username
-        container_name: Name of the LXD container
-        backup_id: Identifier for the backup
-        backup_dir: Directory for backup storage
+    description:
+        Creates container backup on LXD host and exports it to storage.
+
+    parameters:
+        host:
+            description: The IP address of the LXD host on which the container runs
+            type: string
+            required: true
+        username:
+            description: SSH username for connecting to the host
+            type: string
+            required: true
+        container_name:
+            description: unique identification name for the target LXD container
+            type: string
+            required: true
+        backup_id:
+            description: unique identification name for the backup to be created
+            type: string
+            required: true
+        backup_dir:
+            description: path on the host where the backup is to be stored
+            type: string
+            required: true
     """
-    def _lxd_api_call(rcc, fmt, method, endpoint, data=None):
-        """Execute a LXD API call via curl."""
-        curl_cmd = f"curl -s -X {method} --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd{endpoint}"
-        if data:
-            json_data = json.dumps(data).replace('"', '\\"')
-            curl_cmd += f" -d \"{json_data}\""
-        ret = rcc.run(payload=curl_cmd)
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            raise Exception(fmt.channel_error(ret, "API call failed"))
-        if 'payload_message' not in ret or not ret['payload_message']:
-            raise Exception(fmt.payload_error(ret, "API call returned no data"))
-        return json.loads(ret['payload_message'])
-
-    def _wait_for_operation(rcc, fmt, operation_url, timeout=300):
-        """Wait for a LXD operation to complete."""
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            response = _lxd_api_call(rcc, fmt, "GET", operation_url)
-            if response["metadata"]["status"] == "Success":
-                return True
-            elif response["metadata"]["status"] == "Failure":
-                raise Exception(f"Operation failed: {response['metadata'].get('err', 'Unknown error')}")
-            time.sleep(2)
-        raise Exception("Operation timed out")
-
-    def _check_file_exists(rcc, fmt, file_path):
-        """Check if a file exists on the remote host."""
-        check_cmd = f"[ -f {file_path} ] && echo 'exists' || echo 'not_found'"
-        ret = rcc.run(payload=check_cmd)
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            raise Exception(fmt.channel_error(ret, "File check failed"))
-        return 'payload_message' in ret and 'exists' in ret['payload_message']
-
-    # Generate backup name and paths
+    # Generate backup name and path
     backup_name = f"{container_name}_{backup_id}"
-    backup_filename = f"{backup_name}.tar.gz"
-    backup_path = os.path.join(backup_dir, backup_filename)
+    backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
-    # Define messages
     messages = {
-        1000: f"Successfully created and exported backup '{backup_name}' for container '{container_name}'",
-        3001: f"Failed to check existing backups for container '{container_name}'",
-        3002: f"Failed to create backup for container '{container_name}'",
-        3003: f"Failed to export backup '{backup_name}' for container '{container_name}'",
-        3004: f"Failed to wait for backup operation to complete for container '{container_name}'",
-        3005: f"External backup already exists for '{container_name}', no action taken",
-        3006: f"Local backup already exists for '{container_name}', possible concurrent operation",
+        1000: f"Successfully created backup '{backup_name}' at {backup_path}",
+        1001: f"Backup '{backup_name}' already exists on host {host} at {backup_path}",
+        3021: f"Failed to connect to host {host} for payload check_backup: ",
+        3022: f"Failed to create backup for container '{container_name}': ",
+        3023: f"Failed to export backup '{backup_name}' for container '{container_name}': ",
+        3024: f"Failed to verify backup file was created: ",
     }
 
-    # Initialize SSH connection
-    rcc = SSHCommsWrapper(comms_ssh, host, username)
-    fmt = HostErrorFormatter(host, {'payload_message': 'STDOUT', 'payload_error': 'STDERR'}, {})
-
     def run_host(host, prefix, successful_payloads):
+        rcc = SSHCommsWrapper(comms_ssh, host, username)
+        fmt = HostErrorFormatter(
+            host,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads,
+        )
+        
+        payloads = {
+            'check_backup': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
+            'create_backup': f"curl -s -X POST --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{container_name}/backups -d \"{{\\\"name\\\": \\\"{backup_name}\\\", \\\"compression_algorithm\\\": \\\"gzip\\\", \\\"instance_only\\\": false}}\"",
+            'wait_backup': lambda op_url: f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd{op_url}/wait",
+            'export_backup': f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{container_name}/backups/{backup_name}/export > {backup_path}",
+            'verify_backup': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
+            'cleanup_backup': f"curl -s -X DELETE --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{container_name}/backups/{backup_name}",
+        }
+        
+        # 1. Check if backup already exists
+        ret = rcc.run(payload=payloads['check_backup'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
+        
+        if 'payload_message' in ret and 'exists' in ret['payload_message']:
+            # No need to create backup: it exists already
+            return True, f"1001: {messages[1001]}", fmt.successful_payloads
+        
+        fmt.add_successful('check_backup', {'exists': False, 'path': backup_path})
+        
+        # 2. Create the backup 
+        ret = rcc.run(payload=payloads['create_backup'])
+        if ret["channel_code"] != CHANNEL_SUCCESS or 'payload_message' not in ret or not ret['payload_message']:
+            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+        
         try:
-            # Check if external backup exists
-            external_backup_exists = _check_file_exists(rcc, fmt, backup_path)
-            fmt.add_successful('external_backup_check', {'exists': external_backup_exists, 'path': backup_path})
-            if external_backup_exists:
-                return False, fmt.payload_error(None, f"{prefix+5}: {messages[prefix+5]}")
-            
-            # Check if local LXD backup exists
-            existing_backups = _lxd_api_call(rcc, fmt, "GET", f"/1.0/instances/{container_name}/backups")
-            local_backup_exists = any(backup.split('/')[-1] == backup_name for backup in existing_backups["metadata"])
-            if local_backup_exists:
-                return False, fmt.payload_error(None, f"{prefix+6}: {messages[prefix+6]}")
-            
-            # Create backup
-            backup_data = {"name": backup_name, "compression_algorithm": "gzip", "instance_only": False}
-            response = _lxd_api_call(rcc, fmt, "POST", f"/1.0/instances/{container_name}/backups", backup_data)
-            _wait_for_operation(rcc, fmt, response["operation"])
-            fmt.add_successful('create_backup', {'backup_name': backup_name})
-            
-            # Export backup to storage
-            curl_cmd = (f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket "
-                        f"lxd/1.0/instances/{container_name}/backups/{backup_name}/export > {backup_path}")
-            ret = rcc.run(payload=curl_cmd)
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f"{prefix+3}: {messages[prefix+3]}: SSH connection failed")
-            if not _check_file_exists(rcc, fmt, backup_path):
-                return False, fmt.payload_error(None, f"{prefix+3}: {messages[prefix+3]}: Failed to verify backup file was created")
-            
-            # Delete the local backup after successful export
-            response = _lxd_api_call(rcc, fmt, "DELETE", f"/1.0/instances/{container_name}/backups/{backup_name}")
-            _wait_for_operation(rcc, fmt, response["operation"])
-            fmt.add_successful('delete_local_backup', {'backup_name': backup_name})
-            
-            fmt.add_successful('build_complete', {'backup_path': backup_path})
-            return True, f"1000: {messages[1000]} - File saved to: {backup_path}"
-            
-        except Exception as e:
-            return False, fmt.payload_error(None, f"{prefix+2}: {messages[prefix+2]}: {str(e)}")
+            response = json.loads(ret['payload_message'])
+            operation_url = response.get("operation")
+            if not operation_url:
+                return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}Invalid response"), fmt.successful_payloads
+        except (json.JSONDecodeError, TypeError):
+            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}Invalid JSON response"), fmt.successful_payloads
+        
+        fmt.add_successful('create_backup', {'backup_name': backup_name})
+        
+        # 3. Wait for backup to complete
+        ret = rcc.run(payload=payloads['wait_backup'](operation_url))
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+2}: {messages[prefix+2]}Backup operation failed"), fmt.successful_payloads
+        
+        # 4. Export the backup
+        ret = rcc.run(payload=payloads['export_backup'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
+        
+        # 5. Verify the file was created
+        ret = rcc.run(payload=payloads['verify_backup'])
+        if ret["channel_code"] != CHANNEL_SUCCESS or 'payload_message' not in ret or 'exists' not in ret['payload_message']:
+            return False, fmt.payload_error(ret, f"{prefix+4}: {messages[prefix+4]}"), fmt.successful_payloads
+        
+        # 6. Clean up - Delete the local LXD backup
+        ret = rcc.run(payload=payloads['cleanup_backup'])
+        
+        # Success
+        fmt.add_successful('build_complete', {'backup_path': backup_path})
+        return True, f"1000: {messages[1000]}", fmt.successful_payloads
 
-    status, msg = run_host(host, 3000, {})
+    status, msg, successful_payloads = run_host(host, 3020, {})
     return status, msg
+
 
 def read(
         host: str,
@@ -140,53 +142,49 @@ def read(
         backup_dir: str,
 ) -> Tuple[bool, Dict, List[str]]:
     """
-    Gets information about a container backup file.
+    description:
+        Gets information about a container backup file.
     
-    Parameters:
-        host: Backup host IP
-        username: SSH username
-        container_name: Name of the LXD container
-        backup_id: Identifier for the backup
-        backup_dir: Directory for backup storage
+    parameters:
+        host:
+            description: The IP address of the LXD host
+            type: string
+            required: true
+        username:
+            description: SSH username for connecting to the host
+            type: string
+            required: true
+        container_name:
+            description: Name of the LXD container
+            type: string
+            required: true
+        backup_id:
+            description: Identifier for the backup
+            type: string
+            required: true
+        backup_dir:
+            description: Directory for backup storage
+            type: string
+            required: true
     """
-    def _check_file_exists(rcc, fmt, file_path):
-        """Check if a file exists on the remote host."""
-        check_cmd = f"[ -f {file_path} ] && echo 'exists' || echo 'not_found'"
-        ret = rcc.run(payload=check_cmd)
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            raise Exception(fmt.channel_error(ret, "File check failed"))
-        return 'payload_message' in ret and 'exists' in ret['payload_message']
-
-    def _get_file_details(rcc, fmt, file_path):
-        """Get detailed information about a file."""
-        file_cmd = f"ls -la {file_path} && stat --format='%y' {file_path} && du -sh {file_path}"
-        file_ret = rcc.run(payload=file_cmd)
-        
-        if file_ret["channel_code"] != CHANNEL_SUCCESS:
-            raise Exception(fmt.channel_error(file_ret, "Failed to get file details"))
-        
-        if 'payload_message' in file_ret and file_ret['payload_message']:
-            file_info = file_ret['payload_message'].strip().split('\n')
-            return {
-                'file_details': file_info[0] if len(file_info) > 0 else "Unknown",
-                'created': file_info[1] if len(file_info) > 1 else "Unknown",
-                'size': file_info[2] if len(file_info) > 2 else "Unknown"
-            }
-        return None
-
     # Generate backup name and filename
     backup_name = f"{container_name}_{backup_id}"
-    backup_filename = f"{backup_name}.tar.gz"
-    backup_path = os.path.join(backup_dir, backup_filename)
+    backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
-    # Define messages
+    # Define messages with correct numbering - align with HyperV
     messages = {
-        1300: f"Successfully read backup information for '{backup_name}' of container '{container_name}'",
-        3301: f"Failed to get backup information for container '{container_name}'",
-        3302: f"Backup '{backup_name}' does not exist for container '{container_name}'",
+        1300: f"Successfully read backup information for '{backup_name}' at {backup_path}",
+        3321: f"Failed to connect to host {host} for payload check_backup: ",
+        3322: f"Backup '{backup_name}' does not exist on host {host}",
+        3323: f"Failed to get backup details for '{backup_name}': ",
     }
 
+    data_dict = {host: {}}  # Initialize with host key
+    message_list = []
+
     def run_host(host, prefix, successful_payloads):
+        retval = True
+        
         rcc = SSHCommsWrapper(comms_ssh, host, username)
         fmt = HostErrorFormatter(
             host,
@@ -194,41 +192,67 @@ def read(
             successful_payloads,
         )
         
-        data_dict = {}
-        message_list = []
+        payloads = {
+            'check_backup': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
+            'get_backup_details': f"ls -la {backup_path} && stat --format='%y' {backup_path} && du -sh {backup_path}",
+        }
         
-        try:
-            # Check backup exists
-            backup_exists = _check_file_exists(rcc, fmt, backup_path)
-            data_dict['backup_exists'] = backup_exists
-            data_dict['backup_path'] = backup_path
+        # 1. Check if backup file exists
+        ret = rcc.run(payload=payloads['check_backup'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            retval = False
+            fmt.store_channel_error(ret, f"{prefix+1}: {messages[prefix+1]}")
+            return retval, fmt.message_list, fmt.successful_payloads, data_dict
+        
+        backup_exists = 'payload_message' in ret and 'exists' in ret['payload_message']
+        
+        # 2. Add basic information to response
+        data_dict[host] = {
+            'backup_exists': backup_exists,
+            'backup_path': backup_path,
+            'container_name': container_name,
+            'backup_name': backup_name,
+            'backup_id': backup_id,
+        }
+        
+        # 3. Get detailed backup info if it exists
+        if backup_exists:
+            fmt.add_successful('check_backup', {'exists': True, 'path': backup_path})
             
-            # Get backup details if it exists
-            if backup_exists:
-                backup_details = _get_file_details(rcc, fmt, backup_path)
-                if backup_details:
-                    data_dict['backup_details'] = backup_details
-                    fmt.add_successful('get_backup_info', {'backup_path': backup_path})
-                    
-                # Basic information
-                data_dict.update({
-                    'container_name': container_name,
-                    'backup_name': backup_name,
-                    'backup_id': backup_id
-                })
-                
-                message_list.insert(0, f"1300: {messages[1300]}")
-                return True, data_dict, message_list
-            else:
-                message_list.append(f"{prefix+2}: {messages[prefix+2]}")
-                return False, data_dict, message_list
+            # Get file details
+            file_ret = rcc.run(payload=payloads['get_backup_details'])
             
-        except Exception as e:
-            message_list.append(fmt.payload_error(None, f"{prefix+1}: {messages[prefix+1]}: {str(e)}"))
-            return False, data_dict, message_list
+            if file_ret["channel_code"] != CHANNEL_SUCCESS:
+                retval = False
+                fmt.store_channel_error(file_ret, f"{prefix+3}: {messages[prefix+3]}")
+                return retval, fmt.message_list, fmt.successful_payloads, data_dict
+            
+            # Parse file details
+            if 'payload_message' in file_ret and file_ret['payload_message']:
+                file_info = file_ret['payload_message'].strip().split('\n')
+                backup_details = {
+                    'file_details': file_info[0] if len(file_info) > 0 else "Unknown",
+                    'created': file_info[1] if len(file_info) > 1 else "Unknown",
+                    'size': file_info[2] if len(file_info) > 2 else "Unknown"
+                }
+                data_dict[host]['backup_details'] = backup_details
+                fmt.add_successful('get_backup_info', backup_details)
+        else:
+            # Backup doesn't exist
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+2}: {messages[prefix+2]}")
+            
+        return retval, fmt.message_list, fmt.successful_payloads, data_dict
 
-    status, data, messages_list = run_host(host, 3300, {})
-    return status, data, messages_list
+    retval, msg_list, successful_payloads, data_dict = run_host(host, 3320, {})
+    message_list.extend(msg_list)
+
+    # Return results
+    if not retval:
+        return retval, data_dict, message_list
+    else:
+        return True, data_dict, [f"1300: {messages[1300]}"]
+
 
 def scrub(
         host: str,
@@ -238,48 +262,42 @@ def scrub(
         backup_dir: str,
 ) -> Tuple[bool, str]:
     """
-    Removes a container backup file.
+    description:
+        Removes a container backup file.
     
-    Parameters:
-        host: LXD host IP
-        username: SSH username
-        container_name: Name of the LXD container
-        backup_id: Identifier for the backup
-        backup_dir: Directory for backup storage
+    parameters:
+        host:
+            description: The IP address of the LXD host
+            type: string
+            required: true
+        username:
+            description: SSH username for connecting to the host
+            type: string
+            required: true
+        container_name:
+            description: Name of the LXD container
+            type: string
+            required: true
+        backup_id:
+            description: Identifier for the backup
+            type: string
+            required: true
+        backup_dir:
+            description: Directory for backup storage
+            type: string
+            required: true
     """
-    def _check_file_exists(rcc, fmt, file_path):
-        """Check if a file exists on the remote host."""
-        check_cmd = f"[ -f {file_path} ] && echo 'exists' || echo 'not_found'"
-        ret = rcc.run(payload=check_cmd)
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            raise Exception(fmt.channel_error(ret, "File check failed"))
-        return 'payload_message' in ret and 'exists' in ret['payload_message']
-    
-    def _delete_file(rcc, fmt, file_path, prefix, messages):
-        """Delete a file and verify it was deleted."""
-        delete_cmd = f"rm -f {file_path}"
-        delete_ret = rcc.run(payload=delete_cmd)
-        
-        if delete_ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(delete_ret, f"{prefix+2}: {messages[prefix+2]}: SSH connection failed")
-        
-        # Verify the file is deleted
-        if _check_file_exists(rcc, fmt, file_path):
-            return False, fmt.payload_error(None, f"{prefix+2}: {messages[prefix+2]}: Failed to delete backup file")
-        
-        return True, None
-
     # Generate backup name and filename
     backup_name = f"{container_name}_{backup_id}"
-    backup_filename = f"{backup_name}.tar.gz"
-    backup_path = os.path.join(backup_dir, backup_filename)
+    backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
-    # Define messages
+    # Define messages with correct numbering - align with HyperV
     messages = {
-        1100: f"Successfully removed backup '{backup_name}' for container '{container_name}'",
-        1101: f"Backup '{backup_name}' does not exist for container '{container_name}'",
-        3101: f"Failed to check if backup exists for container '{container_name}'",
-        3102: f"Failed to delete backup file for '{backup_name}' of container '{container_name}'",
+        1100: f"Successfully removed backup '{backup_name}' from {backup_path} on host {host}",
+        1101: f"Backup '{backup_name}' does not exist on host {host}",
+        3121: f"Failed to connect to host {host} for payload check_backup: ",
+        3122: f"Failed to delete backup file for '{backup_name}' of container '{container_name}': ",
+        3123: f"Failed to verify deletion of backup file: ",
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -290,23 +308,43 @@ def scrub(
             successful_payloads,
         )
         
-        try:
-            backup_exists = _check_file_exists(rcc, fmt, backup_path)
-            
-            # If backup doesn't exist, return success with a message
-            if not backup_exists:
-                return True, f"1101: {messages[1101]}", fmt.successful_payloads
-            
-            # Delete backup
-            success, error_msg = _delete_file(rcc, fmt, backup_path, prefix, messages)
-            if success:
-                fmt.add_successful('delete_backup', {'backup_path': backup_path})
-                return True, f"1100: {messages[1100]} from {backup_path}", fmt.successful_payloads
-            else:
-                return False, error_msg, fmt.successful_payloads
-            
-        except Exception as e:
-            return False, fmt.payload_error(None, f"{prefix+1}: {messages[prefix+1]}: {str(e)}"), fmt.successful_payloads
+        payloads = {
+            'check_backup': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
+            'remove_backup': f"rm -f {backup_path}",
+            'verify_removal': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
+        }
+        
+        # 1. Check if backup file exists
+        ret = rcc.run(payload=payloads['check_backup'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
+        
+        backup_exists = 'payload_message' in ret and 'exists' in ret['payload_message']
+        
+        # 2. If backup doesn't exist, return success (nothing to do)
+        if not backup_exists:
+            return True, f"1101: {messages[1101]}", fmt.successful_payloads
+        
+        fmt.add_successful('check_backup', {'exists': True, 'path': backup_path})
+        
+        # 3. Delete backup file
+        delete_ret = rcc.run(payload=payloads['remove_backup'])
+        
+        if delete_ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(delete_ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+        
+        # 4. Verify the file was deleted
+        ret = rcc.run(payload=payloads['verify_removal'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
+        
+        # 5. Confirm file is gone
+        if 'payload_message' in ret and 'exists' in ret['payload_message']:
+            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}Deletion failed"), fmt.successful_payloads
+        
+        # Success
+        fmt.add_successful('remove_backup', {'backup_name': backup_name, 'path': backup_path})
+        return True, f"1100: {messages[1100]}", fmt.successful_payloads
 
-    status, msg, successful_payloads = run_host(host, 3100, {})
+    status, msg, successful_payloads = run_host(host, 3120, {})
     return status, msg
