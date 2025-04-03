@@ -171,7 +171,7 @@ def read(
     backup_name = f"{container_name}_{backup_id}"
     backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
-    # Define messages with correct numbering - align with HyperV
+    # Define messages
     messages = {
         1300: f"Successfully read backup information for '{backup_name}' at {backup_path}",
         3321: f"Failed to connect to host {host} for payload check_backup: ",
@@ -291,7 +291,7 @@ def scrub(
     backup_name = f"{container_name}_{backup_id}"
     backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
-    # Define messages with correct numbering - align with HyperV
+    # Define messages
     messages = {
         1100: f"Successfully removed backup '{backup_name}' from {backup_path} on host {host}",
         1101: f"Backup '{backup_name}' does not exist on host {host}",
