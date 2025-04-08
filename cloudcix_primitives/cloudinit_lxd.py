@@ -16,69 +16,62 @@ __all__ = [
 ]
 
 def update(
-        endpoint_url: str,
-        project: str,
-        container_name: str,
-        cloud_init_config: str,
-        config_type: str = 'user-data',
-        verify_lxd_certs: bool = True
+    endpoint_url: str,
+    project: str,
+    container_name: str,
+    cloud_init_config: str,
+    verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """ Update cloud-init configuration for an LXD container.
+    """ Update cloud-init user-data configuration for an LXD container.
     
     :param endpoint_url: The endpoint URL for the LXD Host.
     :param project: The LXD project name.
     :param container_name: The name of the LXD container.
-    :param cloud_init_config: The cloud-init configuration content. NOTE: /path/to/file.yaml
-    :param config_type: Type of cloud-init config ('user-data', 'vendor-data', or 'network-config').
+    :param cloud_init_config: The cloud-init user-data configuration content. NOTE: /path/to/file.yaml
     :param verify_lxd_certs: Boolean to verify LXD certs.
     :return: A tuple with a boolean flag indicating success or failure and a message.
     """
-    # Validate config_type
-    valid_types = ('user-data', 'vendor-data', 'network-config')
-    if config_type not in valid_types:
-        return False, f"Invalid config_type: {config_type}. Must be one of: {', '.join(valid_types)}"
-    
-    # Define message
-    config_key = f"cloud-init.{config_type}"
+    # Define the config key (hardcoded to user-data)
+    config_key = "cloud-init.user-data"
     messages = {
-        1000: f'Successfully updated cloud-init {config_type} for container {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to update cloud-init configuration for container {container_name}. Error: ',
+    1000: f'Successfully updated cloud-init user-data for container {container_name} on {endpoint_url}',
+    3021: f'Failed to connect to {endpoint_url} for containers.get payload',
+    3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
+    3023: f'Failed to update cloud-init configuration for container {container_name}. Error: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
-        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project)
-        fmt = HostErrorFormatter(
-            endpoint_url,
-            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
-            successful_payloads,
-        )
-        
-        # Get the instance
-        ret = rcc.run(cli='containers.get', name=container_name)
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
-        if ret["payload_code"] != API_SUCCESS:
-            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+    rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project)
+    fmt = HostErrorFormatter(
+        endpoint_url,
+        {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+        successful_payloads,
+    )
+    
+    # Get the instance
+    ret = rcc.run(cli='containers.get', name=container_name)
+    if ret["channel_code"] != CHANNEL_SUCCESS:
+        return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
+    if ret["payload_code"] != API_SUCCESS:
+        return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
-        instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
-        
-        # Update the cloud-init configuration
-        try:
-            instance.config[config_key] = cloud_init_config
-            instance.save(wait=True)
-            fmt.add_successful('cloud_init.update', {config_key: 'updated'})
-        except Exception as e:
-            return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
+    instance = ret['payload_message']
+    fmt.add_successful('containers.get', ret)
+    
+    # Update the cloud-init configuration
+    try:
+        instance.config[config_key] = cloud_init_config
+        instance.save(wait=True)
+        fmt.add_successful('cloud_init.update', {config_key: 'updated'})
+    except Exception as e:
+        return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
 
-        return True, '', fmt.successful_payloads
+    return True, '', fmt.successful_payloads
     
     status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
     
     if status is False:
-        return status, msg
+    return status, msg
 
     return True, f'1000: {messages[1000]}'
 
