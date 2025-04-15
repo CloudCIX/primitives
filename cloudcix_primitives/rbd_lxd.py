@@ -12,6 +12,7 @@ __all__ = [
     'build',
     'read',
     'scrub',
+    'update',
 ]
 
 def build(
@@ -281,6 +282,109 @@ def scrub(
             return False, f"{prefix+3}: {messages[prefix+3]} - Invalid volume object structure: {str(e)}", fmt.successful_payloads
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]} - {str(e)}", fmt.successful_payloads
+            
+        return True, '', fmt.successful_payloads
+
+    status, msg, successful_payloads = run_host(endpoint_url, 3000, {})
+    
+    if status is False:
+        return status, msg
+
+    return True, f'1000: {messages[1000]}'
+
+
+def update(
+    endpoint_url: str,
+    pool_name: str,
+    volume_name: str,
+    size: int,
+    verify_lxd_certs: bool = False,
+) -> Tuple[bool, str]:
+    """
+    description: Update a RadOS Block Device via LXD host.
+    
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        pool_name:
+            description: Name of the storage pool.
+            type: string
+            required: true
+        volume_name:
+            description: Name of the volume to update.
+            type: string
+            required: true
+        size:
+            description: New size of the volume in GB.
+            type: integer
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+            
+    return:
+        description: A tuple with a boolean flag indicating success or failure, and a message.
+        type: tuple
+    """
+    # Define messages
+    messages = {
+        1000: f'Successfully updated RadOS Block Device {volume_name} in pool {pool_name} on {endpoint_url}',
+        3001: f'Failed to connect to {endpoint_url} for storage pool operations',
+        3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
+        3003: f'Failed to get volume {volume_name} in pool {pool_name}',
+        3004: f'Failed to update volume {volume_name} in pool {pool_name}',
+        3005: f'Volume {volume_name} not found in pool {pool_name}',
+    }
+
+    def run_host(endpoint_url, prefix, successful_payloads):
+        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
+        fmt = HostErrorFormatter(
+            endpoint_url,
+            {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
+            successful_payloads,
+        )
+        
+        # STEP 1: Confirm the Ceph storage pool exists
+        ret = rcc.run(cli='storage_pools.get', name=pool_name)
+        
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
+        if ret["payload_code"] != API_SUCCESS:
+            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+        
+        # Get the pool object
+        pool_obj = ret["payload_message"]
+        fmt.add_successful('storage_pools.get', ret)
+        
+        # STEP 2: Check if the pool has the required methods
+        if not hasattr(pool_obj, 'volumes') or not hasattr(pool_obj.volumes, 'get'):
+            return False, f"{prefix+3}: {messages[prefix+3]} - Missing required methods on pool object", fmt.successful_payloads
+        
+        # STEP 3: Get the volume
+        try:
+            volume = pool_obj.volumes.get("custom", volume_name)
+            
+            if not volume:
+                return False, f"{prefix+5}: {messages[prefix+5]}", fmt.successful_payloads
+                
+            # STEP 4: Update the volume's size
+            new_config = {
+                "config": {
+                    "size": f"{size}GiB"
+                }
+            }
+
+            volume.config.update(new_config["config"])
+            volume.save()
+            fmt.add_successful('volume.update', {'name': volume_name, 'new_size': f"{size}GiB"})
+            
+        except AttributeError as e:
+            return False, f"{prefix+4}: {messages[prefix+4]} - Invalid volume object structure: {str(e)}", fmt.successful_payloads
+        except Exception as e:
+            return False, f"{prefix+4}: {messages[prefix+4]} - {str(e)}", fmt.successful_payloads
             
         return True, '', fmt.successful_payloads
 
