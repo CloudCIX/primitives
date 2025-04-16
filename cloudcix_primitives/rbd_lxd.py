@@ -106,7 +106,6 @@ def build(
     
     if status is False:
         return status, msg
-
     return True, f'1000: {messages[1000]}'
 
 
@@ -144,7 +143,6 @@ def read(
     # Define message
     messages = {
         1000: f'Successfully read RadOS Block Device {volume_name} in pool {pool_name} on {endpoint_url}',
-        1001: f'Volume {volume_name} not found in pool {pool_name}',
         3001: f'Failed to connect to {endpoint_url} for storage pool operations',
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to get volume {volume_name} in pool {pool_name}',
@@ -200,7 +198,6 @@ def read(
     
     if status is False:
         return status, result, msg
-
     return True, result, f'1000: {messages[1000]}'
 
 
@@ -241,7 +238,6 @@ def scrub(
         3001: f'Failed to connect to {endpoint_url} for storage pool operations',
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to delete volume {volume_name} from pool {pool_name}',
-        3004: f'Volume {volume_name} not found in pool {pool_name}',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -272,7 +268,8 @@ def scrub(
             volume = pool_obj.volumes.get("custom", volume_name)
             
             if not volume:
-                return False, f"{prefix+4}: {messages[prefix+4]}", fmt.successful_payloads
+                fmt.add_successful('volume.check', {'name': volume_name, 'status': 'already deleted'})
+                return True, '', fmt.successful_payloads
             
             # STEP 4: Delete the volume
             volume.delete()
@@ -289,7 +286,6 @@ def scrub(
     
     if status is False:
         return status, msg
-
     return True, f'1000: {messages[1000]}'
 
 
@@ -392,5 +388,4 @@ def update(
     
     if status is False:
         return status, msg
-
     return True, f'1000: {messages[1000]}'
