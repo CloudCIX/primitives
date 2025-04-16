@@ -165,7 +165,6 @@ def read(
         1001: f'Volume {volume_name} not found in container {container_name}',
         3021: f'Failed to connect to {endpoint_url} for containers.get payload',
         3022: f'Failed to get container {container_name} configuration',
-        3024: f'Volume {volume_name} not found in container {container_name}',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -250,7 +249,6 @@ def scrub(
         3021: f'Failed to connect to {endpoint_url} for containers.get payload',
         3022: f'Failed to get container {container_name} configuration',
         3023: f'Failed to detach volume {volume_name} from container {container_name}. Error: ',
-        3024: f'Volume not found in container devices',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
