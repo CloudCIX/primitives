@@ -110,14 +110,14 @@ def build(
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}{e}", fmt.successful_payloads
         
-        return True, '', fmt.successful_payloads
+        return True, f'1000: {messages[1000]}', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
     
     if status is False:
         return status, msg
     
-    return True, f'1000: {messages[1000]}'
+    return True, msg
 
 
 def read(
@@ -281,11 +281,11 @@ def scrub(
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}{e}", fmt.successful_payloads
             
-        return True, '', fmt.successful_payloads
+        return True, f'1000: {messages[1000]}', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(endpoint_url, 3020, {})
     
     if status is False:
         return status, msg
     
-    return True, f'1000: {messages[1000]}'
+    return True, msg
