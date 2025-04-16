@@ -196,7 +196,7 @@ def scrub(
         1100: f'Successfully removed network interface {device_name} from container {container_name} on {endpoint_url}',
         3121: f'Failed to connect to {endpoint_url} for container operations',
         3122: f'Failed to retrieve container {container_name}. Payload exited with status ',
-         3123: f'Failed to remove network interface: ',
+        3123: f'Failed to remove network interface: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
