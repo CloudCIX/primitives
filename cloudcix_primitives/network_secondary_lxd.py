@@ -79,7 +79,8 @@ def build(
         # Check if the device already exists
         devices = instance.devices
         if device_name in devices:
-            return False, f"{prefix+4}: {messages[prefix+4]}", fmt.successful_payloads
+            fmt.add_successful('network_device.check', {device_name: 'already_exists'})
+            return True, f"1000: {messages[1000]}", fmt.successful_payloads
 
         # Create device configuration
         device_config = {
@@ -222,7 +223,8 @@ def scrub(
         devices = instance.devices
 
         if device_name not in devices:
-            return False, f"{prefix+4}: {messages[prefix+4]}", fmt.successful_payloads
+            fmt.add_successful('network_device.remove', {device_name: 'not_found'})
+            return True, f'1100: {messages[1100]}', fmt.successful_payloads
 
         # Remove the device from the container
         try:
