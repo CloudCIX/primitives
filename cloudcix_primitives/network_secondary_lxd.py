@@ -32,9 +32,8 @@ def build(
         3021: f'Failed to connect to {endpoint_url} for network or container operations',
         3022: f'Failed to retrieve networks from {endpoint_url}. Payload exited with status ',
         3023: f'Failed to retrieve container {container_name}. Payload exited with status ',
-        3024: f'Network device {device_name} already exists on container {container_name}.',
-        3025: f'Network br{vlan_id} does not exist on {endpoint_url}.',
-        3026: f'Failed to create network device: ',
+        3024: f'Network br{vlan_id} does not exist on {endpoint_url}.',
+        3025: f'Failed to create network device: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -64,7 +63,7 @@ def build(
                 network_exists = True
 
         if not network_exists:
-            return False, f"{prefix+5}: {messages[prefix+5]}", fmt.successful_payloads
+            return False, f"{prefix+4}: {messages[prefix+4]}", fmt.successful_payloads
 
         # Get the container
         ret = rcc.run(cli='containers.get', name=container_name)
@@ -101,7 +100,7 @@ def build(
             instance.save(wait=True)
             fmt.add_successful('network_device.create', {device_name: 'created'})
         except Exception as e:
-            return False, f"{prefix+6}: {messages[prefix+6]}{e}", fmt.successful_payloads
+            return False, f"{prefix+5}: {messages[prefix+5]}{e}", fmt.successful_payloads
 
         return True, f'1000: {messages[1000]}', fmt.successful_payloads
 
@@ -197,8 +196,7 @@ def scrub(
         1100: f'Successfully removed network interface {device_name} from container {container_name} on {endpoint_url}',
         3121: f'Failed to connect to {endpoint_url} for container operations',
         3122: f'Failed to retrieve container {container_name}. Payload exited with status ',
-        3124: f'Network interface {device_name} does not exist on container {container_name}.',
-        3125: f'Failed to remove network interface: ',
+         3123: f'Failed to remove network interface: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -239,7 +237,7 @@ def scrub(
             instance.save(wait=True)
             fmt.add_successful('network_device.remove', {device_name: 'removed'})
         except Exception as e:
-            return False, f"{prefix+5}: {messages[prefix+5]}{e}", fmt.successful_payloads
+            return False, f"{prefix+3}: {messages[prefix+3]}{e}", fmt.successful_payloads
 
         return True, f'1100: {messages[1100]}', fmt.successful_payloads
 
