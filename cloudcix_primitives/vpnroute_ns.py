@@ -24,10 +24,8 @@ def build(
         namespace: str,
         vpn_id: int,
         networks: List[str],
-        config_file: None,
         host: str,
-        username: str,
-        password: str = None
+        username: str = "robot",
 ) -> Tuple[bool, str]:
     """
     description:
@@ -46,10 +44,6 @@ def build(
             description: List of network CIDRs to route through the VPN
             type: array
             required: true
-        config_file:
-            description: Path to optional configuration file (not used currently)
-            type: string
-            required: false
         host:
             description: The host to connect to for running the commands
             type: string
@@ -58,10 +52,7 @@ def build(
             description: Username for SSH connection
             type: string
             required: true
-        password:
-            description: Password for SSH authentication (if provided)
-            type: string
-            required: false
+            default: "robot"
     return:
         description: |
             A tuple with a boolean flag stating the build was successful or not and
@@ -81,8 +72,18 @@ def build(
         3026: f'Failed to run add_route payload for network {{}} on host {host}: ',
     }
 
+    # Define all payloads upfront
+    payloads = {
+        'check_xfrm_interface': f'ip netns exec {namespace} ip link show xfrm{vpn_id} 2>/dev/null || echo "Interface does not exist"',
+        'check_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" || echo "No existing routes"'
+    }
+
+    # Add dynamic route payloads for each network
+    for network in networks:
+        payloads[f'add_route_{network}'] = f'ip netns exec {namespace} ip route add {network} dev xfrm{vpn_id}'
+
     def run_host(host, prefix, successful_payloads):
-        rcc = SSHCommsWrapper(comms_ssh, host, username, password)
+        rcc = SSHCommsWrapper(comms_ssh, host, username)
         fmt = HostErrorFormatter(
             host,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
@@ -94,12 +95,8 @@ def build(
             return True, fmt.payload_error({}, f"1001: " + messages[1001]), fmt.successful_payloads
 
         # Check if XFRM interface exists
-        payloads = {
-            'check_xfrm_interface': f'ip netns exec {namespace} ip link show xfrm{vpn_id} 2>/dev/null || echo "Interface does not exist"',
-            'remove_existing_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" | xargs -r -I{{}} ip netns exec {namespace} ip route del {{}}'
-        }
-
         ret = rcc.run(payloads['check_xfrm_interface'])
+        
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix + 1]), fmt.successful_payloads
         
@@ -108,20 +105,37 @@ def build(
         
         fmt.add_successful('check_xfrm_interface', ret)
 
-        # Remove existing routes
-        ret = rcc.run(payloads['remove_existing_routes'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix + 3]), fmt.successful_payloads
+        # First check if there are any routes to remove
+        check_route_ret = rcc.run(payloads['check_routes'])
         
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix + 4]), fmt.successful_payloads
+        # Handle route removal with improved robustness
+        if "No existing routes" in check_route_ret["payload_message"]:
+            # No routes to remove, continue
+            pass
+        else:
+            # Parse routes from output and remove them individually
+            routes_to_remove = []
+            for line in check_route_ret["payload_message"].strip().split('\n'):
+                if line and "dev xfrm" in line:
+                    parts = line.split()
+                    if parts and parts[0]:
+                        network = parts[0]
+                        routes_to_remove.append(network)
+            
+            if routes_to_remove:
+                for route in routes_to_remove:
+                    del_cmd = f'ip netns exec {namespace} ip route del {route}'
+                    del_ret = rcc.run(del_cmd)
+                    if del_ret["channel_code"] != CHANNEL_SUCCESS or del_ret["payload_code"] != SUCCESS_CODE:
+                        # Log warning but continue with other routes
+                        pass
         
-        fmt.add_successful('remove_existing_routes', ret)
+        fmt.add_successful('remove_existing_routes', {})
 
         # Add new routes for each network
+        success_count = 0
         for network in networks:
-            command = f'ip netns exec {namespace} ip route add {network} dev xfrm{vpn_id}'
-            ret = rcc.run(command)
+            ret = rcc.run(payloads[f'add_route_{network}'])
             
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix + 5].format(network)), fmt.successful_payloads
@@ -130,8 +144,9 @@ def build(
                 return False, fmt.payload_error(ret, f"{prefix+6}: " + messages[prefix + 6].format(network)), fmt.successful_payloads
             
             fmt.add_successful(f'add_route_{network}', ret)
+            success_count += 1
 
-        return True, messages[1000], fmt.successful_payloads
+        return True, f"{messages[1000]} ({success_count} routes added)", fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3020, {})
 
@@ -141,10 +156,8 @@ def build(
 def read(
     namespace: str,
     vpn_id: int,
-    config_file: None,
     host: str,
-    username: str,
-    password: str = None
+    username: str = "robot",
 ) -> Tuple[bool, Dict[str, Any], List[str]]:
     """
     description:
@@ -159,10 +172,6 @@ def read(
             description: VPN identifier for the XFRM interface
             type: integer
             required: true
-        config_file:
-            description: Path to optional configuration file (not used currently)
-            type: string
-            required: false
         host:
             description: The host to connect to for running the commands
             type: string
@@ -171,10 +180,7 @@ def read(
             description: Username for SSH connection
             type: string
             required: true
-        password:
-            description: Password for SSH authentication (if provided)
-            type: string
-            required: false
+            default: "robot"
     return:
         description:
             status:
@@ -196,6 +202,13 @@ def read(
         3323: f'Failed to connect to host {host} for payload get_routes: ',
         3324: f'Failed to run get_routes payload on host {host}: ',
     }
+    
+    # Define all payloads upfront
+    payloads = {
+        'check_xfrm_interface': f'ip netns exec {namespace} ip link show xfrm{vpn_id} 2>/dev/null || echo "Interface does not exist"',
+        'get_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" || echo "No routes found"'
+    }
+    
     message_list = []
     data_dict = {
         host: {}
@@ -204,21 +217,18 @@ def read(
     def run_host(host, prefix, successful_payloads):
         retval = True
         data_dict[host] = {}
+        local_message_list = []  # Use a local list for messages
 
-        rcc = SSHCommsWrapper(comms_ssh, host, username, password)
+        rcc = SSHCommsWrapper(comms_ssh, host, username)
         fmt = HostErrorFormatter(
             host,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
             successful_payloads
         )
 
-        payloads = {
-            'check_xfrm_interface': f'ip netns exec {namespace} ip link show xfrm{vpn_id} 2>/dev/null || echo "Interface does not exist"',
-            'get_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" || echo "No routes found"'
-        }
-
         # Check if XFRM interface exists
         ret = rcc.run(payloads['check_xfrm_interface'])
+        
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
             fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix + 1])
@@ -230,9 +240,14 @@ def read(
             return retval, fmt.message_list, fmt.successful_payloads, data_dict
         
         fmt.add_successful('check_xfrm_interface', ret)
+        
+        # Record interface info
+        data_dict[host]['interface_exists'] = True
+        data_dict[host]['interface_info'] = ret["payload_message"].strip()
 
         # Get current routes
         ret = rcc.run(payloads['get_routes'])
+        
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
             fmt.store_channel_error(ret, f"{prefix+3}: " + messages[prefix + 3])
@@ -247,7 +262,8 @@ def read(
         
         if "No routes found" in ret["payload_message"]:
             data_dict[host]['routes'] = []
-            fmt.store_message(messages[1301])
+            # Replace fmt.store_message with adding to local message list
+            local_message_list.append(messages[1301])
         else:
             # Parse routes from output
             routes = []
@@ -260,9 +276,11 @@ def read(
                         routes.append(network)
             
             data_dict[host]['routes'] = routes
-            fmt.store_message(messages[1300])
+            # Replace fmt.store_message with adding to local message list
+            local_message_list.append(messages[1300])
 
-        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+        # Return the local message list instead of expecting fmt to have one
+        return retval, local_message_list, fmt.successful_payloads, data_dict
 
     # Use the specified server for testing
     retval, msg_list, successful_payloads, data_dict = run_host(host, 3320, {})
@@ -274,10 +292,8 @@ def read(
 def scrub(
     namespace: str,
     vpn_id: int,
-    config_file: None,
     host: str,
-    username: str,
-    password: str = None
+    username: str = "robot",
 ) -> Tuple[bool, str]:
     """
     description:
@@ -292,10 +308,6 @@ def scrub(
             description: VPN identifier for the XFRM interface
             type: integer
             required: true
-        config_file:
-            description: Path to optional configuration file (not used currently)
-            type: string
-            required: false
         host:
             description: The host to connect to for running the commands
             type: string
@@ -304,10 +316,7 @@ def scrub(
             description: Username for SSH connection
             type: string
             required: true
-        password:
-            description: Password for SSH authentication (if provided)
-            type: string
-            required: false
+            default: "robot"
     return:
         description: |
             A tuple with a boolean flag stating the removal was successful or not and
@@ -325,30 +334,36 @@ def scrub(
         3125: f'Failed to connect to host {host} for payload remove_routes: ',
         3126: f'Failed to run remove_routes payload on host {host}: ',
     }
+    
+    # Define all payloads upfront
+    payloads = {
+        'check_xfrm_interface': f'ip netns exec {namespace} ip link show xfrm{vpn_id} 2>/dev/null || echo "Interface does not exist"',
+        'get_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" || echo "No routes found"',
+        'verify_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" || echo "No routes found"'
+    }
 
     def run_host(host, prefix, successful_payloads):
-        rcc = SSHCommsWrapper(comms_ssh, host, username, password)
+        rcc = SSHCommsWrapper(comms_ssh, host, username)
         fmt = HostErrorFormatter(
             host,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
             successful_payloads
         )
 
-        payloads = {
-            'check_xfrm_interface': f'ip netns exec {namespace} ip link show xfrm{vpn_id} 2>/dev/null || echo "Interface does not exist"',
-            'get_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" || echo "No routes found"',
-            'remove_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" | xargs -r -I{{}} ip netns exec {namespace} ip route del {{}}'
-        }
-
         # Check if XFRM interface exists
         ret = rcc.run(payloads['check_xfrm_interface'])
+        
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix + 1]), fmt.successful_payloads
+        
+        if (ret["payload_code"] != SUCCESS_CODE) or ("Interface does not exist" in ret["payload_message"]):
+            return False, fmt.payload_error(ret, f"Interface xfrm{vpn_id} does not exist in namespace {namespace}"), fmt.successful_payloads
         
         fmt.add_successful('check_xfrm_interface', ret)
 
         # Check if there are any routes to remove
         ret = rcc.run(payloads['get_routes'])
+        
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix + 3]), fmt.successful_payloads
         
@@ -360,17 +375,53 @@ def scrub(
         if "No routes found" in ret["payload_message"]:
             return True, messages[1101], fmt.successful_payloads
 
-        # Remove routes
-        ret = rcc.run(payloads['remove_routes'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix + 5]), fmt.successful_payloads
+        # Parse routes from output and remove them individually
+        routes_to_remove = []
+        for line in ret["payload_message"].strip().split('\n'):
+            if line and "dev xfrm" in line:
+                parts = line.split()
+                if parts and parts[0]:
+                    network = parts[0]
+                    routes_to_remove.append(network)
         
-        if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+6}: " + messages[prefix + 6]), fmt.successful_payloads
+        if not routes_to_remove:
+            return True, messages[1101], fmt.successful_payloads
         
-        fmt.add_successful('remove_routes', ret)
+        # Add route removal payloads dynamically
+        for route in routes_to_remove:
+            payloads[f'remove_route_{route}'] = f'ip netns exec {namespace} ip route del {route}'
+        
+        # Remove each route individually for better error handling
+        failed_routes = []
+        for route in routes_to_remove:
+            del_ret = rcc.run(payloads[f'remove_route_{route}'])
+            if del_ret["channel_code"] != CHANNEL_SUCCESS or del_ret["payload_code"] != SUCCESS_CODE:
+                failed_routes.append(route)
+            else:
+                fmt.add_successful(f'remove_route_{route}', del_ret)
+        
+        if failed_routes:
+            return False, fmt.payload_error({}, f"Failed to remove some routes: {failed_routes}"), fmt.successful_payloads
+        
+        fmt.add_successful('remove_routes', {})
 
-        return True, messages[1100], fmt.successful_payloads
+        # Verify all routes were removed
+        verify_ret = rcc.run(payloads['verify_routes'])
+        
+        if "No routes found" in verify_ret["payload_message"]:
+            return True, f"{messages[1100]} ({len(routes_to_remove)} routes removed)", fmt.successful_payloads
+        else:
+            remaining_routes = []
+            for line in verify_ret["payload_message"].strip().split('\n'):
+                if line and "dev xfrm" in line:
+                    parts = line.split()
+                    if parts and parts[0]:
+                        remaining_routes.append(parts[0])
+            
+            if remaining_routes:
+                return False, fmt.payload_error({}, f"Some routes still remain after removal attempt: {remaining_routes}"), fmt.successful_payloads
+            else:
+                return True, f"{messages[1100]} ({len(routes_to_remove)} routes removed)", fmt.successful_payloads
 
     # Use the specified server for testing
     status, msg, successful_payloads = run_host(host, 3120, {})

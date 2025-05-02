@@ -1,442 +1,211 @@
 #!/usr/bin/env python
 """
-Test script for vpnroute_ns primitive using direct SSH for testing
+Test script for vpnroute_ns primitive.
 
 # Test just the read function
-python test_vpnroute_ns.py --function read
+python test_vpnroute_ns.py read --namespace ns1234 --vpn-id 1234 --host 192.168.1.10 --username robot
 
 # Test just the build function with specific networks
-python test_vpnroute_ns.py --function build --networks 10.10.10.0/24,172.16.10.0/24
+python test_vpnroute_ns.py build --namespace ns1234 --vpn-id 1234 --host 192.168.1.10 --username robot --networks 10.10.10.0/24 172.16.10.0/24
 
 # Test all functions with custom settings
-python test_vpnroute_ns.py --function all --host 192.168.1.10 --user admin --namespace custom_ns
+python test_vpnroute_ns.py all --namespace ns1234 --vpn-id 1234 --host 192.168.1.10 --username robot
 """
-# Import modules
-import subprocess
 import sys
-import time
-import getpass
-import random
 import os
-import tempfile
-import atexit
-import signal
-import shutil
 import argparse
+import json
+
+# Add site-packages to Python path
+SITE_PACKAGES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'python3.13', 'site-packages')
+sys.path.insert(0, SITE_PACKAGES_PATH)
+
+# Import the necessary modules
+try:
+    from cloudcix_primitives.vpnroute_ns import build, read, scrub
+    from cloudcix_primitives.utils import SSHCommsWrapper
+    from cloudcix.rcc import comms_ssh, CHANNEL_SUCCESS
+    print("Successfully imported required modules")
+except ImportError as e:
+    print(f"Error importing modules: {e}")
+    sys.exit(1)
+
+SUCCESS_CODE = 0
 
 def print_separator():
     """Print a line separator for better readability"""
     print("-" * 80)
 
-class SSHKeyManager:
-    """Manages SSH keys during the testing session to avoid repeated passphrase prompts"""
-    def __init__(self):
-        self.ssh_agent_proc = None
-        self.temp_dir = None
-        self.ssh_agent_sock = None
-        self.key_added = False
-        
-    def start_ssh_agent(self):
-        """Start an SSH agent for the session"""
-        print("Starting SSH agent...")
-        self.temp_dir = tempfile.mkdtemp()
-        self.ssh_agent_sock = os.path.join(self.temp_dir, "ssh_agent.sock")
-        
-        # Start the SSH agent
-        agent_cmd = ["ssh-agent", "-a", self.ssh_agent_sock]
-        try:
-            agent_output = subprocess.check_output(agent_cmd, universal_newlines=True)
-            # Extract environment variables from ssh-agent output
-            for line in agent_output.split("\n"):
-                if "SSH_AGENT_PID" in line:
-                    pid = line.split(";")[0].split("=")[1]
-                    self.ssh_agent_proc = int(pid)
-            
-            # Set environment variables
-            os.environ["SSH_AUTH_SOCK"] = self.ssh_agent_sock
-            print("SSH agent started successfully")
-            
-            # Register cleanup function
-            atexit.register(self.cleanup)
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to start SSH agent: {e}")
-            return False
-    
-    def add_key(self, key_path=None, max_attempts=3):
-        """Add the SSH key to the agent with retry logic"""
-        attempts = 0
-        
-        while attempts < max_attempts:
-            # Default to id_rsa if no key provided
-            if key_path is None:
-                key_path = os.path.expanduser("~/.ssh/id_rsa")
-            
-            # Expand user path if it starts with ~
-            if key_path.startswith('~'):
-                key_path = os.path.expanduser(key_path)
-            
-            # Validate that the key file exists
-            if not os.path.isfile(key_path):
-                print(f"Key file not found: {key_path}")
-                attempts += 1
-                if attempts < max_attempts:
-                    key_path = input("Please enter a valid path to your SSH private key: ")
-                continue
-            
-            try:
-                # Try to add the key
-                subprocess.check_call(["ssh-add", key_path])
-                self.key_added = True
-                print(f"Successfully added SSH key {key_path} to agent")
-                return True
-            except subprocess.CalledProcessError as e:
-                print(f"Failed to add SSH key to agent: {e}")
-                attempts += 1
-                if attempts < max_attempts:
-                    retry = input("Do you want to try again with a different key? (y/n): ")
-                    if retry.lower() == 'y':
-                        key_path = input("Enter path to your SSH private key: ")
-                    else:
-                        break
-        
-        print("Failed to add SSH key after multiple attempts. Continuing without SSH agent key.")
-        return False
-    
-    def cleanup(self):
-        """Clean up SSH agent and temporary files"""
-        if self.ssh_agent_proc:
-            try:
-                os.kill(self.ssh_agent_proc, signal.SIGTERM)
-                print("SSH agent terminated")
-            except OSError as e:
-                print(f"Error terminating SSH agent: {e}")
-        
-        if self.temp_dir and os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-            print("Temporary directory removed")
-
-def run_ssh_command(command, host="10.254.3.195", username="user1", timeout=30):
-    """Run command via SSH which will prompt for passphrase"""
-    ssh_cmd = ["ssh", "-o", f"ConnectTimeout={timeout}", f"{username}@{host}", command]
-    print(f"Running: ssh {username}@{host} '{command}'")
-    
-    try:
-        result = subprocess.run(ssh_cmd, capture_output=True, text=True)
-        if result.returncode == 0:
-            print("Success!")
-            print(f"Output:\n{result.stdout}")
-            return True, result.stdout.strip()
-        else:
-            print("Failed!")
-            print(f"Error:\n{result.stderr}")
-            return False, result.stderr.strip()
-    except Exception as e:
-        print(f"Error executing command: {str(e)}")
-        return False, str(e)
-
-def check_host_connectivity(host, username, timeout=5):
-    """Check if the host is reachable via SSH"""
-    print(f"Checking connectivity to {host}...")
-    command = "echo 'Connection test successful'"
-    ssh_cmd = ["ssh", "-o", f"ConnectTimeout={timeout}", f"{username}@{host}", command]
-    
-    try:
-        result = subprocess.run(ssh_cmd, capture_output=True, text=True, timeout=timeout)
-        if result.returncode == 0:
-            print(f"✓ Successfully connected to {host}")
-            return True
-        else:
-            print(f"✗ Failed to connect to {host}: {result.stderr}")
-            return False
-    except subprocess.TimeoutExpired:
-        print(f"✗ Connection timed out after {timeout} seconds")
-        return False
-    except Exception as e:
-        print(f"✗ Error connecting to {host}: {str(e)}")
-        return False
-
-def get_network_interfaces(host, username, sudo_password, timeout=10):
-    """Get available network interfaces on the target host"""
-    print("\nDetecting available network interfaces on the target host...")
-    command = f"echo '{sudo_password}' | sudo -S ip -o link show | grep -v '@' | grep -v lo: | grep -o '^[0-9]*: [^:]*' | awk '{{print $2}}'"
-    success, output = run_ssh_command(command, host, username, timeout)
-    
-    if success and output:
-        interfaces = [iface.replace(':', '').strip() for iface in output.strip().split('\n')]
-        return interfaces
-    else:
-        print("Failed to get network interfaces")
-        return []
-
-def setup_test_environment(namespace, vpn_id, physical_dev, sudo_password, host, username, timeout):
+def setup_test_environment(namespace, vpn_id, device, host, username):
     """Set up the test environment by creating necessary namespace and XFRM interface"""
     print("\nSetting up test environment...")
     
+    # Define all payloads upfront
+    payloads = {
+        'check_namespace': f"ip netns list | grep -w {namespace} || echo 'Namespace not found'",
+        'create_namespace': f"ip netns add {namespace}",
+        'check_xfrm_interface': f"ip netns exec {namespace} ip link show xfrm{vpn_id} 2>/dev/null || echo 'Interface does not exist'",
+        'check_root_interface': f"ip link show | grep xfrm{vpn_id} || echo 'Not found'",
+        'delete_root_interface': f"ip link delete xfrm{vpn_id}",
+        'create_xfrm_interface': f"ip link add xfrm{vpn_id} type xfrm dev {device} if_id {vpn_id}",
+        'disable_ipsec': f"sysctl -w net.ipv4.conf.xfrm{vpn_id}.disable_policy=1",
+        'move_to_namespace': f"ip link set dev xfrm{vpn_id} netns {namespace}",
+        'bring_up_interface': f"ip netns exec {namespace} ip link set dev xfrm{vpn_id} up"
+    }
+    
+    rcc = SSHCommsWrapper(comms_ssh, host, username)
+    
     # Check if namespace exists, create if not
     print("Checking if namespace exists...")
-    command = f"sudo -S ip netns list | grep -w {namespace} || echo 'Namespace not found'"
-    success, output = run_ssh_command(f"echo '{sudo_password}' | {command}", host, username, timeout)
+    ret = rcc.run(payloads['check_namespace'])
     
-    if "Namespace not found" in output:
+    if "Namespace not found" in ret["payload_message"]:
         print(f"Creating namespace '{namespace}'...")
-        command = f"echo '{sudo_password}' | sudo -S ip netns add {namespace}"
-        success, output = run_ssh_command(command, host, username, timeout)
-        if not success:
+        ret = rcc.run(payloads['create_namespace'])
+        if ret["channel_code"] != CHANNEL_SUCCESS or ret["payload_code"] != 0:
             print(f"Failed to create namespace '{namespace}'. Exiting test.")
+            print(f"Error: {ret['payload_error'] or ret['payload_message']}")
             return False
     
     # Check if XFRM interface exists in namespace
     print(f"Checking if XFRM interface xfrm{vpn_id} exists...")
-    command = f"echo '{sudo_password}' | sudo -S ip netns exec {namespace} ip link show xfrm{vpn_id} 2>/dev/null || echo 'Interface does not exist'"
-    success, output = run_ssh_command(command, host, username, timeout)
+    ret = rcc.run(payloads['check_xfrm_interface'])
     
-    if "Interface does not exist" in output:
+    if "Interface does not exist" in ret["payload_message"]:
         print(f"Creating XFRM interface xfrm{vpn_id}...")
         
         # Check if interface exists in root namespace first
-        command = f"echo '{sudo_password}' | sudo -S ip link show | grep xfrm{vpn_id} || echo 'Not found'"
-        success, output = run_ssh_command(command, host, username, timeout)
-        if "Not found" not in output:
+        ret = rcc.run(payloads['check_root_interface'])
+        if "Not found" not in ret["payload_message"]:
             print(f"Interface xfrm{vpn_id} exists in root namespace. Deleting it first...")
-            command = f"echo '{sudo_password}' | sudo -S ip link delete xfrm{vpn_id}"
-            success, output = run_ssh_command(command, host, username, timeout)
+            ret = rcc.run(payloads['delete_root_interface'])
         
         # Create new interface
-        command = f"echo '{sudo_password}' | sudo -S ip link add xfrm{vpn_id} type xfrm dev {physical_dev} if_id {vpn_id}"
-        success, output = run_ssh_command(command, host, username, timeout)
-        if not success:
+        ret = rcc.run(payloads['create_xfrm_interface'])
+        if ret["channel_code"] != CHANNEL_SUCCESS or ret["payload_code"] != 0:
             print(f"Failed to create XFRM interface. Exiting test.")
+            print(f"Error: {ret['payload_error'] or ret['payload_message']}")
             return False
             
         # Disable IPsec policy
-        command = f"echo '{sudo_password}' | sudo -S sysctl -w net.ipv4.conf.xfrm{vpn_id}.disable_policy=1"
-        success, output = run_ssh_command(command, host, username, timeout)
-        if not success:
+        ret = rcc.run(payloads['disable_ipsec'])
+        if ret["channel_code"] != CHANNEL_SUCCESS or ret["payload_code"] != 0:
             print(f"Failed to disable IPsec policy. Exiting test.")
+            print(f"Error: {ret['payload_error'] or ret['payload_message']}")
             return False
             
         # Move to namespace
-        command = f"echo '{sudo_password}' | sudo -S ip link set dev xfrm{vpn_id} netns {namespace}"
-        success, output = run_ssh_command(command, host, username, timeout)
-        if not success:
+        ret = rcc.run(payloads['move_to_namespace'])
+        if ret["channel_code"] != CHANNEL_SUCCESS or ret["payload_code"] != 0:
             print(f"Failed to move interface to namespace. Exiting test.")
+            print(f"Error: {ret['payload_error'] or ret['payload_message']}")
             return False
             
         # Bring interface up
-        command = f"echo '{sudo_password}' | sudo -S ip netns exec {namespace} ip link set dev xfrm{vpn_id} up"
-        success, output = run_ssh_command(command, host, username, timeout)
-        if not success:
+        ret = rcc.run(payloads['bring_up_interface'])
+        if ret["channel_code"] != CHANNEL_SUCCESS or ret["payload_code"] != 0:
             print(f"Failed to bring interface up. Exiting test.")
+            print(f"Error: {ret['payload_error'] or ret['payload_message']}")
             return False
     
     print("Test environment setup complete!")
     return True
 
-def test_vpnroute_build(namespace, vpn_id, networks, sudo_password, host, username, timeout):
-    """Test building routes for the VPN interface"""
-    print("\nStep 1: Testing route creation (build operation)...")
-    
-    # First, check and clear any existing routes using bash script
-    command = f'''echo '{sudo_password}' | sudo -S bash -c "ip netns exec {namespace} ip route show | grep 'dev xfrm{vpn_id}' | while read route; do ip netns exec {namespace} ip route del \\$route; done"'''
-    run_ssh_command(command, host, username, timeout)
-    
-    print(f"Adding routes for networks: {networks}")
-    for network in networks:
-        command = f"echo '{sudo_password}' | sudo -S ip netns exec {namespace} ip route add {network} dev xfrm{vpn_id}"
-        success, output = run_ssh_command(command, host, username, timeout)
-        if not success:
-            print(f"Failed to add route for network {network}")
-            return False
-    
-    return True
-
-def test_vpnroute_read(namespace, vpn_id, sudo_password, host, username, timeout):
-    """Test reading routes for the VPN interface"""
-    print("\nStep 2: Testing route reading (read operation)...")
-    
-    # Get current routes - need sudo to read routes in namespaces
-    command = f"echo '{sudo_password}' | sudo -S ip netns exec {namespace} ip route show | grep 'dev xfrm{vpn_id}' || echo 'No routes found'"
-    success, output = run_ssh_command(command, host, username, timeout)
-    
-    if "No routes found" in output:
-        print("No routes found for the XFRM interface")
-        return []
-    
-    # Parse routes
-    routes = []
-    for line in output.strip().split('\n'):
-        if line.strip() and "No routes found" not in line:
-            parts = line.split()
-            if parts and parts[0]:
-                routes.append(parts[0])
-    
-    print(f"Found routes: {routes}")
-    return routes
-
-def test_vpnroute_scrub(namespace, vpn_id, sudo_password, host, username, timeout):
-    """Test removing all routes for the VPN interface"""
-    print("\nStep 3: Testing route removal (scrub operation)...")
-    
-    # Remove all routes using a bash script
-    command = f'''echo '{sudo_password}' | sudo -S bash -c "ip netns exec {namespace} ip route show | grep 'dev xfrm{vpn_id}' | while read route; do ip netns exec {namespace} ip route del \\$route; done"'''
-    success, output = run_ssh_command(command, host, username, timeout)
-    
-    # Verify routes were removed
-    command = f"echo '{sudo_password}' | sudo -S ip netns exec {namespace} ip route show | grep 'dev xfrm{vpn_id}' || echo 'No routes found'"
-    success, output = run_ssh_command(command, host, username, timeout)
-    
-    if "No routes found" in output:
-        print("Successfully removed all routes")
-        return True
-    else:
-        print(f"Failed to remove all routes. Remaining routes:\n{output}")
-        return False
-
-def cleanup_test_environment(namespace, vpn_id, sudo_password, host, username, timeout, cleanup_all=False):
-    """Clean up the test environment"""
-    print("\nCleaning up test environment...")
-    
-    # Remove all routes first using bash script
-    command = f'''echo '{sudo_password}' | sudo -S bash -c "ip netns exec {namespace} ip route show | grep 'dev xfrm{vpn_id}' | while read route; do ip netns exec {namespace} ip route del \\$route; done"'''
-    run_ssh_command(command, host, username, timeout)
-    
-    if cleanup_all:
-        # Remove interface
-        command = f"echo '{sudo_password}' | sudo -S ip netns exec {namespace} ip link delete xfrm{vpn_id}"
-        run_ssh_command(command, host, username, timeout)
-        
-        # Remove namespace
-        command = f"echo '{sudo_password}' | sudo -S ip netns delete {namespace}"
-        run_ssh_command(command, host, username, timeout)
-        
-        print("Test environment cleanup complete!")
-    else:
-        print("Routes cleaned up, kept XFRM interface and namespace intact")
-    
-    return True
-
 def main():
-    # Set up command-line argument parsing
-    parser = argparse.ArgumentParser(description="Test the vpnroute_ns primitive")
-    parser.add_argument("--host", default="10.254.3.195", help="Target host IP address (default: 10.254.3.195)")
-    parser.add_argument("--user", default="user1", help="SSH username (default: user1)")
-    parser.add_argument("--namespace", default="ns1100", help="Namespace name (default: ns1100)")
-    parser.add_argument("--physical-dev", help="Physical network device name (auto-detected if not specified)")
-    parser.add_argument("--vpn-id", type=int, help="VPN ID (default: random number between 5000-9999)")
-    parser.add_argument("--networks", default="10.10.10.0/24,172.16.10.0/24,192.168.100.0/24", 
-                      help="Comma-separated list of networks for routes (default: 10.10.10.0/24,172.16.10.0/24,192.168.100.0/24)")
-    parser.add_argument("--timeout", type=int, default=30, help="SSH connection timeout in seconds (default: 30)")
-    parser.add_argument("--function", choices=["build", "read", "scrub", "all"], default="all", 
-                      help="Function to test: build, read, scrub, or all (default: all)")
+    """
+    Main function to run tests for build, read, or scrub functions
+    """
+    parser = argparse.ArgumentParser(description='VPN Route testing in a namespace')
+    parser.add_argument('action', choices=['build', 'read', 'scrub', 'all'], help='Action to perform')
+    parser.add_argument('--namespace', '-n', default="testns", help='Project namespace (default: testns)')
+    parser.add_argument('--vpn-id', '-v', type=int, default=6000, help='VPN identifier (default: 6000)')
+    parser.add_argument('--host', '-H', default="10.0.0.1", help='Host to connect to (default: 10.0.0.1)')
+    parser.add_argument('--username', '-u', default="robot", help='SSH username (default: robot)')
+    parser.add_argument('--device', '-d', default="public0", help='Physical device to use (default: public0)')
+    parser.add_argument('--networks', '-N', nargs='+', default=["192.168.100.0/24", "10.100.0.0/24"], 
+                        help='List of network CIDRs (default: ["192.168.100.0/24", "10.100.0.0/24"])')
+    parser.add_argument('--json', '-j', action='store_true', help='Output results in JSON format')
+    parser.add_argument('--setup-only', action='store_true', help='Only set up the test environment without running tests')
+    
     args = parser.parse_args()
     
-    # Use random VPN ID if not specified
-    vpn_id = args.vpn_id if args.vpn_id else random.randint(5000, 9999)
-    namespace = args.namespace
-    host = args.host
-    username = args.user
-    timeout = args.timeout
-    test_function = args.function
-    test_networks = args.networks.split(',')
+    # Common parameters for all functions
+    params = {
+        'namespace': args.namespace,
+        'vpn_id': args.vpn_id,
+        'host': args.host,
+        'username': args.username,
+    }
     
-    print_separator()
-    print(f"Testing vpnroute_ns primitive with:")
-    print(f"Host:      {host}")
-    print(f"Username:  {username}")
-    print(f"Namespace: {namespace}")
-    print(f"VPN ID:    {vpn_id}")
-    print(f"Networks:  {test_networks}")
-    print(f"Function:  {test_function}")
-    print_separator()
-    
-    # Set up SSH key management to avoid repeated passphrase prompts
-    ssh_manager = SSHKeyManager()
-    use_ssh_agent = input("Do you want to use SSH agent for key management to avoid repeated passphrase prompts? (y/n): ")
-    if use_ssh_agent.lower() == 'y':
-        if ssh_manager.start_ssh_agent():
-            # Ask for SSH key path or use default
-            custom_key_path = input("Enter path to your SSH private key or press Enter to use default (~/.ssh/id_rsa): ")
-            key_path = custom_key_path if custom_key_path.strip() else None
-            ssh_manager.add_key(key_path)
-            print("You should now be able to SSH without entering your passphrase repeatedly.")
-        else:
-            print("Failed to set up SSH agent. Continuing without key management.")
-    
-    # Check host connectivity first
-    if not check_host_connectivity(host, username, timeout):
-        print("Cannot connect to the target host. Please check your network connection and host availability.")
-        print("You may also want to verify the host address with: --host <ip-address>")
-        return
-
-    # Get sudo password from user
-    sudo_password = getpass.getpass(f"Enter sudo password for {username} on {host}: ")
-
-    # Get physical device if not specified
-    physical_dev = args.physical_dev
-    if not physical_dev:
-        interfaces = get_network_interfaces(host, username, sudo_password, timeout)
-        if interfaces:
-            print("\nAvailable network interfaces:")
-            for i, iface in enumerate(interfaces, 1):
-                print(f"{i}. {iface}")
-            
-            try:
-                choice = input("\nSelect physical device by number (or enter name directly): ")
-                if choice.isdigit() and 1 <= int(choice) <= len(interfaces):
-                    physical_dev = interfaces[int(choice) - 1]
-                else:
-                    physical_dev = choice.strip()
-            except (ValueError, IndexError):
-                physical_dev = "eno4"  # Default if selection fails
-        else:
-            physical_dev = "eno4"  # Default to eno4 if we couldn't get interfaces
-    
-    # Set up the test environment
-    if not setup_test_environment(namespace, vpn_id, physical_dev, sudo_password, host, username, timeout):
+    # Set up test environment
+    if not setup_test_environment(args.namespace, args.vpn_id, args.device, args.host, args.username):
         print("Failed to set up test environment. Exiting.")
-        return
+        sys.exit(1)
     
-    # Store test results
+    if args.setup_only:
+        print("Test environment setup completed. Exiting as requested.")
+        sys.exit(0)
+    
     results = {}
     
-    try:
-        # Run the selected test function(s)
-        if test_function == "build" or test_function == "all":
-            results["build"] = test_vpnroute_build(namespace, vpn_id, test_networks, sudo_password, host, username, timeout)
+    # Execute the requested actions
+    if args.action in ['build', 'all']:
+        print_separator()
+        print(f"TESTING BUILD OPERATION")
+        print_separator()
+        build_kwargs = params.copy()
+        build_kwargs['networks'] = args.networks
+        success, message = build(**build_kwargs)
         
-        if test_function == "read" or test_function == "all":
-            routes = test_vpnroute_read(namespace, vpn_id, sudo_password, host, username, timeout)
-            if test_function == "read":
-                results["read"] = len(routes) >= 0  # Read is successful if we can get the route list (even if empty)
-            elif test_function == "all" and "build" in results and results["build"]:
-                # In "all" mode, verify that all expected routes are present after build
-                results["read"] = set(routes) == set(test_networks)
+        results['build'] = {"success": success, "message": message}
         
-        if test_function == "scrub" or test_function == "all":
-            results["scrub"] = test_vpnroute_scrub(namespace, vpn_id, sudo_password, host, username, timeout)
-            
-            # Final verification after scrub
-            routes = test_vpnroute_read(namespace, vpn_id, sudo_password, host, username, timeout)
-            if not routes:
-                print("Final verification passed! All routes were successfully removed.")
+        if not args.json:
+            print(f"Build result: {'SUCCESS' if success else 'FAILURE'}")
+            print(f"Message: {message}")
+    
+    if args.action in ['read', 'all']:
+        print_separator()
+        print(f"TESTING READ OPERATION")
+        print_separator()
+        success, data, messages = read(**params)
+        
+        results['read'] = {"success": success, "data": data, "messages": messages}
+        
+        if not args.json:
+            print(f"Read result: {'SUCCESS' if success else 'FAILURE'}")
+            if success:
+                print("\nData retrieved:")
+                for host, host_data in data.items():
+                    print(f"Host: {host}")
+                    for key, value in host_data.items():
+                        print(f"  {key}: {value}")
+                print("\nMessages:")
+                for msg in messages:
+                    print(f"- {msg}")
             else:
-                print(f"Final verification failed! Routes still exist: {routes}")
+                print("Error messages:")
+                for msg in messages:
+                    print(f"- {msg}")
     
-    finally:
-        # Ask if user wants to clean up the test environment
-        response = input("\nDo you want to remove the test namespace and interface? (y/n): ")
-        cleanup_test_environment(namespace, vpn_id, sudo_password, host, username, timeout, 
-                             cleanup_all=(response.lower() == 'y'))
+    if args.action in ['scrub', 'all']:
+        print_separator()
+        print(f"TESTING SCRUB OPERATION")
+        print_separator()
+        success, message = scrub(**params)
+        
+        results['scrub'] = {"success": success, "message": message}
+        
+        if not args.json:
+            print(f"Scrub result: {'SUCCESS' if success else 'FAILURE'}")
+            print(f"Message: {message}")
     
-    # Print summary
-    print_separator()
-    print("TEST RESULTS SUMMARY:")
-    for func, success in results.items():
-        status = "PASSED" if success else "FAILED"
-        print(f"{func.upper()}: {status}")
-    print_separator()
-    print("Test completed!")
+    # Output JSON results if requested
+    if args.json:
+        print(json.dumps(results, indent=2, default=str))
+    
+    # Determine exit code based on all test results
+    all_success = all(result.get('success', False) for result in results.values())
+    sys.exit(0 if all_success else 1)
 
 if __name__ == "__main__":
     main()
