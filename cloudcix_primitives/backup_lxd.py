@@ -21,10 +21,10 @@ SUCCESS_CODE = 0
 
 def build(
         host: str,
-        username: str,
         container_name: str,
         backup_id: str,
         backup_dir: str,
+        username: str = 'robot',
 ) -> Tuple[bool, str]:
     """
     description:
@@ -33,10 +33,6 @@ def build(
     parameters:
         host:
             description: The IP address of the LXD host on which the container runs
-            type: string
-            required: true
-        username:
-            description: SSH username for connecting to the host
             type: string
             required: true
         container_name:
@@ -51,6 +47,10 @@ def build(
             description: path on the host where the backup is to be stored
             type: string
             required: true
+        username:
+            description: SSH username for connecting to the host, will default to robot
+            type: string
+            required: false
     """
     # Generate backup name and path
     backup_name = f"{container_name}_{backup_id}"
@@ -136,10 +136,10 @@ def build(
 
 def read(
         host: str,
-        username: str,
         container_name: str,
         backup_id: str,
         backup_dir: str,
+        username: str = 'robot',
 ) -> Tuple[bool, Dict, List[str]]:
     """
     description:
@@ -148,10 +148,6 @@ def read(
     parameters:
         host:
             description: The IP address of the LXD host
-            type: string
-            required: true
-        username:
-            description: SSH username for connecting to the host
             type: string
             required: true
         container_name:
@@ -166,6 +162,10 @@ def read(
             description: Directory for backup storage
             type: string
             required: true
+         username:
+            description: SSH username for connecting to the host, will default to robot
+            type: string
+            required: false
     """
     # Generate backup name and filename
     backup_name = f"{container_name}_{backup_id}"
@@ -256,10 +256,10 @@ def read(
 
 def scrub(
         host: str,
-        username: str,
         container_name: str,
         backup_id: str,
         backup_dir: str,
+        username: str = 'robot',
 ) -> Tuple[bool, str]:
     """
     description:
@@ -268,10 +268,6 @@ def scrub(
     parameters:
         host:
             description: The IP address of the LXD host
-            type: string
-            required: true
-        username:
-            description: SSH username for connecting to the host
             type: string
             required: true
         container_name:
@@ -286,6 +282,10 @@ def scrub(
             description: Directory for backup storage
             type: string
             required: true
+         username:
+            description: SSH username for connecting to the host, will default to robot
+            type: string
+            required: false
     """
     # Generate backup name and filename
     backup_name = f"{container_name}_{backup_id}"
