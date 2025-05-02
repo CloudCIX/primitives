@@ -23,10 +23,9 @@ SUCCESS_CODE = 0
 def build(
         namespace: str,
         vpn_id: int,
-        config_file: None,
         host: str,
-        username: str, 
-        password: str = None
+        username: str = "robot", 
+        device: str = "public0",
 ) -> Tuple[bool, str]:
     """
     description:
@@ -41,10 +40,6 @@ def build(
             description: VPN identifier used to create the XFRM interface name
             type: integer
             required: true
-        config_file:
-            description: Path to optional configuration file (not used currently)
-            type: string
-            required: false
         host:
             description: The host to connect to for running the commands
             type: string
@@ -53,10 +48,12 @@ def build(
             description: Username for SSH connection
             type: string
             required: true
-        password:
-            description: Password for SSH authentication (if provided)
+            default: "robot"
+        device:
+            description: Physical device to use for the XFRM interface
             type: string
             required: false
+            default: "public0"
     return:
         description: |
             A tuple with a boolean flag stating the build was successful or not and
@@ -81,7 +78,7 @@ def build(
     }
 
     def run_host(host, prefix, successful_payloads):
-        rcc = SSHCommsWrapper(comms_ssh, host, username, password)
+        rcc = SSHCommsWrapper(comms_ssh, host, username)
         fmt = HostErrorFormatter(
             host,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
@@ -90,7 +87,7 @@ def build(
 
         payloads = {
             'check_vpnif': f'ip netns exec {namespace} ip link show xfrm{vpn_id} 2>/dev/null || echo "Interface does not exist"',
-            'create_xfrm_interface': f'ip link add xfrm{vpn_id} type xfrm dev public0 if_id {vpn_id}',
+            'create_xfrm_interface': f'ip link add xfrm{vpn_id} type xfrm dev {device} if_id {vpn_id}',
             'disable_ipsec_policy': f'sysctl -w net.ipv4.conf.xfrm{vpn_id}.disable_policy=1',
             'move_to_namespace': f'ip link set xfrm{vpn_id} netns {namespace}',
             'bring_interface_up': f'ip netns exec {namespace} ip link set dev xfrm{vpn_id} up',
@@ -136,9 +133,9 @@ def build(
         # Bring interface up
         ret = rcc.run(payloads['bring_interface_up'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+9}: " + messages[prefix + 9]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+10}: " + messages[prefix + 10] + str(ret["payload_code"])), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+10}: " + messages[prefix+10] + str(ret["payload_code"])), fmt.successful_payloads
         fmt.add_successful('bring_interface_up', ret)
 
         return True, messages[1000], fmt.successful_payloads
@@ -152,10 +149,8 @@ def build(
 def read(
     namespace: str,
     vpn_id: int,
-    config_file: None,
     host: str,
-    username: str,
-    password: str = None
+    username: str = "robot",
 ) -> Tuple[bool, Dict[str, Any], List[str]]:
     """
     description:
@@ -170,10 +165,6 @@ def read(
             description: VPN identifier for the XFRM interface
             type: integer
             required: true
-        config_file:
-            description: Path to optional configuration file (not used currently)
-            type: string
-            required: false
         host:
             description: The host to connect to for running the commands
             type: string
@@ -182,10 +173,7 @@ def read(
             description: Username for SSH connection
             type: string
             required: true
-        password:
-            description: Password for SSH authentication (if provided)
-            type: string
-            required: false
+            default: "robot"
     return:
         description:
             status:
@@ -213,8 +201,9 @@ def read(
     def run_host(host, prefix, successful_payloads):
         retval = True
         data_dict[host] = {}
+        message_list = []
 
-        rcc = SSHCommsWrapper(comms_ssh, host, username, password)
+        rcc = SSHCommsWrapper(comms_ssh, host, username)
         fmt = HostErrorFormatter(
             host,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
@@ -228,23 +217,25 @@ def read(
         ret = rcc.run(payloads['check_vpnif'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix + 1])
+            message = fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix + 1])
+            message_list.append(message)
         elif (ret["payload_code"] != SUCCESS_CODE):
             retval = False
-            fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix + 2])
+            message = fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix + 2])
+            message_list.append(message)
         elif "Interface does not exist" in ret["payload_message"]:
             retval = True
             data_dict[host]['exists'] = False
             fmt.add_successful('check_vpnif', ret)
-            fmt.store_message(messages[1301])
+            message_list.append(messages[1301])
         else:
             retval = True
             data_dict[host]['exists'] = True
             data_dict[host]['interface_info'] = ret["payload_message"].strip()
             fmt.add_successful('check_vpnif', ret)
-            fmt.store_message(messages[1300])
+            message_list.append(messages[1300])
 
-        return retval, fmt.message_list, fmt.successful_payloads, data_dict
+        return retval, message_list, fmt.successful_payloads, data_dict
 
     # Use the specified server for testing
     retval, msg_list, successful_payloads, data_dict = run_host(host, 3320, {})
@@ -259,10 +250,8 @@ def read(
 def scrub(
     namespace: str,
     vpn_id: int,
-    config_file: None,
     host: str,
-    username: str,
-    password: str = None
+    username: str = "robot",
 ) -> Tuple[bool, str]:
     """
     description:
@@ -277,22 +266,15 @@ def scrub(
             description: VPN identifier for the XFRM interface to be removed
             type: integer
             required: true
-        config_file:
-            description: Path to optional configuration file (not used currently)
-            type: string
-            required: false
         host:
             description: The host to connect to for running the commands
             type: string
             required: true
+            default: "robot"
         username:
             description: Username for SSH connection
             type: string
             required: true
-        password:
-            description: Password for SSH authentication (if provided)
-            type: string
-            required: false
     return:
         description: |
             A tuple with a boolean flag stating the remove was successful or not and
@@ -310,7 +292,7 @@ def scrub(
     }
 
     def run_host(host, prefix, successful_payloads):
-        rcc = SSHCommsWrapper(comms_ssh, host, username, password)
+        rcc = SSHCommsWrapper(comms_ssh, host, username)
         fmt = HostErrorFormatter(
             host,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
@@ -340,7 +322,7 @@ def scrub(
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix + 3]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
-            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix + 4]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
         fmt.add_successful('delete_vpnif', ret)
 
         return True, messages[1100], fmt.successful_payloads
