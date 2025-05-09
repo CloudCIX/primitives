@@ -118,7 +118,7 @@ def build(
                 payload = payloads['del_route'] % {'route': route}
                 ret = rcc.run(payload)
                 
-        fmt.add_successful('remove_existing_routes', {})
+                fmt.add_successful(f'remove_existing_route_{route}', {})
 
         # Add routes for each network
         success_count = 0
