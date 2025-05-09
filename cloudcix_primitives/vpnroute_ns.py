@@ -109,7 +109,7 @@ def build(
         if "Interface does not exist" not in check_routes_ret["payload_message"]:
             routes = []
             for line in check_routes_ret["payload_message"].strip().split('\n'):
-                if line and "dev xfrm" in line:
+                if line and f"dev xfrm{vpn_id}" in line:
                     parts = line.split()
                     if parts and parts[0]:
                         routes.append(parts[0])
