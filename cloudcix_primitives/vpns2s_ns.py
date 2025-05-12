@@ -11,6 +11,8 @@ from primitives.cloudcix_primitives.utils import (
     PodnetErrorFormatter,
     SSHCommsWrapper,
     load_pod_config,
+    JINJA_ENV,
+    check_template_data,
 )
 
 __all__ = [
@@ -178,77 +180,39 @@ def build(
     # Get SSH username from config (default to 'robot' if not specified)
     username = config_data.get('ssh', {}).get('username', 'robot')
 
-    # Generate VPN configuration
-    aggressive = "yes" if ike_version == "1" else "no"
-    rekey_time = int(0.9 * float(ipsec_lifetime))
-    start_action = "trap" if ipsec_establish_time == "on-traffic" else "start"
-    
-    # Build the template
-    config_lines = [
-        'connections {',
-        f'    {namespace}-{vpn_id} {{',
-        f'        version = "{ike_version}"',
-        f'        aggressive = {aggressive}',
-        f'        proposals = "{ike_encryption}-{ike_authentication}-{ike_dh_groups}"'
-    ]
+    # Prepare template data
+    template_data = {
+        'namespace': namespace,
+        'vpn_id': vpn_id,
+        'ike_version': ike_version,
+        'ike_encryption': ike_encryption,
+        'ike_authentication': ike_authentication,
+        'ike_dh_groups': ike_dh_groups,
+        'ike_lifetime': ike_lifetime,
+        'podnet_cpe': podnet_cpe,
+        'ike_gateway_value': ike_gateway_value,
+        'stif_number': stif_number,
+        'ike_local_identifier': ike_local_identifier,
+        'ike_remote_identifier': ike_remote_identifier,
+        'child_sas': child_sas,
+        'ipsec_lifetime': ipsec_lifetime,
+        'ipsec_encryption': ipsec_encryption,
+        'ipsec_authentication': ipsec_authentication,
+        'ipsec_groups': ipsec_groups,
+        'ipsec_establish_time': ipsec_establish_time,
+        'ike_pre_shared_key': ike_pre_shared_key,
+    }
 
-    # Add IKE-version specific settings
-    if ike_version == '1':
-        config_lines.append(f'        reauth_time = {ike_lifetime}s')
-    else:
-        config_lines.append(f'        over_time = {ike_lifetime}s')
+    # Load the template
+    template = JINJA_ENV.get_template('vpns2s_ns/s2s.conf.j2')
     
-    # Add common connection settings
-    config_lines.extend([
-        f'        local_addrs = "{podnet_cpe}"',
-        f'        remote_addrs = "{ike_gateway_value}"',
-        f'        if_id_in = {stif_number}',
-        f'        if_id_out = {stif_number}',
-        f'        local-{vpn_id} {{',
-        '            auth = psk',
-        f'            id = "{ike_local_identifier}"',
-        '        }',
-        f'        remote-{vpn_id} {{',
-        '            auth = psk',
-        f'            id = "{ike_remote_identifier}"',
-        '        }',
-        '        children {'
-    ])
-
-    # Add child SAs
-    for i, child_sa in enumerate(child_sas, 1):
-        config_lines.extend([
-            f'            {namespace}-{vpn_id}-{i} {{',
-            f'                rekey_time = {rekey_time}s',
-            f'                local_ts = "{child_sa["local_ts"]}"',
-            f'                esp_proposals = "{ipsec_encryption}-{ipsec_authentication}-{ipsec_groups}"',
-            f'                remote_ts = "{child_sa["remote_ts"]}"',
-            f'                if_id_in = {stif_number}',
-            f'                if_id_out = {stif_number}',
-            f'                start_action = {start_action}',
-            '            }'
-        ])
+    # Validate template data
+    template_verified, template_error = check_template_data(template_data, template)
+    if not template_verified:
+        return False, f"Template validation error: {template_error}"
     
-    # Close children and connections sections
-    config_lines.extend([
-        '        }',
-        '    }',
-        '}',
-        ''
-    ])
-
-    # Add secrets section
-    config_lines.extend([
-        'secrets {',
-        f'    ike-{vpn_id} {{',
-        f'        secret = "{ike_pre_shared_key}"',
-        f'        id-local-{vpn_id} = "{ike_local_identifier}"',
-        f'        id-remote-{vpn_id} = "{ike_remote_identifier}"',
-        '    }',
-        '}'
-    ])
-    
-    conf_template = '\n'.join(config_lines)
+    # Render configuration template
+    conf_template = template.render(**template_data)
 
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, username)

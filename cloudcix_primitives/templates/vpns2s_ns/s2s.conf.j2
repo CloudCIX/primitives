@@ -1,0 +1,45 @@
+connections {
+    {{ namespace }}-{{ vpn_id }} {
+        version = "{{ ike_version }}"
+        aggressive = {{ 'yes' if ike_version == '1' else 'no' }}
+        proposals = "{{ ike_encryption }}-{{ ike_authentication }}-{{ ike_dh_groups }}"
+{% if ike_version == '1' %}
+        reauth_time = {{ ike_lifetime }}s
+{% else %}
+        over_time = {{ ike_lifetime }}s
+{% endif %}
+        local_addrs = "{{ podnet_cpe }}"
+        remote_addrs = "{{ ike_gateway_value }}"
+        if_id_in = {{ stif_number }}
+        if_id_out = {{ stif_number }}
+        local-{{ vpn_id }} {
+            auth = psk
+            id = "{{ ike_local_identifier }}"
+        }
+        remote-{{ vpn_id }} {
+            auth = psk
+            id = "{{ ike_remote_identifier }}"
+        }
+        children {
+{% for child_sa in child_sas %}
+            {{ namespace }}-{{ vpn_id }}-{{ loop.index }} {
+                rekey_time = {{ (ipsec_lifetime|float * 0.9)|int }}s
+                local_ts = "{{ child_sa['local_ts'] }}"
+                esp_proposals = "{{ ipsec_encryption }}-{{ ipsec_authentication }}-{{ ipsec_groups }}"
+                remote_ts = "{{ child_sa['remote_ts'] }}"
+                if_id_in = {{ stif_number }}
+                if_id_out = {{ stif_number }}
+                start_action = {{ 'trap' if ipsec_establish_time == 'on-traffic' else 'start' }}
+            }
+{% endfor %}
+        }
+    }
+}
+
+secrets {
+    ike-{{ vpn_id }} {
+        secret = "{{ ike_pre_shared_key }}"
+        id-local-{{ vpn_id }} = "{{ ike_local_identifier }}"
+        id-remote-{{ vpn_id }} = "{{ ike_remote_identifier }}"
+    }
+}
