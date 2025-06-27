@@ -63,3 +63,4 @@ log.*
 
 # Ruby stuff
 Gemfile.lock
+tools/test_net_main.py

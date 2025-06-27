@@ -24,12 +24,13 @@ def build(
         host: str,
         filename: str,
         standard_name: str,
-        system_name: str,
+        system_name: str = '',
         config_filepath=None,
         ips=None,
         mac=None,
         routes=None,
         vlans=None,
+        bonds=None,
 ) -> Tuple[bool, str]:
     """
     description:
@@ -94,7 +95,46 @@ def build(
                             type: string
                         via:
                             description: IP addresses from which the traffic is directed
-
+        bonds:
+            description: List of bond interface objects defined on vlan interface
+            type: list
+            properties:
+                name:
+                    description: The name of the bond interface to which this vlan belongs.
+                    type: string
+                dhcp4:
+                    description: Boolean value to indicate if the bond interface should use DHCP for IPv4
+                    type: boolean
+                dhcp6:
+                    description: Boolean value to indicate if the bond interface should use DHCP for IPv6
+                    type: boolean
+                interfaces:
+                    description: List of interfaces that are part of the bond
+                    type: list
+                    items:
+                        type: string
+                parameters:
+                    description: Dictionary of parameters for the bond interface
+                    type: dict
+                    properties:
+                        mode:
+                            description: The bonding mode to be used for the bond interface
+                            type: string
+                        primary:
+                            description: The primary interface for the bond interface
+                            type: string    
+                addresses:
+                    description: List of IP addresses defined on bond interface, in string format
+                    type: list
+                routes:
+                    description: List of route objects defined on bond interface
+                    type: list
+                    properties:
+                        to:
+                            description: IP addresses to which the traffic is destined
+                            type: string
+                        via:
+                            description: IP addresses from which the traffic is directed
     return:
         description: |
             A tuple with a boolean flag stating whether the build was successful or not and
@@ -131,6 +171,7 @@ def build(
         'standard_name': standard_name,
         'system_name': system_name,
         'vlans': vlans,
+        'bonds': bonds,
     }
 
     # ensure all the required keys are collected and no key has None value for template_data
@@ -144,10 +185,10 @@ def build(
 
     # Prepare public bridge build config
     bash_script = template.render(**template_data)
-    logger.debug(
+    logger.info(
         f'Generated build bash script for Netplan Interface #{standard_name}\n{bash_script}',
     )
-
+    print(bash_script)
     success, output = False, ''
     # Deploy the bash script to the Host
     if host in ['127.0.0.1', None, '', 'localhost']:

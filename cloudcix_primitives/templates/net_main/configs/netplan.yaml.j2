@@ -2,6 +2,15 @@ network:
   version: 2
   renderer: networkd
   ethernets:
+{% if bonds is not none and bonds | length > 0 %}
+{% for bond in bonds %}
+{% for interface in bond['interfaces'] %}
+    {{ interface }}:
+      dhcp4: false
+      dhcp6: false
+{% endfor %}
+{% endfor %}
+{% else %}
     {{ system_name }}:
       dhcp4: false
       dhcp6: false
@@ -22,6 +31,35 @@ network:
 {% for route in routes %}
         - to: {{ route['to'] }}
           via: {{ route['via'] }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if bonds is not none and bonds | length > 0 %}
+  bonds:
+{% for bond in bonds %}
+    {{ bond['name'] }}:
+      dhcp4: false
+      dhcp6: false
+      interfaces: [{% for iface in bond['interfaces'] %}{{ iface }}{% if not loop.last %}, {% endif %}{% endfor %}]
+      parameters:
+        mode: {{ bond['parameters']['mode'] }}
+{% if bond['parameters']['primary']%}
+        primary: {{ bond['parameters']['primary'] }}
+{% endif %}
+{% if bond['addresses'] is not none and bond['addresses'] | length > 0 %}
+      addresses:
+{% for address in bond['addresses'] %}
+        - {{ address }}
+{% endfor %}
+{% endif %}
+{% if bond['routes'] is not none and bond['routes'] | length > 0 %}
+      routes:
+{% for route in bond['routes'] %}
+        - to: {{ route['to'] }}
+          via: {{ route['via'] }}
+{% endfor %}
+{% endif %}
 {% endfor %}
 {% endif %}
 
