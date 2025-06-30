@@ -1,0 +1,37 @@
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+{% for interface in interfaces %}
+    {{ interface }}:
+      dhcp4: false
+      dhcp6: false
+      accept-ra: false
+{% endfor %}
+  bonds:
+    {{ standard_name }}:
+      dhcp4: {{ dhcp4 | default(false) }}
+      dhcp6: {{ dhcp6 | default(false) }}
+      accept-ra: {{ accept_ra | default(false) }}
+      interfaces:
+{% for interface in interfaces %}
+      - {{ interface }}
+{% endfor %}
+      parameters:
+        mode: {{ parameters['mode'] }}
+{% if parameters['primary'] %}
+        primary: {{ parameters['primary'] }}
+{% endif %}
+{% if addresses is not none and addresses | length > 0 %}
+      addresses:
+{% for address in addresses %}
+      - {{ address }}
+{% endfor %}
+{% endif %}
+{% if routes is not none and routes | length > 0 %}
+      routes:
+{% for route in routes %}
+      - to: {{ route['to'] }}
+        via: {{ route['via'] }}
+{% endfor %}
+{% endif %}
