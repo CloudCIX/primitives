@@ -15,7 +15,7 @@ __all__ = [
 def update(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         cpu: int,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
@@ -30,10 +30,10 @@ def update(
     """
     # Define message
     messages = {
-        1000: f'Successfully updated the CPU limit for containers {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to set CPU limit for containers {container_name}. Error: ',
+        1000: f'Successfully updated the CPU limit for instance {instance_name} on {endpoint_url}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
+        3023: f'Failed to set CPU limit for instance {instance_name}. Error: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -45,19 +45,19 @@ def update(
         )
         
         # Get the instance
-        ret = rcc.run(cli='containers.get', name=container_name)
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
 
         # Update the CPU limit
         try:
             instance.config['limits.cpu'] = str(cpu)
             instance.save(wait=True)
-            fmt.add_successful('containers.set', {'limits.cpu': str(cpu)})
+            fmt.add_successful('instances.set', {'limits.cpu': str(cpu)})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
 

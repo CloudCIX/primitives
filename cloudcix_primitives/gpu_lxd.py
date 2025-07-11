@@ -1,5 +1,5 @@
 """
-GPU Management for LXD Containers
+GPU Management for LXD Instances
 """
 # stdlib
 from typing import Tuple
@@ -17,11 +17,11 @@ __all__ = [
 def build(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         device_identifier: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """ description: Attach a GPU to an LXD container.
+    """ description: Attach a GPU to an LXD instance.
 
     parameters:
         endpoint_url:
@@ -32,8 +32,8 @@ def build(
             description: The LXD project name.
             type: string
             required: true
-        container_name:
-            description: The name of the LXD container.
+        instance_name:
+            description: The name of the LXD instance.
             type: string
             required: true
         device_identifier:
@@ -56,11 +56,11 @@ def build(
     device_name = device_identifier
     
     messages = {
-        1000: f'Successfully attached GPU {device_identifier} to container {container_name} on {endpoint_url}',
-        1001: f'GPU {device_identifier} is already attached to container {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to attach GPU to container {container_name}. Error: ',
+        1000: f'Successfully attached GPU {device_identifier} to instance {instance_name} on {endpoint_url}',
+        1001: f'GPU {device_identifier} is already attached to instance {instance_name} on {endpoint_url}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
+        3023: f'Failed to attach GPU to instance {instance_name}. Error: ',
     }
 
     # Validate input
@@ -75,15 +75,15 @@ def build(
             successful_payloads,
         )
         
-        # Get the container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get the instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         # Check if the GPU ID is already attached in any device
         for dev_name, config in instance.devices.items():
@@ -110,7 +110,7 @@ def build(
         try:
             instance.devices[device_name] = gpu_config
             instance.save(wait=True)
-            fmt.add_successful('containers.device_add', {'device': device_name, 'config': gpu_config})
+            fmt.add_successful('instances.device_add', {'device': device_name, 'config': gpu_config})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
 
@@ -126,10 +126,10 @@ def build(
 def read(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str, dict]:
-    """ description: Read information about attached GPUs from an LXD container.
+    """ description: Read information about attached GPUs from an LXD instance.
 
     parameters:
         endpoint_url:
@@ -140,8 +140,8 @@ def read(
             description: The LXD project name.
             type: string
             required: true
-        container_name:
-            description: The name of the LXD container.
+        instance_name:
+            description: The name of the LXD instance.
             type: string
             required: true
         verify_lxd_certs:
@@ -157,10 +157,10 @@ def read(
     """
     # Define messages for different statuses
     messages = {
-        1000: f'Successfully read GPU information from container {container_name} on {endpoint_url}',
-        1001: f'No GPU devices found attached to container {container_name}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
+        1000: f'Successfully read GPU information from instance {instance_name} on {endpoint_url}',
+        1001: f'No GPU devices found attached to instance {instance_name}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -171,15 +171,15 @@ def read(
             successful_payloads,
         )
         
-        # Get the container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get the instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         # Find all GPU devices attached to the instance
         gpu_devices = {}
@@ -228,11 +228,11 @@ def read(
 def scrub(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         device_identifier: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """ description: Detach a GPU from an LXD container.
+    """ description: Detach a GPU from an LXD instance.
 
     parameters:
         endpoint_url:
@@ -243,8 +243,8 @@ def scrub(
             description: The LXD project name.
             type: string
             required: true
-        container_name:
-            description: The name of the LXD container.
+        instance_name:
+            description: The name of the LXD instance.
             type: string
             required: true
         device_identifier:
@@ -264,11 +264,11 @@ def scrub(
     """
     # Define messages for different statuses
     messages = {
-        1000: f'Successfully detached GPU from container {container_name} on {endpoint_url}',
-        1001: f'No GPU device matching {device_identifier} found in container {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to detach GPU from container {container_name}. Error: ',
+        1000: f'Successfully detached GPU from instance {instance_name} on {endpoint_url}',
+        1001: f'No GPU device matching {device_identifier} found in instance {instance_name} on {endpoint_url}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
+        3023: f'Failed to detach GPU from instance {instance_name}. Error: ',
     }
 
     # Validate input
@@ -283,15 +283,15 @@ def scrub(
             successful_payloads,
         )
         
-        # Get the container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get the instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         # Check if there are any GPU devices attached
         gpu_devices = []
@@ -317,7 +317,7 @@ def scrub(
             
             # Save the instance configuration
             instance.save(wait=True)
-            fmt.add_successful('containers.device_remove', {'devices': detached_devices})
+            fmt.add_successful('instances.device_remove', {'devices': detached_devices})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
 

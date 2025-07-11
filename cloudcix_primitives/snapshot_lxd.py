@@ -18,13 +18,13 @@ __all__ = [
 def build(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         snapshot_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
     """
     description:
-        Create a snapshot for an LXD container.
+        Create a snapshot for an LXD instance.
 
     parameters:
         endpoint_url:
@@ -35,8 +35,8 @@ def build(
             description: Unique identification name of the LXD Project on the LXD Host.
             type: string
             required: true
-        container_name:
-            description: The name of the LXD container to snapshot.
+        instance_name:
+            description: The name of the LXD instance to snapshot.
             type: string
             required: true
         snapshot_name:
@@ -55,10 +55,10 @@ def build(
     """
     # Define messages
     messages = {
-        1000: f'Successfully created snapshot {snapshot_name} for container {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to create snapshot for container {container_name}. Error: ',
+        1000: f'Successfully created snapshot {snapshot_name} for instance {instance_name} on {endpoint_url}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
+        3023: f'Failed to create snapshot for instance {instance_name}. Error: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -70,14 +70,14 @@ def build(
         )
         
         # Get the instance
-        ret = rcc.run(cli='containers.get', name=container_name)
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         # Create the snapshot
         try:
@@ -99,12 +99,12 @@ def build(
 def read(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
     """
     description:
-        Retrieve details for the current snapshot from an LXD container.
+        Retrieve details for the current snapshot from an LXD instance.
         NOTE: Using ZFS filesystem, only one snapshot can exist at a time.
     
     parameters:
@@ -116,8 +116,8 @@ def read(
             description: Unique identification name of the LXD Project on the LXD Host.
             type: string
             required: true
-        container_name:
-            description: The name of the LXD container containing the snapshot.
+        instance_name:
+            description: The name of the LXD instance containing the snapshot.
             type: string
             required: true
         verify_lxd_certs:
@@ -132,10 +132,10 @@ def read(
     """
     # Define message
     messages = {
-        1200: f'Successfully read snapshot for container {container_name} on {endpoint_url}',
-        1201: f'No snapshots found for container {container_name} on {endpoint_url}',
-        3221: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3222: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
+        1200: f'Successfully read snapshot for instance {instance_name} on {endpoint_url}',
+        1201: f'No snapshots found for instance {instance_name} on {endpoint_url}',
+        3221: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3222: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
         3223: f'Failed to retrieve snapshot information. Error: ',
     }
 
@@ -149,20 +149,20 @@ def read(
         
         result = {}
         
-        # Get container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads, result
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads, result
         
-        container = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        instance = ret['payload_message']
+        fmt.add_successful('instances.get', ret)
         
         try:
             # Get snapshots
-            snapshots = list(container.snapshots.all())
+            snapshots = list(instance.snapshots.all())
             
             if not snapshots:
                 # No snapshots found
@@ -184,7 +184,7 @@ def read(
                 snapshot_data['config'] = snapshot.config
             
             result['snapshot'] = snapshot_data
-            fmt.add_successful('containers.snapshots.get', {'snapshot': snapshot_data})
+            fmt.add_successful('instances.snapshots.get', {'snapshot': snapshot_data})
                 
         except Exception as e:
             error_msg = f"{prefix+3}: {messages[prefix+3]}{str(e)}"
@@ -211,15 +211,15 @@ def read(
 def scrub(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         snapshot_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """Delete a snapshot from an LXD container.
+    """Delete a snapshot from an LXD instance.
     
     :param endpoint_url: The endpoint URL for the LXD Host.
     :param project: The LXD project name.
-    :param container_name: The name of the LXD container containing the snapshot.
+    :param instance_name: The name of the LXD instance containing the snapshot.
     :param snapshot_name: The name of the snapshot to delete.
     :param verify_lxd_certs: Boolean to verify LXD certs.
     
@@ -227,9 +227,9 @@ def scrub(
     """
     # Define messages
     messages = {
-        1100: f'Successfully deleted snapshot {snapshot_name} from container {container_name} on {endpoint_url}',
-        3121: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3122: f'Failed to run containers.get payload on {endpoint_url}',
+        1100: f'Successfully deleted snapshot {snapshot_name} from instance {instance_name} on {endpoint_url}',
+        3121: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3122: f'Failed to run instances.get payload on {endpoint_url}',
         3123: f'Failed to delete snapshot {snapshot_name}. Error: ',
     }
 
@@ -242,14 +242,14 @@ def scrub(
         )
         
         # Get the instance
-        ret = rcc.run(cli='containers.get', name=container_name)
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         # Find and delete the snapshot
         try:
@@ -279,13 +279,13 @@ def scrub(
 def update(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         snapshot_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
     """
     description:
-        Restore a container from a snapshot.
+        Restore an instance from a snapshot.
         NOTE: Since we're using ZFS filesystem, only one snapshot can exist at a time,
         so the snapshot_name parameter is required to identify the snapshot.
     
@@ -298,8 +298,8 @@ def update(
             description: Unique identification name of the LXD Project on the LXD Host.
             type: string
             required: true
-        container_name:
-            description: The name of the LXD container containing the snapshot.
+        instance_name:
+            description: The name of the LXD instance containing the snapshot.
             type: string
             required: true
         snapshot_name:
@@ -318,11 +318,11 @@ def update(
     """
     # Define messages
     messages = {
-        1300: f'Successfully restored container {container_name} from snapshot {snapshot_name} on {endpoint_url}',
-        3321: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3322: f'Failed to run containers.get payload on {endpoint_url}',
+        1300: f'Successfully restored instance {instance_name} from snapshot {snapshot_name} on {endpoint_url}',
+        3321: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3322: f'Failed to run instances.get payload on {endpoint_url}',
         3324: f'Failed to restore from snapshot. Error: ',
-        3325: f'Snapshot {snapshot_name} not found for container {container_name}',
+        3325: f'Snapshot {snapshot_name} not found for instance {instance_name}',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -334,14 +334,14 @@ def update(
         )
         
         # Get the instance
-        ret = rcc.run(cli='containers.get', name=container_name)
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         try:
             # Get the specific snapshot

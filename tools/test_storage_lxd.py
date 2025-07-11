@@ -8,7 +8,7 @@ from cloudcix_primitives import storage_lxd
 # * `tools/test_ns.py build mynetns to ensure the name space we want exists
 # * `tools/test_vlanif_ns.py build {vlan} to ensure vlan tagged interface exists on podnet
 # * `tools/test_bridge_lxd.py build br4000 to ensure the LXD bridge exists to connect to the vlan tagged interface
-# * `tools/test_lxd.py build to ensure the LXD container exists to modify the storage
+# * `tools/test_lxd.py build to ensure the LXD instance exists to modify the storage
 
 
 cmd = sys.argv[1]
@@ -40,7 +40,7 @@ if cmd == 'update':
     status, msg = storage_lxd.update(
         endpoint_url=endpoint_url,
         project=project,
-        container_name=name,
+        instance_name=name,
         new_size=size,
         verify_lxd_certs=verify_lxd_certs,
     )

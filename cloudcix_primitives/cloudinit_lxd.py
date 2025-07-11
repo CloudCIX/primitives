@@ -1,5 +1,5 @@
 """
-Cloud-init user-data configuration management for LXD containers
+Cloud-init user-data configuration management for LXD instances
 """
 # stdlib
 from typing import Dict, Tuple
@@ -16,15 +16,15 @@ __all__ = [
 def update(
     endpoint_url: str,
     project: str,
-    container_name: str,
+    instance_name: str,
     cloud_init_config: str,
     verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """ Update cloud-init user-data configuration for an LXD container.
+    """ Update cloud-init user-data configuration for an LXD instance.
     
     :param endpoint_url: The endpoint URL for the LXD Host.
     :param project: The LXD project name.
-    :param container_name: The name of the LXD container.
+    :param instance_name: The name of the LXD instance.
     :param cloud_init_config: The cloud-init user-data configuration content. NOTE: /path/to/file.yaml
     :param verify_lxd_certs: Boolean to verify LXD certs.
     :return: A tuple with a boolean flag indicating success or failure and a message.
@@ -32,10 +32,10 @@ def update(
     # Define the config key
     config_key = "cloud-init.user-data"
     messages = {
-        1000: f'Successfully updated cloud-init user-data for container {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to update cloud-init configuration for container {container_name}. Error: ',
+        1000: f'Successfully updated cloud-init user-data for instance {instance_name} on {endpoint_url}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
+        3023: f'Failed to update cloud-init configuration for instance {instance_name}. Error: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -47,14 +47,14 @@ def update(
         )
         
         # Get the instance
-        ret = rcc.run(cli='containers.get', name=container_name)
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         # Update the cloud-init configuration
         try:
@@ -76,24 +76,24 @@ def update(
 def read(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, Dict, str]:
-    """ Retrieve cloud-init user-data configuration from an LXD container.
+    """ Retrieve cloud-init user-data configuration from an LXD instance.
     
     :param endpoint_url: The endpoint URL for the LXD Host.
     :param project: The LXD project name.
-    :param container_name: The name of the LXD container.
+    :param instance_name: The name of the LXD instance.
     :param verify_lxd_certs: Boolean to verify LXD certs.
     :return: A tuple with a boolean flag indicating success or failure, a dictionary containing the configuration, and a message.
     """
     # Define the config key
     config_key = "cloud-init.user-data"
     messages = {
-        1000: f'Successfully retrieved cloud-init user-data from container {container_name} on {endpoint_url}',
-        1001: f'No cloud-init user-data configuration found for container {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
+        1000: f'Successfully retrieved cloud-init user-data from instance {instance_name} on {endpoint_url}',
+        1001: f'No cloud-init user-data configuration found for instance {instance_name} on {endpoint_url}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -107,14 +107,14 @@ def read(
         result = {}
         
         # Get the instance
-        ret = rcc.run(cli='containers.get', name=container_name)
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads, result
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads, result
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         # Get the cloud-init configuration
         cloud_init_config = instance.config.get(config_key, '')

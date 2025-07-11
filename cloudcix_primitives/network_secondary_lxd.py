@@ -1,5 +1,5 @@
 """
-Module for Secondary Network Device management in LXD containers.
+Module for Secondary Network Device management in LXD instances.
 """
 # stdlib
 from typing import Dict, Tuple
@@ -17,21 +17,21 @@ __all__ = [
 def build(
     endpoint_url: str,
     project: str,
-    container_name: str,
+    instance_name: str,
     vlan_id: str,
     device_name: str,
     mac_address: str = None,
     verify_lxd_certs: bool = True,
 ) -> Tuple[bool, str]:
     """
-    Attach a secondary network interface to an LXD container.
+    Attach a secondary network interface to an LXD instance.
     """
     # Define the messages
     messages = {
-        1000: f'Successfully attached network interface to container {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for network or container operations',
+        1000: f'Successfully attached network interface to instance {instance_name} on {endpoint_url}',
+        3021: f'Failed to connect to {endpoint_url} for network or instance operations',
         3022: f'Failed to retrieve networks from {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to retrieve container {container_name}. Payload exited with status ',
+        3023: f'Failed to retrieve instance {instance_name}. Payload exited with status ',
         3024: f'Network br{vlan_id} does not exist on {endpoint_url}.',
         3025: f'Failed to create network device: ',
     }
@@ -65,15 +65,15 @@ def build(
         if not network_exists:
             return False, f"{prefix+4}: {messages[prefix+4]}", fmt.successful_payloads
 
-        # Get the container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get the instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
 
         # Check if the device already exists
         devices = instance.devices
@@ -89,7 +89,7 @@ def build(
             'ipv6.address': None,
         }
 
-        # Add the device to the container
+        # Add the device to the instance
         try:
             instance.devices[device_name] = device_config
 
@@ -114,18 +114,18 @@ def build(
 def read(
     endpoint_url: str,
     project: str,
-    container_name: str,
+    instance_name: str,
     verify_lxd_certs: bool = True,
 ) -> Tuple[bool, Dict, str]:
     """
-    Read the secondary network configuration of an LXD container.
+    Read the secondary network configuration of an LXD instance.
     """
     # Define the messages
     messages = {
-        1200: f'Successfully read network configuration for container {container_name} on {endpoint_url}',
-        1201: f'No secondary network interfaces found for container {container_name} on {endpoint_url}',
-        3221: f'Failed to connect to {endpoint_url} for container operations',
-        3222: f'Failed to retrieve container {container_name}. Payload exited with status ',
+        1200: f'Successfully read network configuration for instance {instance_name} on {endpoint_url}',
+        1201: f'No secondary network interfaces found for instance {instance_name} on {endpoint_url}',
+        3221: f'Failed to connect to {endpoint_url} for instance operations',
+        3222: f'Failed to retrieve instance {instance_name}. Payload exited with status ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -138,19 +138,19 @@ def read(
 
         result = {}
 
-        # Get the container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get the instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads, {}
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads, {}
 
-        container = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        instance = ret['payload_message']
+        fmt.add_successful('instances.get', ret)
 
-        # Get devices from container
-        devices = container.devices
-        config = container.config
+        # Get devices from instance
+        devices = instance.devices
+        config = instance.config
 
         # Filter for network interfaces (excluding the primary one which is typically 'eth0')
         network_devices = {}
@@ -184,18 +184,18 @@ def read(
 def scrub(
     endpoint_url: str,
     project: str,
-    container_name: str,
+    instance_name: str,
     device_name: str,
     verify_lxd_certs: bool = True,
 ) -> Tuple[bool, str]:
     """
-    Remove a secondary network interface from an LXD container.
+    Remove a secondary network interface from an LXD instance.
     """
     # Define the messages
     messages = {
-        1100: f'Successfully removed network interface {device_name} from container {container_name} on {endpoint_url}',
-        3121: f'Failed to connect to {endpoint_url} for container operations',
-        3122: f'Failed to retrieve container {container_name}. Payload exited with status ',
+        1100: f'Successfully removed network interface {device_name} from instance {instance_name} on {endpoint_url}',
+        3121: f'Failed to connect to {endpoint_url} for instance operations',
+        3122: f'Failed to retrieve instance {instance_name}. Payload exited with status ',
         3123: f'Failed to remove network interface: ',
     }
 
@@ -207,15 +207,15 @@ def scrub(
             successful_payloads,
         )
 
-        # Get the container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get the instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
 
         # Check if the device exists
         devices = instance.devices
@@ -224,7 +224,7 @@ def scrub(
             fmt.add_successful('network_device.remove', {device_name: 'not_found'})
             return True, f'1100: {messages[1100]}', fmt.successful_payloads
 
-        # Remove the device from the container
+        # Remove the device from the instance
         try:
             # Remove the device
             del instance.devices[device_name]
