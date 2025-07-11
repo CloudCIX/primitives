@@ -1,5 +1,5 @@
 """
-Module for managing secondary LXD storage volumes attached to containers. (Host Storage Voumes / Remote RADOS Block Devices)
+Module for managing secondary LXD storage volumes attached to instances. (Host Storage Voumes / Remote RADOS Block Devices)
 """
 # stdlib
 from typing import Dict, Tuple
@@ -17,13 +17,13 @@ __all__ = [
 def build(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         volume_name: str,
         mount_point: str,
         verify_lxd_certs: bool = True,
         storage_pool: str = "default",
 ) -> Tuple[bool, str]:
-    """ description: Attach a secondary LXD storage volume to a container.
+    """ description: Attach a secondary LXD storage volume to an instance.
 
     parameters:
         endpoint_url:
@@ -34,8 +34,8 @@ def build(
             description: The LXD project name.
             type: string
             required: true
-        container_name:
-            description: The name of the LXD container.
+        instance_name:
+            description: The name of the LXD instance.
             type: string
             required: true
         volume_name:
@@ -43,7 +43,7 @@ def build(
             type: string
             required: true
         mount_point:
-            description: The mount point for the volume inside the container.
+            description: The mount point for the volume inside the instance.
             type: string
             required: true
         verify_lxd_certs:
@@ -62,11 +62,11 @@ def build(
     """
     # Define messages
     messages = {
-        1000: f'Successfully attached volume {volume_name} to container {container_name} on {endpoint_url}',
-        1001: f'Volume {volume_name} is already attached to container {container_name}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to get container {container_name} configuration',
-        3023: f'Failed to attach volume {volume_name} to container {container_name}. Error: ',
+        1000: f'Successfully attached volume {volume_name} to instance {instance_name} on {endpoint_url}',
+        1001: f'Volume {volume_name} is already attached to instance {instance_name}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to get instance {instance_name} configuration',
+        3023: f'Failed to attach volume {volume_name} to instance {instance_name}. Error: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -77,18 +77,18 @@ def build(
             successful_payloads,
         )
 
-        # Get the container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get the instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
-        container = ret['payload_message']
-        fmt.add_successful('container get', ret)
+        instance = ret['payload_message']
+        fmt.add_successful('instances.get', ret)
 
         # Check if the volume is already attached
-        if volume_name in container.devices:
+        if volume_name in instance.devices:
             # Volume already attached
             return True, f'1001: {messages[1001]}', fmt.successful_payloads
 
@@ -100,13 +100,13 @@ def build(
             "path": mount_point,
         }
 
-        # Add the device to the container
-        container.devices[volume_name] = device_config
+        # Add the device to the instance
+        instance.devices[volume_name] = device_config
 
-        # Update the container configuration
+        # Update the instance configuration
         try:
-            container.save(wait=True)
-            fmt.add_successful('container.save', {'device_added': volume_name})
+            instance.save(wait=True)
+            fmt.add_successful('instances.save', {'device_added': volume_name})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}{e}", fmt.successful_payloads
         
@@ -123,11 +123,11 @@ def build(
 def read(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         volume_name: str,
         verify_lxd_certs: bool = True,
 ) -> Tuple[bool, str, Dict]:
-    """ description: Read the configuration of a secondary LXD storage volume attached to a container.
+    """ description: Read the configuration of a secondary LXD storage volume attached to an instance.
 
     parameters:
         endpoint_url:
@@ -138,8 +138,8 @@ def read(
             description: The LXD project name.
             type: string
             required: true
-        container_name:
-            description: The name of the LXD container.
+        instance_name:
+            description: The name of the LXD instance.
             type: string
             required: true
         volume_name:
@@ -161,10 +161,10 @@ def read(
     """
     # Define messages
     messages = {
-        1000: f'Successfully read volume {volume_name} from container {container_name} on {endpoint_url}',
-        1001: f'Volume {volume_name} not found in container {container_name}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to get container {container_name} configuration',
+        1000: f'Successfully read volume {volume_name} from instance {instance_name} on {endpoint_url}',
+        1001: f'Volume {volume_name} not found in instance {instance_name}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to get instance {instance_name} configuration',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -175,21 +175,21 @@ def read(
             successful_payloads,
         )
 
-        # Get the container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get the instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
-        container = ret['payload_message']
-        fmt.add_successful('container get', ret)
+        instance = ret['payload_message']
+        fmt.add_successful('instances.get', ret)
 
         # Read the volume configuration
-        if volume_name not in container.devices:
+        if volume_name not in instance.devices:
             return True, f'1001: {messages[1001]}', fmt.successful_payloads
         
-        volume_config = container.devices[volume_name]
+        volume_config = instance.devices[volume_name]
         fmt.successful_payloads['volume_config'] = volume_config
             
         return True, '', fmt.successful_payloads
@@ -209,11 +209,11 @@ def read(
 def scrub(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
         volume_name: str,
         verify_lxd_certs: bool = True,
 ) -> Tuple[bool, str]:
-    """ description: Detach a secondary LXD storage volume from a container.
+    """ description: Detach a secondary LXD storage volume from an instance.
 
     parameters:
         endpoint_url:
@@ -224,8 +224,8 @@ def scrub(
             description: The LXD project name.
             type: string
             required: true
-        container_name:
-            description: The name of the LXD container.
+        instance_name:
+            description: The name of the LXD instance.
             type: string
             required: true
         volume_name:
@@ -244,11 +244,11 @@ def scrub(
     """
     # Define messages
     messages = {
-        1000: f'Successfully detached volume {volume_name} from container {container_name} on {endpoint_url}',
-        1001: f'Volume {volume_name} not found in container {container_name}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to get container {container_name} configuration',
-        3023: f'Failed to detach volume {volume_name} from container {container_name}. Error: ',
+        1000: f'Successfully detached volume {volume_name} from instance {instance_name} on {endpoint_url}',
+        1001: f'Volume {volume_name} not found in instance {instance_name}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to get instance {instance_name} configuration',
+        3023: f'Failed to detach volume {volume_name} from instance {instance_name}. Error: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -259,23 +259,23 @@ def scrub(
             successful_payloads,
         )
 
-        # Get the container
-        ret = rcc.run(cli='containers.get', name=container_name)
+        # Get the instance
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
-        container = ret['payload_message']
-        fmt.add_successful('container get', ret)
+        instance = ret['payload_message']
+        fmt.add_successful('instances.get', ret)
 
-        # Detach the volume from the container
-        if volume_name not in container.devices:
+        # Detach the volume from the instance
+        if volume_name not in instance.devices:
             return True, f'1001: {messages[1001]}', fmt.successful_payloads      
         try:
-            del container.devices[volume_name]
-            container.save(wait=True)
-            fmt.add_successful('container.save', {'device_removed': volume_name})
+            del instance.devices[volume_name]
+            instance.save(wait=True)
+            fmt.add_successful('instances.save', {'device_removed': volume_name})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}{e}", fmt.successful_payloads
             
