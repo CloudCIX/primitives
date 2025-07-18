@@ -24,19 +24,20 @@ def build(
         container_name: str,
         backup_id: str,
         backup_dir: str,
+        instance_type: str,
         username: str = 'robot',
 ) -> Tuple[bool, str]:
     """
     description:
-        Creates container backup on LXD host and exports it to storage.
+        Creates instance backup on LXD host and exports it to storage.
 
     parameters:
         host:
-            description: The IP address of the LXD host on which the container runs
+            description: The IP address of the LXD host on which the instance runs
             type: string
             required: true
         container_name:
-            description: unique identification name for the target LXD container
+            description: unique identification name for the target LXD instance in format '{project_id}-{contra_resource_id}'
             type: string
             required: true
         backup_id:
@@ -45,6 +46,10 @@ def build(
             required: true
         backup_dir:
             description: path on the host where the backup is to be stored
+            type: string
+            required: true
+        instance_type:
+            description: type of LXD instance, either 'vms' or 'containers'
             type: string
             required: true
         username:
@@ -57,11 +62,11 @@ def build(
     backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
     messages = {
-        1000: f"Successfully created backup '{backup_name}' at {backup_path}",
-        1001: f"Backup '{backup_name}' already exists on host {host} at {backup_path}",
+        1000: f"Successfully created backup '{backup_name}' for {instance_type} '{container_name}' at {backup_path}",
+        1001: f"Backup '{backup_name}' for {instance_type} '{container_name}' already exists on host {host} at {backup_path}",
         3021: f"Failed to connect to host {host} for payload check_backup: ",
-        3022: f"Failed to create backup for container '{container_name}': ",
-        3023: f"Failed to export backup '{backup_name}' for container '{container_name}': ",
+        3022: f"Failed to create backup for {instance_type} '{container_name}': ",
+        3023: f"Failed to export backup '{backup_name}' for {instance_type} '{container_name}': ",
         3024: f"Failed to verify backup file was created: ",
     }
 
@@ -139,11 +144,12 @@ def read(
         container_name: str,
         backup_id: str,
         backup_dir: str,
+        instance_type: str,
         username: str = 'robot',
 ) -> Tuple[bool, Dict, List[str]]:
     """
     description:
-        Gets information about a container backup file.
+        Gets information about an instance backup file.
     
     parameters:
         host:
@@ -151,7 +157,7 @@ def read(
             type: string
             required: true
         container_name:
-            description: Name of the LXD container
+            description: unique identification name for the target LXD instance in format '{project_id}-{contra_resource_id}'
             type: string
             required: true
         backup_id:
@@ -160,6 +166,10 @@ def read(
             required: true
         backup_dir:
             description: Directory for backup storage
+            type: string
+            required: true
+        instance_type:
+            description: type of LXD instance, either 'vms' or 'containers'
             type: string
             required: true
          username:
@@ -173,7 +183,7 @@ def read(
 
     # Define messages
     messages = {
-        1300: f"Successfully read backup information for '{backup_name}' at {backup_path}",
+        1300: f"Successfully read backup information for {instance_type} '{container_name}' backup '{backup_name}' at {backup_path}",
         3321: f"Failed to connect to host {host} for payload check_backup: ",
         3322: f"Backup '{backup_name}' does not exist on host {host}",
         3323: f"Failed to get backup details for '{backup_name}': ",
@@ -213,6 +223,7 @@ def read(
             'container_name': container_name,
             'backup_name': backup_name,
             'backup_id': backup_id,
+            'instance_type': instance_type,
         }
         
         # 3. Get detailed backup info if it exists
@@ -259,11 +270,12 @@ def scrub(
         container_name: str,
         backup_id: str,
         backup_dir: str,
+        instance_type: str,
         username: str = 'robot',
 ) -> Tuple[bool, str]:
     """
     description:
-        Removes a container backup file.
+        Removes an instance backup file.
     
     parameters:
         host:
@@ -271,7 +283,7 @@ def scrub(
             type: string
             required: true
         container_name:
-            description: Name of the LXD container
+            description: unique identification name for the target LXD instance in format '{project_id}-{contra_resource_id}'
             type: string
             required: true
         backup_id:
@@ -280,6 +292,10 @@ def scrub(
             required: true
         backup_dir:
             description: Directory for backup storage
+            type: string
+            required: true
+        instance_type:
+            description: type of LXD instance, either 'vms' or 'containers'
             type: string
             required: true
          username:
@@ -293,10 +309,10 @@ def scrub(
 
     # Define messages
     messages = {
-        1100: f"Successfully removed backup '{backup_name}' from {backup_path} on host {host}",
-        1101: f"Backup '{backup_name}' does not exist on host {host}",
+        1100: f"Successfully removed {instance_type} '{container_name}' backup '{backup_name}' from {backup_path} on host {host}",
+        1101: f"Backup '{backup_name}' for {instance_type} '{container_name}' does not exist on host {host}",
         3121: f"Failed to connect to host {host} for payload check_backup: ",
-        3122: f"Failed to delete backup file for '{backup_name}' of container '{container_name}': ",
+        3122: f"Failed to delete backup file for '{backup_name}' of {instance_type} '{container_name}': ",
         3123: f"Failed to verify deletion of backup file: ",
     }
 
