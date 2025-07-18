@@ -68,8 +68,8 @@ def build(
     """
     # Define messages
     messages = {
-        1000: f'Successfully attached volume {volume_name} to instance {instance_name} on {endpoint_url}',
-        1001: f'Volume {volume_name} is already attached to instance {instance_name}',
+        1000: f'Successfully attached volume {volume_name} to {instance_type} {instance_name} on {endpoint_url}',
+        1001: f'Volume {volume_name} is already attached to {instance_type} {instance_name}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to get instance {instance_name} configuration',
         3023: f'Failed to attach volume {volume_name} to instance {instance_name}. Error: ',
@@ -174,8 +174,8 @@ def read(
     """
     # Define messages
     messages = {
-        1000: f'Successfully read volume {volume_name} from instance {instance_name} on {endpoint_url}',
-        1001: f'Volume {volume_name} not found in instance {instance_name}',
+        1000: f'Successfully read volume {volume_name} from {instance_type} {instance_name} on {endpoint_url}',
+        1001: f'Volume {volume_name} not found in {instance_type} {instance_name}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to get instance {instance_name} configuration',
     }
@@ -263,8 +263,8 @@ def scrub(
     """
     # Define messages
     messages = {
-        1000: f'Successfully detached volume {volume_name} from instance {instance_name} on {endpoint_url}',
-        1001: f'Volume {volume_name} not found in instance {instance_name}',
+        1000: f'Successfully detached volume {volume_name} from {instance_type} {instance_name} on {endpoint_url}',
+        1001: f'Volume {volume_name} not found in {instance_type} {instance_name}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to get instance {instance_name} configuration',
         3023: f'Failed to detach volume {volume_name} from instance {instance_name}. Error: ',

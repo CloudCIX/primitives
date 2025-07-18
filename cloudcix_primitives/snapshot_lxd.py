@@ -60,7 +60,7 @@ def build(
     """
     # Define messages
     messages = {
-        1000: f'Successfully created snapshot {snapshot_name} for instance {instance_name} on {endpoint_url}',
+        1000: f'Successfully created snapshot {snapshot_name} for {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to create snapshot for instance {instance_name}. Error: ',
@@ -142,8 +142,8 @@ def read(
     """
     # Define message
     messages = {
-        1200: f'Successfully read snapshot for instance {instance_name} on {endpoint_url}',
-        1201: f'No snapshots found for instance {instance_name} on {endpoint_url}',
+        1200: f'Successfully read snapshot for {instance_type} {instance_name} on {endpoint_url}',
+        1201: f'No snapshots found for {instance_type} {instance_name} on {endpoint_url}',
         3221: f'Failed to connect to {endpoint_url} for instances.get payload',
         3222: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
         3223: f'Failed to retrieve snapshot information. Error: ',
@@ -239,7 +239,7 @@ def scrub(
     """
     # Define messages
     messages = {
-        1100: f'Successfully deleted snapshot {snapshot_name} from instance {instance_name} on {endpoint_url}',
+        1100: f'Successfully deleted snapshot {snapshot_name} from {instance_type} {instance_name} on {endpoint_url}',
         3121: f'Failed to connect to {endpoint_url} for instances.get payload',
         3122: f'Failed to run instances.get payload on {endpoint_url}',
         3123: f'Failed to delete snapshot {snapshot_name}. Error: ',
@@ -354,7 +354,7 @@ def update(
     """
     # Define messages
     messages = {
-        1300: f'Successfully restored instance {instance_name} from snapshot {snapshot_name} on {endpoint_url}',
+        1300: f'Successfully restored {instance_type} {instance_name} from snapshot {snapshot_name} on {endpoint_url}',
         3321: f'Failed to connect to {endpoint_url} for instances.get payload',
         3322: f'Failed to run instances.get payload on {endpoint_url}',
         3324: f'Failed to restore from snapshot. Error: ',

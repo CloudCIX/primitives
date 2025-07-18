@@ -18,6 +18,7 @@ def update(
     project: str,
     instance_name: str,
     cloud_init_config: str,
+    instance_type: str,
     verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
     """
@@ -41,6 +42,10 @@ def update(
             description: The cloud-init user-data configuration content.
             type: string
             required: true
+        instance_type:
+            description: The type of LXD instance, either 'container' or 'virtual-machine'.
+            type: string
+            required: true
         verify_lxd_certs:
             description: Boolean to verify LXD certs.
             type: boolean
@@ -53,7 +58,7 @@ def update(
     # Define the config key
     config_key = "cloud-init.user-data"
     messages = {
-        1000: f'Successfully updated cloud-init user-data for instance {instance_name} on {endpoint_url}',
+        1000: f'Successfully updated cloud-init user-data for {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to update cloud-init configuration for instance {instance_name}. Error: ',
@@ -98,6 +103,7 @@ def read(
         endpoint_url: str,
         project: str,
         instance_name: str,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, Dict, str]:
     """
@@ -117,6 +123,10 @@ def read(
             description: The name of the LXD instance.
             type: string
             required: true
+        instance_type:
+            description: The type of LXD instance, either 'container' or 'virtual-machine'.
+            type: string
+            required: true
         verify_lxd_certs:
             description: Boolean to verify LXD certs.
             type: boolean
@@ -129,8 +139,8 @@ def read(
     # Define the config key
     config_key = "cloud-init.user-data"
     messages = {
-        1000: f'Successfully retrieved cloud-init user-data from instance {instance_name} on {endpoint_url}',
-        1001: f'No cloud-init user-data configuration found for instance {instance_name} on {endpoint_url}',
+        1000: f'Successfully retrieved cloud-init user-data from {instance_type} {instance_name} on {endpoint_url}',
+        1001: f'No cloud-init user-data configuration found for {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
     }

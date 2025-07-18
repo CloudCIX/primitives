@@ -56,7 +56,7 @@ def update(
     """
     # Define message
     messages = {
-        1000: f'Successfully updated root disk size for instance {instance_name} on {endpoint_url}',
+        1000: f'Successfully updated root disk size for {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to get instance {instance_name} configuration',
         3023: f'Failed to update root disk size for instance {instance_name}. Error: ',

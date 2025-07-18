@@ -62,11 +62,11 @@ def build(
     backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
     messages = {
-        1000: f"Successfully created backup '{backup_name}' at {backup_path}",
-        1001: f"Backup '{backup_name}' already exists on host {host} at {backup_path}",
+        1000: f"Successfully created backup '{backup_name}' for {instance_type} '{container_name}' at {backup_path}",
+        1001: f"Backup '{backup_name}' for {instance_type} '{container_name}' already exists on host {host} at {backup_path}",
         3021: f"Failed to connect to host {host} for payload check_backup: ",
-        3022: f"Failed to create backup for instance '{container_name}': ",
-        3023: f"Failed to export backup '{backup_name}' for instance '{container_name}': ",
+        3022: f"Failed to create backup for {instance_type} '{container_name}': ",
+        3023: f"Failed to export backup '{backup_name}' for {instance_type} '{container_name}': ",
         3024: f"Failed to verify backup file was created: ",
     }
 
@@ -183,7 +183,7 @@ def read(
 
     # Define messages
     messages = {
-        1300: f"Successfully read backup information for '{backup_name}' at {backup_path}",
+        1300: f"Successfully read backup information for {instance_type} '{container_name}' backup '{backup_name}' at {backup_path}",
         3321: f"Failed to connect to host {host} for payload check_backup: ",
         3322: f"Backup '{backup_name}' does not exist on host {host}",
         3323: f"Failed to get backup details for '{backup_name}': ",
@@ -309,10 +309,10 @@ def scrub(
 
     # Define messages
     messages = {
-        1100: f"Successfully removed backup '{backup_name}' from {backup_path} on host {host}",
-        1101: f"Backup '{backup_name}' does not exist on host {host}",
+        1100: f"Successfully removed {instance_type} '{container_name}' backup '{backup_name}' from {backup_path} on host {host}",
+        1101: f"Backup '{backup_name}' for {instance_type} '{container_name}' does not exist on host {host}",
         3121: f"Failed to connect to host {host} for payload check_backup: ",
-        3122: f"Failed to delete backup file for '{backup_name}' of instance '{container_name}': ",
+        3122: f"Failed to delete backup file for '{backup_name}' of {instance_type} '{container_name}': ",
         3123: f"Failed to verify deletion of backup file: ",
     }
 

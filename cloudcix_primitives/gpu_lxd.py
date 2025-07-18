@@ -63,8 +63,8 @@ def build(
     device_name = device_identifier
     
     messages = {
-        1000: f'Successfully attached GPU {device_identifier} to instance {instance_name} on {endpoint_url}',
-        1001: f'GPU {device_identifier} is already attached to instance {instance_name} on {endpoint_url}',
+        1000: f'Successfully attached GPU {device_identifier} to {instance_type} {instance_name} on {endpoint_url}',
+        1001: f'GPU {device_identifier} is already attached to {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to attach GPU to instance {instance_name}. Error: ',
@@ -171,8 +171,8 @@ def read(
     """
     # Define messages for different statuses
     messages = {
-        1000: f'Successfully read GPU information from instance {instance_name} on {endpoint_url}',
-        1001: f'No GPU devices found attached to instance {instance_name}',
+        1000: f'Successfully read GPU information from {instance_type} {instance_name} on {endpoint_url}',
+        1001: f'No GPU devices found attached to {instance_type} {instance_name}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
     }
@@ -283,8 +283,8 @@ def scrub(
     """
     # Define messages for different statuses
     messages = {
-        1000: f'Successfully detached GPU from instance {instance_name} on {endpoint_url}',
-        1001: f'No GPU device matching {device_identifier} found in instance {instance_name} on {endpoint_url}',
+        1000: f'Successfully detached GPU from {instance_type} {instance_name} on {endpoint_url}',
+        1001: f'No GPU device matching {device_identifier} found in {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to detach GPU from instance {instance_name}. Error: ',

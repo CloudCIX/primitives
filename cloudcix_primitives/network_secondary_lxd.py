@@ -68,7 +68,7 @@ def build(
     """
     # Define the messages
     messages = {
-        1000: f'Successfully attached network interface to instance {instance_name} on {endpoint_url}',
+        1000: f'Successfully attached network interface to {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for network or instance operations',
         3022: f'Failed to retrieve networks from {endpoint_url}. Payload exited with status ',
         3023: f'Failed to retrieve instance {instance_name}. Payload exited with status ',
@@ -190,8 +190,8 @@ def read(
     """
     # Define the messages
     messages = {
-        1200: f'Successfully read network configuration for instance {instance_name} on {endpoint_url}',
-        1201: f'No secondary network interfaces found for instance {instance_name} on {endpoint_url}',
+        1200: f'Successfully read network configuration for {instance_type} {instance_name} on {endpoint_url}',
+        1201: f'No secondary network interfaces found for {instance_type} {instance_name} on {endpoint_url}',
         3221: f'Failed to connect to {endpoint_url} for instance operations',
         3222: f'Failed to retrieve instance {instance_name}. Payload exited with status ',
     }
@@ -293,7 +293,7 @@ def scrub(
     """
     # Define the messages
     messages = {
-        1100: f'Successfully removed network interface {device_name} from instance {instance_name} on {endpoint_url}',
+        1100: f'Successfully removed network interface {device_name} from {instance_type} {instance_name} on {endpoint_url}',
         3121: f'Failed to connect to {endpoint_url} for instance operations',
         3122: f'Failed to retrieve instance {instance_name}. Payload exited with status ',
         3123: f'Failed to remove network interface: ',

@@ -56,7 +56,7 @@ def update(
     """
     # Define message
     messages = {
-        1000: f'Successfully updated the CPU limit for instance {instance_name} on {endpoint_url}',
+        1000: f'Successfully updated the CPU limit for {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to set CPU limit for instance {instance_name}. Error: ',
