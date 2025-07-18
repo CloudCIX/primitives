@@ -43,6 +43,7 @@ if cmd == 'build':
         project=project,
         instance_name=name,
         snapshot_name=snapshot_name,
+        instance_type='containers',
         verify_lxd_certs=verify_lxd_certs,
     )
 elif cmd == 'read':
@@ -50,6 +51,7 @@ elif cmd == 'read':
         endpoint_url=endpoint_url,
         project=project,
         instance_name=name,
+        instance_type='containers',
         verify_lxd_certs=verify_lxd_certs,
     )
 elif cmd == 'update':
@@ -58,6 +60,7 @@ elif cmd == 'update':
         project=project,
         instance_name=name,
         snapshot_name=snapshot_name,
+        instance_type='containers',
         verify_lxd_certs=verify_lxd_certs,
     )
 elif cmd == 'scrub':
@@ -66,6 +69,7 @@ elif cmd == 'scrub':
         project=project,
         instance_name=name,
         snapshot_name=snapshot_name,
+        instance_type='containers',
         verify_lxd_certs=verify_lxd_certs,
     )
 else:

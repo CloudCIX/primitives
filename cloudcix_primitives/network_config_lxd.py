@@ -20,18 +20,40 @@ def update(
     network_config: str,
     verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """ Update cloud-init network-config configuration for an LXD instance.
-    
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param instance_name: The name of the LXD instance.
-    :param network_config: The cloud-init network-config content. NOTE: /path/to/file.yaml
-            eth0:
-                addresses:
-                - 192.168.1.50/24      # primary IP 
-                - 192.168.1.51/24      # additional IP etc
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    :return: A tuple with a boolean flag indicating success or failure and a message.
+    """
+    description:
+        Update cloud-init network-config configuration for an LXD instance.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance.
+            type: string
+            required: true
+        network_config:
+            description: |
+                The cloud-init network-config content. Example:
+                eth0:
+                    addresses:
+                    - 192.168.1.50/24      # primary IP 
+                    - 192.168.1.51/24      # additional IP etc
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+
+    return:
+        description: A tuple with a boolean flag indicating success or failure and a message.
+        type: tuple
     """
     # Define the config key
     config_key = "cloud-init.network-config"
@@ -83,13 +105,31 @@ def read(
         instance_name: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, Dict, str]:
-    """ Retrieve cloud-init 'network-config' configuration from an LXD instance.
-    
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param instance_name: The name of the LXD instance.
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    :return: A tuple with a boolean flag indicating success or failure, a dictionary containing the configuration, and a message.
+    """
+    description:
+        Retrieve cloud-init network-config configuration from an LXD instance.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+
+    return:
+        description: A tuple with a boolean flag indicating success or failure, a dictionary containing the configuration, and a message.
+        type: tuple
     """
     # Define the config key
     config_key = "cloud-init.network-config"

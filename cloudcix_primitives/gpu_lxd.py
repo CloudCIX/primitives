@@ -19,9 +19,12 @@ def build(
         project: str,
         instance_name: str,
         device_identifier: str,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """ description: Attach a GPU to an LXD instance.
+    """
+    description:
+        Attach a GPU to an LXD instance.
 
     parameters:
         endpoint_url:
@@ -37,8 +40,13 @@ def build(
             type: string
             required: true
         device_identifier:
-            description: The ID of the GPU to attach (PCI address like "0000:01:00.0").
-                         This will also be used as the device name.
+            description: |
+                The ID of the GPU to attach (PCI address like "0000:01:00.0").
+                This will also be used as the device name.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
             required: true
         verify_lxd_certs:
@@ -47,8 +55,7 @@ def build(
             required: false
             
     return:
-        description: |
-            A tuple with a boolean flag indicating success or failure, and a message.
+        description: A tuple with a boolean flag indicating success or failure, and a message.
         type: tuple
     """
     
@@ -127,9 +134,12 @@ def read(
         endpoint_url: str,
         project: str,
         instance_name: str,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str, dict]:
-    """ description: Read information about attached GPUs from an LXD instance.
+    """
+    description:
+        Read information about attached GPUs from an LXD instance.
 
     parameters:
         endpoint_url:
@@ -142,6 +152,10 @@ def read(
             required: true
         instance_name:
             description: The name of the LXD instance.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
             required: true
         verify_lxd_certs:
@@ -230,9 +244,12 @@ def scrub(
         project: str,
         instance_name: str,
         device_identifier: str,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """ description: Detach a GPU from an LXD instance.
+    """
+    description:
+        Detach a GPU from an LXD instance.
 
     parameters:
         endpoint_url:
@@ -248,8 +265,11 @@ def scrub(
             type: string
             required: true
         device_identifier:
-            description: The identifier of the specific GPU to detach.
-                         This can be either a PCI ID or device name (which are now identical).
+            description: The ID of the GPU to detach (PCI address like "0000:01:00.0").
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
             required: true
         verify_lxd_certs:
@@ -258,8 +278,7 @@ def scrub(
             required: false
             
     return:
-        description: |
-            A tuple with a boolean flag indicating success or failure, and a message.
+        description: A tuple with a boolean flag indicating success or failure, and a message.
         type: tuple
     """
     # Define messages for different statuses

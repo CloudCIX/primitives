@@ -17,16 +17,42 @@ def update(
         project: str,
         instance_name: str,
         cpu: int,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    
-    """ Update the CPU limit of an LXD instance.
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param instance_name: The name of the LXD instance.
-    :param cpu: The number of CPU cores to set.
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    :return: A tuple with a boolean flag indicating success or failure, a message, and a dictionary of successful payloads.
+    """
+    description:
+        Update the CPU limit of an LXD instance.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance.
+            type: string
+            required: true
+        cpu:
+            description: The number of CPU cores to set.
+            type: integer
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+
+    return:
+        description: A tuple with a boolean flag indicating success or failure and a message.
+        type: tuple
     """
     # Define message
     messages = {

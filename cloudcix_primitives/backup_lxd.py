@@ -21,9 +21,10 @@ SUCCESS_CODE = 0
 
 def build(
         host: str,
-        instance_name: str,
+        container_name: str,
         backup_id: str,
         backup_dir: str,
+        instance_type: str,
         username: str = 'robot',
 ) -> Tuple[bool, str]:
     """
@@ -35,8 +36,8 @@ def build(
             description: The IP address of the LXD host on which the instance runs
             type: string
             required: true
-        instance_name:
-            description: unique identification name for the target LXD instance
+        container_name:
+            description: unique identification name for the target LXD instance in format '{project_id}-{contra_resource_id}'
             type: string
             required: true
         backup_id:
@@ -47,21 +48,25 @@ def build(
             description: path on the host where the backup is to be stored
             type: string
             required: true
+        instance_type:
+            description: type of LXD instance, either 'vms' or 'containers'
+            type: string
+            required: true
         username:
             description: SSH username for connecting to the host, will default to robot
             type: string
             required: false
     """
     # Generate backup name and path
-    backup_name = f"{instance_name}_{backup_id}"
+    backup_name = f"{container_name}_{backup_id}"
     backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
     messages = {
         1000: f"Successfully created backup '{backup_name}' at {backup_path}",
         1001: f"Backup '{backup_name}' already exists on host {host} at {backup_path}",
         3021: f"Failed to connect to host {host} for payload check_backup: ",
-        3022: f"Failed to create backup for instance '{instance_name}': ",
-        3023: f"Failed to export backup '{backup_name}' for instance '{instance_name}': ",
+        3022: f"Failed to create backup for instance '{container_name}': ",
+        3023: f"Failed to export backup '{backup_name}' for instance '{container_name}': ",
         3024: f"Failed to verify backup file was created: ",
     }
 
@@ -75,11 +80,11 @@ def build(
         
         payloads = {
             'check_backup': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
-            'create_backup': f"curl -s -X POST --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{instance_name}/backups -d \"{{\\\"name\\\": \\\"{backup_name}\\\", \\\"compression_algorithm\\\": \\\"gzip\\\", \\\"instance_only\\\": false}}\"",
+            'create_backup': f"curl -s -X POST --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{container_name}/backups -d \"{{\\\"name\\\": \\\"{backup_name}\\\", \\\"compression_algorithm\\\": \\\"gzip\\\", \\\"instance_only\\\": false}}\"",
             'wait_backup': lambda op_url: f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd{op_url}/wait",
-            'export_backup': f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{instance_name}/backups/{backup_name}/export > {backup_path}",
+            'export_backup': f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{container_name}/backups/{backup_name}/export > {backup_path}",
             'verify_backup': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
-            'cleanup_backup': f"curl -s -X DELETE --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{instance_name}/backups/{backup_name}",
+            'cleanup_backup': f"curl -s -X DELETE --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{container_name}/backups/{backup_name}",
         }
         
         # 1. Check if backup already exists
@@ -136,9 +141,10 @@ def build(
 
 def read(
         host: str,
-        instance_name: str,
+        container_name: str,
         backup_id: str,
         backup_dir: str,
+        instance_type: str,
         username: str = 'robot',
 ) -> Tuple[bool, Dict, List[str]]:
     """
@@ -150,8 +156,8 @@ def read(
             description: The IP address of the LXD host
             type: string
             required: true
-        instance_name:
-            description: Name of the LXD instance
+        container_name:
+            description: unique identification name for the target LXD instance in format '{project_id}-{contra_resource_id}'
             type: string
             required: true
         backup_id:
@@ -162,13 +168,17 @@ def read(
             description: Directory for backup storage
             type: string
             required: true
+        instance_type:
+            description: type of LXD instance, either 'vms' or 'containers'
+            type: string
+            required: true
          username:
             description: SSH username for connecting to the host, will default to robot
             type: string
             required: false
     """
     # Generate backup name and filename
-    backup_name = f"{instance_name}_{backup_id}"
+    backup_name = f"{container_name}_{backup_id}"
     backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
     # Define messages
@@ -210,9 +220,10 @@ def read(
         data_dict[host] = {
             'backup_exists': backup_exists,
             'backup_path': backup_path,
-            'instance_name': instance_name,
+            'container_name': container_name,
             'backup_name': backup_name,
             'backup_id': backup_id,
+            'instance_type': instance_type,
         }
         
         # 3. Get detailed backup info if it exists
@@ -256,9 +267,10 @@ def read(
 
 def scrub(
         host: str,
-        instance_name: str,
+        container_name: str,
         backup_id: str,
         backup_dir: str,
+        instance_type: str,
         username: str = 'robot',
 ) -> Tuple[bool, str]:
     """
@@ -270,8 +282,8 @@ def scrub(
             description: The IP address of the LXD host
             type: string
             required: true
-        instance_name:
-            description: Name of the LXD instance
+        container_name:
+            description: unique identification name for the target LXD instance in format '{project_id}-{contra_resource_id}'
             type: string
             required: true
         backup_id:
@@ -282,13 +294,17 @@ def scrub(
             description: Directory for backup storage
             type: string
             required: true
+        instance_type:
+            description: type of LXD instance, either 'vms' or 'containers'
+            type: string
+            required: true
          username:
             description: SSH username for connecting to the host, will default to robot
             type: string
             required: false
     """
     # Generate backup name and filename
-    backup_name = f"{instance_name}_{backup_id}"
+    backup_name = f"{container_name}_{backup_id}"
     backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
     # Define messages
@@ -296,7 +312,7 @@ def scrub(
         1100: f"Successfully removed backup '{backup_name}' from {backup_path} on host {host}",
         1101: f"Backup '{backup_name}' does not exist on host {host}",
         3121: f"Failed to connect to host {host} for payload check_backup: ",
-        3122: f"Failed to delete backup file for '{backup_name}' of instance '{instance_name}': ",
+        3122: f"Failed to delete backup file for '{backup_name}' of instance '{container_name}': ",
         3123: f"Failed to verify deletion of backup file: ",
     }
 

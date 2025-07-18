@@ -20,10 +20,13 @@ def build(
         instance_name: str,
         volume_name: str,
         mount_point: str,
+        instance_type: str,
         verify_lxd_certs: bool = True,
         storage_pool: str = "default",
 ) -> Tuple[bool, str]:
-    """ description: Attach a secondary LXD storage volume to an instance.
+    """
+    description:
+        Attach a secondary LXD storage volume to an instance.
 
     parameters:
         endpoint_url:
@@ -46,18 +49,21 @@ def build(
             description: The mount point for the volume inside the instance.
             type: string
             required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
+            type: string
+            required: true
         verify_lxd_certs:
             description: Boolean to verify LXD certs.
             type: boolean
             required: false
         storage_pool:
-            description: The name of the storage pool containing the volume.
+            description: The storage pool to use for the volume.
             type: string
             required: false
             
     return:
-        description: |
-            A tuple with a boolean flag indicating success or failure and a message.
+        description: A tuple with a boolean flag indicating success or failure and a message.
         type: tuple
     """
     # Define messages
@@ -125,9 +131,12 @@ def read(
         project: str,
         instance_name: str,
         volume_name: str,
+        instance_type: str,
         verify_lxd_certs: bool = True,
 ) -> Tuple[bool, str, Dict]:
-    """ description: Read the configuration of a secondary LXD storage volume attached to an instance.
+    """
+    description:
+        Read the configuration of a secondary LXD storage volume attached to an instance.
 
     parameters:
         endpoint_url:
@@ -143,7 +152,11 @@ def read(
             type: string
             required: true
         volume_name:
-            description: The name of the LXD storage volume.
+            description: The name of the LXD storage volume to read.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
             required: true
         verify_lxd_certs:
@@ -211,9 +224,12 @@ def scrub(
         project: str,
         instance_name: str,
         volume_name: str,
+        instance_type: str,
         verify_lxd_certs: bool = True,
 ) -> Tuple[bool, str]:
-    """ description: Detach a secondary LXD storage volume from an instance.
+    """
+    description:
+        Detach a secondary LXD storage volume from an instance.
 
     parameters:
         endpoint_url:
@@ -232,14 +248,17 @@ def scrub(
             description: The name of the LXD storage volume to detach.
             type: string
             required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
+            type: string
+            required: true
         verify_lxd_certs:
             description: Boolean to verify LXD certs.
             type: boolean
             required: false
             
     return:
-        description: |
-            A tuple with a boolean flag indicating success or failure and a message.
+        description: A tuple with a boolean flag indicating success or failure and a message.
         type: tuple
     """
     # Define messages

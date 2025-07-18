@@ -43,6 +43,7 @@ if cmd == 'update':
         project=project,
         instance_name=name,
         ram=ram,
+        instance_type='containers',
         verify_lxd_certs=verify_lxd_certs,
     )
 else:

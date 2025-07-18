@@ -20,6 +20,7 @@ def build(
         project: str,
         instance_name: str,
         snapshot_name: str,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
     """
@@ -41,6 +42,10 @@ def build(
             required: true
         snapshot_name:
             description: The name to give the snapshot.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
             required: true
         verify_lxd_certs:
@@ -100,6 +105,7 @@ def read(
         endpoint_url: str,
         project: str,
         instance_name: str,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
     """
@@ -118,6 +124,10 @@ def read(
             required: true
         instance_name:
             description: The name of the LXD instance containing the snapshot.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
             required: true
         verify_lxd_certs:
@@ -213,6 +223,7 @@ def scrub(
         project: str,
         instance_name: str,
         snapshot_name: str,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
     """Delete a snapshot from an LXD instance.
@@ -221,6 +232,7 @@ def scrub(
     :param project: The LXD project name.
     :param instance_name: The name of the LXD instance containing the snapshot.
     :param snapshot_name: The name of the snapshot to delete.
+    :param instance_type: The type of LXD instance, either 'vms' or 'containers'.
     :param verify_lxd_certs: Boolean to verify LXD certs.
     
     :return: A tuple with a boolean flag indicating success or failure, a message, and a dictionary of successful payloads.
@@ -281,6 +293,7 @@ def update(
         project: str,
         instance_name: str,
         snapshot_name: str,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
     """
@@ -291,6 +304,29 @@ def update(
     
     parameters:
         endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project: 
+            description: Unique identification name of the LXD Project on the LXD Host.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance containing the snapshot.
+            type: string
+            required: true
+        snapshot_name:
+            description: The name of the snapshot to restore from.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
             description: The endpoint URL for the LXD Host.
             type: string
             required: true

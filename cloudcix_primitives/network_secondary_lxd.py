@@ -20,11 +20,51 @@ def build(
     instance_name: str,
     vlan_id: str,
     device_name: str,
+    instance_type: str,
     mac_address: str = None,
     verify_lxd_certs: bool = True,
 ) -> Tuple[bool, str]:
     """
-    Attach a secondary network interface to an LXD instance.
+    description:
+        Attach a secondary network interface to an LXD instance.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance.
+            type: string
+            required: true
+        vlan_id:
+            description: The VLAN ID for the network interface.
+            type: string
+            required: true
+        device_name:
+            description: The name of the network device.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
+            type: string
+            required: true
+        mac_address:
+            description: Optional MAC address for the interface.
+            type: string
+            required: false
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+
+    return:
+        description: A tuple with a boolean flag indicating success or failure and a message.
+        type: tuple
     """
     # Define the messages
     messages = {
@@ -115,10 +155,38 @@ def read(
     endpoint_url: str,
     project: str,
     instance_name: str,
+    instance_type: str,
     verify_lxd_certs: bool = True,
 ) -> Tuple[bool, Dict, str]:
     """
-    Read the secondary network configuration of an LXD instance.
+    description:
+        Read the secondary network configuration of an LXD instance.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+
+    return:
+        description: A tuple with a boolean flag indicating success or failure, a dictionary containing the configuration, and a message.
+        type: tuple
     """
     # Define the messages
     messages = {
@@ -186,10 +254,42 @@ def scrub(
     project: str,
     instance_name: str,
     device_name: str,
+    instance_type: str,
     verify_lxd_certs: bool = True,
 ) -> Tuple[bool, str]:
     """
-    Remove a secondary network interface from an LXD instance.
+    description:
+        Remove a secondary network interface from an LXD instance.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance.
+            type: string
+            required: true
+        device_name:
+            description: The name of the network device to remove.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+
+    return:
+        description: A tuple with a boolean flag indicating success or failure and a message.
+        type: tuple
     """
     # Define the messages
     messages = {
