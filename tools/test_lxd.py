@@ -96,7 +96,7 @@ if cmd == 'build':
     status, msg = lxd.build(
         endpoint_url=endpoint_url,
         project=project,
-        name=name,
+        instance_name=name,
         image=image,
         cpu=cpu,
         gateway_interface=gateway_interface,
@@ -112,28 +112,32 @@ elif cmd == 'quiesce':
     status, msg = lxd.quiesce(
         endpoint_url=endpoint_url,
         project=project,
-        name=name,
+        instance_name=name,
+        instance_type='virtual-machine',
         verify_lxd_certs=verify_lxd_certs,
     )
 elif cmd == 'read':
     status, data, msg = lxd.read(
         endpoint_url=endpoint_url,
         project=project,
-        name=name,
+        instance_name=name,
+        instance_type='virtual-machine',
         verify_lxd_certs=verify_lxd_certs,
     )
 elif cmd == 'restart':
     status, msg = lxd.restart(
         endpoint_url=endpoint_url,
         project=project,
-        name=name,
+        instance_name=name,
+        instance_type='virtual-machine',
         verify_lxd_certs=verify_lxd_certs,
     )
 elif cmd == 'scrub':
     status, msg = lxd.scrub(
         endpoint_url=endpoint_url,
         project=project,
-        name=name,
+        instance_name=name,
+        instance_type='virtual-machine',
         verify_lxd_certs=verify_lxd_certs,
     )
 else:

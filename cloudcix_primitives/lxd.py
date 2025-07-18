@@ -21,7 +21,7 @@ __all__ = [
 def build(
     endpoint_url: str,
     project: str,
-    name: str,
+    instance_name: str,
     image: dict,
     cpu: int,
     gateway_interface: dict,
@@ -46,7 +46,7 @@ def build(
             description: Unique identification name of the LXD Project on the LXD Host.
             type: string
             required: true
-        name:
+        instance_name:
             description: Unique identification name for the LXD instance on the LXD Host.
             type: string
             required: true
@@ -145,7 +145,7 @@ def build(
 
     # Define message
     messages = {
-        1000: f'Successfully created {instance_type} {name} on {endpoint_url}',
+        1000: f'Successfully created {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for projects.exists payload',
         3022: f'Failed to run projects.exists payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to connect to {endpoint_url} for projects.create payload',
@@ -162,7 +162,7 @@ def build(
 
     # validation
     config = {
-        'name': name,
+        'name': instance_name,
         'architecture': 'x86_64',
         'profiles': ['default'],
         'ephemeral': False,
@@ -235,7 +235,7 @@ def build(
                 return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
 
         # Check if instances exists in Project
-        ret = project_rcc.run(cli='instances.exists', name=name)
+        ret = project_rcc.run(cli='instances.exists', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
@@ -265,7 +265,7 @@ def build(
     return True, f'1000: {messages[1000]}'
 
 
-def quiesce(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> Tuple[bool, str]:
+def quiesce(endpoint_url: str, project: str, instance_name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
     """
     description: Shutdown the LXD Instance
 
@@ -278,8 +278,12 @@ def quiesce(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -
             description: Unique identification name of the LXD Project on the LXD Host.
             type: string
             required: true
-        name:
+        instance_name:
             description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance - "container" or "virtual-machine"
             type: string
             required: true
         verify_lxd_certs:
@@ -295,7 +299,7 @@ def quiesce(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -
     """
     # Define message
     messages = {
-        1400: f'Successfully quiesced instance {name} on {endpoint_url}',
+        1400: f'Successfully quiesced {instance_type} {instance_name} on {endpoint_url}',
 
         3421: f'Failed to connect to {endpoint_url} for instances.get payload',
         3422: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
@@ -312,7 +316,7 @@ def quiesce(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -
         )
 
         # Get instances client obj
-        ret = project_rcc.run(cli='instances.get', name=name)
+        ret = project_rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
@@ -335,7 +339,7 @@ def quiesce(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -
     return True, f'1400: {messages[1400]}'
 
 
-def read(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> Tuple[bool, str]:
+def read(endpoint_url: str, project: str, instance_name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
     """
     description:
         Reads a instance on the LXD host.
@@ -349,8 +353,12 @@ def read(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> T
             description: Unique identification name of the LXD Project on the LXD Host.
             type: string
             required: true
-        name:
+        instance_name:
             description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance - "container" or "virtual-machine"
             type: string
             required: true
         verify_lxd_certs:
@@ -366,8 +374,7 @@ def read(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> T
     """
     # Define message
     messages = {
-        1200: f'Successfully read instance {name} on {endpoint_url}.',
-
+        1200: f'Successfully read {instance_type} instance {instance_name} on {endpoint_url}.',
         3221: f'Failed to connect to {endpoint_url} for instances.get payload',
         3222: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
     }
@@ -382,7 +389,7 @@ def read(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> T
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
             successful_payloads,
         )
-        ret = project_rcc.run(cli=f'instances["{name}"].get', api=True)
+        ret = project_rcc.run(cli=f'instances["{instance_name}"].get', api=True)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
             fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
@@ -390,8 +397,8 @@ def read(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> T
             retval = False
             fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix+2])
         else:
-            data_dict[endpoint_url][f'instances["{name}"].get'] = ret["payload_message"].json()
-            fmt.add_successful(f'instances["{name}"].get', ret)
+            data_dict[endpoint_url][f'instances["{instance_name}"].get'] = ret["payload_message"].json()
+            fmt.add_successful(f'instances["{instance_name}"].get', ret)
 
         return retval, fmt.message_list, fmt.successful_payloads, data_dict
 
@@ -405,7 +412,7 @@ def read(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> T
         return True, data_dict, f'1200: {messages[1200]}'
 
 
-def restart(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> Tuple[bool, str]:
+def restart(endpoint_url: str, project: str, instance_name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
     """
     description: Restart the LXD Instance
 
@@ -418,8 +425,12 @@ def restart(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -
             description: Unique identification name of the LXD Project on the LXD Host.
             type: string
             required: true
-        name:
+        instance_name:
             description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance - "container" or "virtual-machine"
             type: string
             required: true
         verify_lxd_certs:
@@ -435,7 +446,7 @@ def restart(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -
     """
     # Define message
     messages = {
-        1500: f'Successfully restarted instance {name} on {endpoint_url}',
+        1500: f'Successfully restarted {instance_type} {instance_name} on {endpoint_url}',
 
         3521: f'Failed to connect to {endpoint_url} for instances.get payload',
         3522: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
@@ -452,7 +463,7 @@ def restart(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -
         )
 
         # Get instances client obj
-        ret = project_rcc.run(cli=f'instances.get', name=name)
+        ret = project_rcc.run(cli=f'instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
@@ -475,7 +486,7 @@ def restart(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -
     return True, f'1500: {messages[1500]}'
 
 
-def scrub(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> Tuple[bool, str]:
+def scrub(endpoint_url: str, project: str, instance_name: str, instance_type: str, verify_lxd_certs=True) -> Tuple[bool, str]:
     """
     description: Scrub the LXD Instance
 
@@ -488,8 +499,12 @@ def scrub(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> 
             description: Unique identification name of the LXD Project on the LXD Host.
             type: string
             required: true
-        name:
+        instance_name:
             description: Unique identification name for the LXD instance on the LXD Host.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance - "container" or "virtual-machine"
             type: string
             required: true
         verify_lxd_certs:
@@ -505,7 +520,7 @@ def scrub(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> 
     """
     # Define message
     messages = {
-        1100: f'Successfully scrubbed instance {name} on {endpoint_url}',
+        1100: f'Successfully scrubbed {instance_type} {instance_name} on {endpoint_url}',
 
         3121: f'Failed to connect to {endpoint_url} for instances.get payload',
         3122: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
@@ -525,7 +540,7 @@ def scrub(endpoint_url: str, project: str, name: str, verify_lxd_certs=True) -> 
         )
 
         # Get instances client obj
-        ret = project_rcc.run(cli='instances.get', name=name)
+        ret = project_rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
