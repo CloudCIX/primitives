@@ -17,13 +17,13 @@ endpoint_url = None
 name = 'mynetns-1234'
 project = 'mynetns'
 image = {
-	'os_variant': '24.04',
+    'os_variant': '24.04',
     'filename': 'https://cloud-images.ubuntu.com/releases',
 }
 cpu = 2
 gateway_interface = {
-	'vlan': 1002,
-	'mac_address': '32:30:09:00:02:7a',
+    'vlan': 1002,
+    'mac_address': '32:30:09:00:02:7a',
 }
 ram = 2
 size = 50
@@ -106,6 +106,7 @@ if cmd == 'build':
         userdata=userdata,
         secondary_interfaces=secondary_interfaces,
         verify_lxd_certs=verify_lxd_certs,
+        instance_type='virtual-machine',
     )
 elif cmd == 'quiesce':
     status, msg = lxd.quiesce(
