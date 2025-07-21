@@ -1,5 +1,5 @@
 """
-Module for updating the root disk size of an LXD container.
+Module for updating the root disk size of an LXD instance.
 """
 # stdlib
 from typing import Tuple
@@ -71,23 +71,23 @@ def update(
             successful_payloads,
         )
 
-        # Get the container
+        # Get the instance
         ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
-        container = ret['payload_message']
+        instance = ret['payload_message']
         fmt.add_successful('instances.get', ret)
 
         # Update the root disk size
-        if 'root' not in container.devices:
+        if 'root' not in instance.devices:
             return False, f"{prefix+4}: {messages[prefix+4]}", fmt.successful_payloads
         
         try:
-            container.devices['root']['size'] = f'{new_size}GB'
-            container.save(wait=True)
+            instance.devices['root']['size'] = f'{new_size}GB'
+            instance.save(wait=True)
             fmt.add_successful('instances.set', {'root.size': f'{new_size}GB'})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
