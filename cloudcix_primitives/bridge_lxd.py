@@ -216,7 +216,7 @@ def read(endpoint_url: str,
         {},
     )
 
-    # Use proper API call to get network information
+    # Get network information
     ret = rcc.run(cli=f'networks["{name}"].get', api=True)
     
     if ret["channel_code"] != CHANNEL_SUCCESS:
