@@ -23,6 +23,36 @@ def update(
     """
     description:
         Migrate an LXD instance to another cluster member.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance to migrate.
+            type: string
+            required: true
+        target_cluster_member:
+            description: The destination cluster node for the migration.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'vms' or 'containers'.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD TLS certificates.
+            type: boolean
+            required: false
+
+    return:
+        description: A tuple with a boolean indicating success or failure, and a message.
+        type: tuple
     """
     messages = {
         1000: f'Successfully migrated {instance_type} {instance_name} to cluster member {target_cluster_member} on {endpoint_url}',
