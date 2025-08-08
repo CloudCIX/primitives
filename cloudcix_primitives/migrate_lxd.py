@@ -9,10 +9,10 @@ from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
 
 __all__ = [
-    'build',
+    'update',
 ]
 
-def build(
+def update(
     endpoint_url: str,
     project: str,
     instance_name: str,
