@@ -1,5 +1,5 @@
 """
-Network-Config management for LXD containers
+Network-Config management for LXD instances
 """
 # stdlib
 from typing import Dict, Tuple
@@ -16,30 +16,57 @@ __all__ = [
 def update(
     endpoint_url: str,
     project: str,
-    container_name: str,
+    instance_name: str,
     network_config: str,
+    instance_type: str,
     verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
-    """ Update cloud-init network-config configuration for an LXD container.
-    
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param container_name: The name of the LXD container.
-    :param network_config: The cloud-init network-config content. NOTE: /path/to/file.yaml
-            eth0:
-                addresses:
-                - 192.168.1.50/24      # primary IP 
-                - 192.168.1.51/24      # additional IP etc
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    :return: A tuple with a boolean flag indicating success or failure and a message.
+    """
+    description:
+        Update cloud-init network-config configuration for an LXD instance.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance.
+            type: string
+            required: true
+        network_config:
+            description: |
+                The cloud-init network-config content. Example:
+                eth0:
+                    addresses:
+                    - 192.168.1.50/24      # primary IP 
+                    - 192.168.1.51/24      # additional IP etc
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'container' or 'virtual-machine'.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+
+    return:
+        description: A tuple with a boolean flag indicating success or failure and a message.
+        type: tuple
     """
     # Define the config key
     config_key = "cloud-init.network-config"
     messages = {
-        1000: f'Successfully updated cloud-init network-config for container {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to update cloud-init configuration for container {container_name}. Error: ',
+        1000: f'Successfully updated cloud-init network-config for {instance_type} {instance_name} on {endpoint_url}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
+        3023: f'Failed to update cloud-init configuration for instance {instance_name}. Error: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -51,14 +78,14 @@ def update(
         )
         
         # Get the instance
-        ret = rcc.run(cli='containers.get', name=container_name)
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         # Update the network configuration
         try:
@@ -80,24 +107,47 @@ def update(
 def read(
         endpoint_url: str,
         project: str,
-        container_name: str,
+        instance_name: str,
+        instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, Dict, str]:
-    """ Retrieve cloud-init 'network-config' configuration from an LXD container.
-    
-    :param endpoint_url: The endpoint URL for the LXD Host.
-    :param project: The LXD project name.
-    :param container_name: The name of the LXD container.
-    :param verify_lxd_certs: Boolean to verify LXD certs.
-    :return: A tuple with a boolean flag indicating success or failure, a dictionary containing the configuration, and a message.
+    """
+    description:
+        Retrieve cloud-init network-config configuration from an LXD instance.
+
+    parameters:
+        endpoint_url:
+            description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: The LXD project name.
+            type: string
+            required: true
+        instance_name:
+            description: The name of the LXD instance.
+            type: string
+            required: true
+        instance_type:
+            description: The type of LXD instance, either 'container' or 'virtual-machine'.
+            type: string
+            required: true
+        verify_lxd_certs:
+            description: Boolean to verify LXD certs.
+            type: boolean
+            required: false
+
+    return:
+        description: A tuple with a boolean flag indicating success or failure, a dictionary containing the configuration, and a message.
+        type: tuple
     """
     # Define the config key
     config_key = "cloud-init.network-config"
     messages = {
-        1000: f'Successfully retrieved cloud-init network-config from container {container_name} on {endpoint_url}',
-        1001: f'No cloud-init network-config configuration found for container {container_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for containers.get payload',
-        3022: f'Failed to run containers.get payload on {endpoint_url}. Payload exited with status ',
+        1000: f'Successfully retrieved cloud-init network-config from {instance_type} {instance_name} on {endpoint_url}',
+        1001: f'No cloud-init network-config configuration found for {instance_type} {instance_name} on {endpoint_url}',
+        3021: f'Failed to connect to {endpoint_url} for instances.get payload',
+        3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -111,14 +161,14 @@ def read(
         result = {}
         
         # Get the instance
-        ret = rcc.run(cli='containers.get', name=container_name)
+        ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads, result
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads, result
 
         instance = ret['payload_message']
-        fmt.add_successful('containers.get', ret)
+        fmt.add_successful('instances.get', ret)
         
         # Get the Network-Config
         network_config = instance.config.get(config_key, '')
