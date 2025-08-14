@@ -1,5 +1,5 @@
 """
-Module for managing RadOS Block Devices via LXD host.
+Module for managing RBD-FS Volumes via LXD host.
 """
 # stdlib
 from typing import Dict, Tuple
@@ -17,6 +17,7 @@ __all__ = [
 
 def build(
     endpoint_url: str,
+    project: str,
     pool_name: str,
     volume_name: str,
     size: int,
@@ -28,6 +29,10 @@ def build(
     parameters:
         endpoint_url:
             description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: LXD project to create the volume in.
             type: string
             required: true
         pool_name:
@@ -51,16 +56,16 @@ def build(
         description: A tuple with a boolean flag indicating success or failure, and a message.
         type: tuple
     """
-    # Define messages
     messages = {
-        1000: f'Successfully built RadOS Block Device {volume_name} in pool {pool_name} on {endpoint_url}',
+        1000: f'Successfully built RadOS Block Device {volume_name} in pool {pool_name} (project {project}) on {endpoint_url}',
         3001: f'Failed to connect to {endpoint_url} for storage pool operations',
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to create RadOS Block Device volume {volume_name} in pool {pool_name}',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
-        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
+        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project=project)
+
         fmt = HostErrorFormatter(
             endpoint_url,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
@@ -88,18 +93,18 @@ def build(
             "type": "custom"
         }
         
-        # STEP 3: Create the volume
+        # STEP 3: Create the volume (in the specified project)
         try:
             if hasattr(pool_obj, 'volumes') and hasattr(pool_obj.volumes, 'create'):
-                pool_obj.volumes.create(pool_obj.client, volume_config)
-                fmt.add_successful('volume.create', {'name': volume_name, 'size': f"{size}GiB"})
+                pool_obj.volumes.create(pool_obj.client, volume_config, project=project)
+                fmt.add_successful('volume.create', {'name': volume_name, 'size': f"{size}GiB", 'project': project})
             else:
                 return False, f"{prefix+3}: {messages[prefix+3]} - Missing required methods on pool object", fmt.successful_payloads
         except AttributeError as e:
             return False, f"{prefix+3}: {messages[prefix+3]} - Invalid pool object structure: {str(e)}", fmt.successful_payloads
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]} - {str(e)}", fmt.successful_payloads
-            
+
         return True, '', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(endpoint_url, 3000, {})
@@ -111,6 +116,7 @@ def build(
 
 def read(
     endpoint_url: str,
+    project: str,
     pool_name: str,
     volume_name: str,
     verify_lxd_certs: bool = True,
@@ -121,6 +127,10 @@ def read(
     parameters:
         endpoint_url:
             description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: LXD project where the volume resides.
             type: string
             required: true
         pool_name:
@@ -140,16 +150,16 @@ def read(
         description: A tuple with a boolean flag indicating success or failure, a data dictionary, and a message.
         type: tuple
     """
-    # Define message
     messages = {
-        1000: f'Successfully read RadOS Block Device {volume_name} in pool {pool_name} on {endpoint_url}',
+        1000: f'Successfully read RadOS Block Device {volume_name} in pool {pool_name} (project {project}) on {endpoint_url}',
         3001: f'Failed to connect to {endpoint_url} for storage pool operations',
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to get volume {volume_name} in pool {pool_name}',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
-        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
+        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project=project)
+
         fmt = HostErrorFormatter(
             endpoint_url,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
@@ -170,13 +180,16 @@ def read(
         pool_obj = ret["payload_message"]
         fmt.add_successful('storage_pools.get', ret)
         
-        # STEP 2: Get volume info
+        # STEP 2: Get volume info (from the specified project)
         if not hasattr(pool_obj, 'volumes') or not hasattr(pool_obj.volumes, 'get'):
             return False, {}, f"{prefix+3}: {messages[prefix+3]} - Missing required methods on pool object"
         
         try:
-            volume = pool_obj.volumes.get("custom", volume_name)
-            
+            try:
+                volume = pool_obj.volumes.get("custom", volume_name, project=project)
+            except TypeError:
+                volume = pool_obj.volumes.get("custom", volume_name)
+
             if not volume:
                 return False, {}, f"{prefix+3}: {messages[prefix+3]} - Volume not found"
                 
@@ -203,6 +216,7 @@ def read(
 
 def scrub(
     endpoint_url: str,
+    project: str,
     pool_name: str,
     volume_name: str,
     verify_lxd_certs: bool = True,
@@ -213,6 +227,10 @@ def scrub(
     parameters:
         endpoint_url:
             description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: LXD project where the volume resides.
             type: string
             required: true
         pool_name:
@@ -232,16 +250,16 @@ def scrub(
         description: A tuple with a boolean flag indicating success or failure, and a message.
         type: tuple
     """
-    # Define message
     messages = {
-        1000: f'Successfully scrubbed RadOS Block Device {volume_name} from pool {pool_name} on {endpoint_url}',
+        1000: f'Successfully scrubbed RadOS Block Device {volume_name} from pool {pool_name} (project {project}) on {endpoint_url}',
         3001: f'Failed to connect to {endpoint_url} for storage pool operations',
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to delete volume {volume_name} from pool {pool_name}',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
-        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
+        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project=project)
+
         fmt = HostErrorFormatter(
             endpoint_url,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
@@ -263,9 +281,12 @@ def scrub(
         if not hasattr(pool_obj, 'volumes') or not hasattr(pool_obj.volumes, 'get'):
             return False, f"{prefix+3}: {messages[prefix+3]} - Missing required methods on pool object", fmt.successful_payloads
         
-        # STEP 3: Try to get the volume first to ensure it exists
+        # STEP 3: Try to get the volume first to ensure it exists (in project)
         try:
-            volume = pool_obj.volumes.get("custom", volume_name)
+            try:
+                volume = pool_obj.volumes.get("custom", volume_name, project=project)
+            except TypeError:
+                volume = pool_obj.volumes.get("custom", volume_name)
             
             if not volume:
                 fmt.add_successful('volume.check', {'name': volume_name, 'status': 'already deleted'})
@@ -279,7 +300,7 @@ def scrub(
             return False, f"{prefix+3}: {messages[prefix+3]} - Invalid volume object structure: {str(e)}", fmt.successful_payloads
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]} - {str(e)}", fmt.successful_payloads
-            
+
         return True, '', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(endpoint_url, 3000, {})
@@ -291,6 +312,7 @@ def scrub(
 
 def update(
     endpoint_url: str,
+    project: str,
     pool_name: str,
     volume_name: str,
     size: int,
@@ -302,6 +324,10 @@ def update(
     parameters:
         endpoint_url:
             description: The endpoint URL for the LXD Host.
+            type: string
+            required: true
+        project:
+            description: LXD project where the volume resides.
             type: string
             required: true
         pool_name:
@@ -325,9 +351,8 @@ def update(
         description: A tuple with a boolean flag indicating success or failure, and a message.
         type: tuple
     """
-    # Define messages
     messages = {
-        1000: f'Successfully updated RadOS Block Device {volume_name} in pool {pool_name} on {endpoint_url}',
+        1000: f'Successfully updated RadOS Block Device {volume_name} in pool {pool_name} (project {project}) on {endpoint_url}',
         3001: f'Failed to connect to {endpoint_url} for storage pool operations',
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to get volume {volume_name} in pool {pool_name}',
@@ -336,7 +361,8 @@ def update(
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
-        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
+        rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project=project)
+
         fmt = HostErrorFormatter(
             endpoint_url,
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
@@ -359,33 +385,36 @@ def update(
         if not hasattr(pool_obj, 'volumes') or not hasattr(pool_obj.volumes, 'get'):
             return False, f"{prefix+3}: {messages[prefix+3]} - Missing required methods on pool object", fmt.successful_payloads
         
-        # STEP 3: Get the volume
+        # STEP 3: Get the volume (from the specified project)
         try:
-            volume = pool_obj.volumes.get("custom", volume_name)
-            
+            try:
+                volume = pool_obj.volumes.get("custom", volume_name, project=project)
+            except TypeError:
+                volume = pool_obj.volumes.get("custom", volume_name)
+
             if not volume:
                 return False, f"{prefix+5}: {messages[prefix+5]}", fmt.successful_payloads
-                
+
             # STEP 4: Update the volume's size
             new_config = {
                 "config": {
                     "size": f"{size}GiB"
                 }
             }
-
             volume.config.update(new_config["config"])
             volume.save()
-            fmt.add_successful('volume.update', {'name': volume_name, 'new_size': f"{size}GiB"})
-            
+            fmt.add_successful('volume.update', {'name': volume_name, 'new_size': f"{size}GiB", 'project': project})
         except AttributeError as e:
             return False, f"{prefix+4}: {messages[prefix+4]} - Invalid volume object structure: {str(e)}", fmt.successful_payloads
         except Exception as e:
             return False, f"{prefix+4}: {messages[prefix+4]} - {str(e)}", fmt.successful_payloads
-            
+
         return True, '', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(endpoint_url, 3000, {})
-    
+
     if status is False:
         return status, msg
-    return True, f'1000: {messages[1000]}'
+    if status is True:
+        return True, f'1000: {messages[1000]}'
+    return False
