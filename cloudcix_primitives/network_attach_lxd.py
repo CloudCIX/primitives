@@ -1,5 +1,5 @@
 """
-Module for Secondary Network Device management in LXD instances.
+Module for attaching/reading/detatching a network device to an LXD instance.
 """
 # stdlib
 from typing import Dict, Tuple
@@ -26,7 +26,7 @@ def build(
 ) -> Tuple[bool, str]:
     """
     description:
-        Attach a secondary network interface to an LXD instance.
+        Attach network devices to an LXD instance.
 
     parameters:
         endpoint_url:
@@ -160,7 +160,7 @@ def read(
 ) -> Tuple[bool, Dict, str]:
     """
     description:
-        Read the secondary network configuration of an LXD instance.
+        Read the configuration of additional network devices attached to an LXD instance.
 
     parameters:
         endpoint_url:
@@ -259,7 +259,7 @@ def scrub(
 ) -> Tuple[bool, str]:
     """
     description:
-        Remove a secondary network interface from an LXD instance.
+        Remove a network device from an LXD instance.
 
     parameters:
         endpoint_url:
