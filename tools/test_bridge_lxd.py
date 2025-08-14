@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import sys
 
@@ -8,48 +9,124 @@ from cloudcix_primitives import bridge_lxd
 # Run the following test scripts before this one:
 #
 # * `tools/test_ns.py build mynetns to ensure the name space exists
-# * `tools/test_bridge_lxd.py build br4000 to ensure the LXD bridge exists to connect to the vlan tagged interface
 
-cmd = sys.argv[1]
+def print_usage():
+    print("""
+Usage: test_bridge_lxd.py <command> <endpoint_url> <name> [nodes] [--verify] [--debug]
 
-endpoint_url = None
-name = 'br1002'
-verify_lxd_certs = False
+Commands:
+  build   - Create a bridge network
+  read    - Read bridge network configuration
+  scrub   - Delete a bridge network
+
+Arguments:
+  endpoint_url - The LXD endpoint URL
+  name         - The bridge name
+  nodes        - Optional: Comma-separated list of cluster node names
+                 (Only used with build command)
+  --verify     - Verify LXD certificates (default: False)
+  --debug      - Show more detailed output for debugging
+
+Examples:
+  # Create bridge with auto-detected cluster nodes
+  ./test_bridge_lxd.py build https://10.0.0.1:8443 br1002
+  
+  # Create bridge with specific cluster nodes
+  ./test_bridge_lxd.py build https://10.0.0.1:8443 br1002 node1,node2,node3
+  
+  # Create bridge with certificate verification and debug output
+  ./test_bridge_lxd.py build https://10.0.0.1:8443 br1002 --verify --debug
+  
+  # Read bridge configuration
+  ./test_bridge_lxd.py read https://10.0.0.1:8443 br1002
+  
+  # Delete bridge
+  ./test_bridge_lxd.py scrub https://10.0.0.1:8443 br1002
+""")
+
+# Create parser for command line arguments
+parser = argparse.ArgumentParser(description='Test LXD bridge operations')
+parser.add_argument('command', choices=['build', 'read', 'scrub'], help='Command to execute')
+parser.add_argument('endpoint_url', help='LXD endpoint URL')
+parser.add_argument('name', nargs='?', default='br1002', help='Bridge name')
+parser.add_argument('nodes', nargs='?', help='Comma-separated cluster nodes (for build command)')
+parser.add_argument('--verify', action='store_true', help='Verify LXD certificates')
+parser.add_argument('--debug', action='store_true', help='Show more detailed output')
+
+# Show help if no arguments are provided
+if len(sys.argv) == 1:
+    print_usage()
+    sys.exit(1)
+
+# Parse arguments
+args = parser.parse_args()
+
+# Process arguments
+cmd = args.command
+endpoint_url = args.endpoint_url
+name = args.name
+verify_lxd_certs = args.verify
+debug_mode = args.debug
+
+# Set default config
 config = {
     'ipv6.address': 'none',
     'ipv4.address': 'none',
 }
 
-if len(sys.argv) > 2:
-    endpoint_url = sys.argv[2]
-if len(sys.argv) > 3:
-    name = sys.argv[3]
-if len(sys.argv) > 4:
-    verify_lxd_certs = sys.argv[4]
+# Process cluster nodes if provided
+cluster_nodes = args.nodes.split(',') if args.nodes else None
 
-if endpoint_url is None:
-    print('Enpoint URL is required, please supply the host as second argument.')
-    exit()
-
+# Execute command
 status = None
 msg = None
 data = None
 
 if cmd == 'build':
-    status, msg = bridge_lxd.build(endpoint_url=endpoint_url, name=name, config=config, verify_lxd_certs=verify_lxd_certs)
+    print(f"Creating bridge '{name}' on endpoint '{endpoint_url}'")
+    print(f"Certificate verification: {'Enabled' if verify_lxd_certs else 'Disabled'}")
+    
+    if cluster_nodes:
+        print(f"Using specified cluster nodes: {', '.join(cluster_nodes)}")
+    else:
+        print("Using auto-detected cluster nodes")
+    
+    if debug_mode:
+        print(f"Config: {json.dumps(config, indent=2)}")
+        
+    status, msg = bridge_lxd.build(
+        endpoint_url=endpoint_url, 
+        name=name, 
+        config=config, 
+        verify_lxd_certs=verify_lxd_certs,
+        cluster_nodes=cluster_nodes
+    )
 elif cmd == 'read':
-    status, data, msg = bridge_lxd.read(endpoint_url=endpoint_url, name=name, verify_lxd_certs=verify_lxd_certs)
+    print(f"Reading bridge '{name}' from endpoint '{endpoint_url}'")
+    print(f"Certificate verification: {'Enabled' if verify_lxd_certs else 'Disabled'}")
+    
+    status, data, msg = bridge_lxd.read(
+        endpoint_url=endpoint_url, 
+        name=name, 
+        verify_lxd_certs=verify_lxd_certs
+    )
 elif cmd == 'scrub':
-    status, msg = bridge_lxd.scrub(endpoint_url=endpoint_url, name=name, verify_lxd_certs=verify_lxd_certs)
-else:
-   print(f"Unknown command: {cmd}")
-   sys.exit(1)
+    print(f"Scrubbing bridge '{name}' from endpoint '{endpoint_url}'")
+    print(f"Certificate verification: {'Enabled' if verify_lxd_certs else 'Disabled'}")
+    
+    status, msg = bridge_lxd.scrub(
+        endpoint_url=endpoint_url, 
+        name=name, 
+        verify_lxd_certs=verify_lxd_certs
+    )
 
-
-print("Status: %s" %  status)
+# Display results
+print("\nResults:")
+print("--------")
+print(f"Status: {status}")
 print()
 print("Message:")
-if type(msg) == list:
+if isinstance(msg, list):
     for item in msg:
         print(item)
 else:
@@ -58,4 +135,20 @@ else:
 if data is not None:
     print()
     print("Data:")
-    print(data)
+    print(json.dumps(data, indent=2) if isinstance(data, dict) else data)
+
+# Print additional debugging help for failures
+if not status and debug_mode:
+    print("\nDebugging Tips:")
+    print("--------------")
+    print("1. Check if all nodes in the cluster are online and healthy")
+    print("2. Verify that the specified nodes exist in the cluster")
+    print("3. Check if any existing networks or bridges conflict")
+    print("4. Try manually with: lxc network create {name} --target <node>")
+    print("5. If using IPv6 URL, ensure your environment supports IPv6")
+    
+    # Print warning about SSL verification
+    if not verify_lxd_certs:
+        print("\nNote: You are running with SSL verification disabled.")
+        print("This may generate warnings in your terminal output.")
+        print("Use --verify to enable certificate verification if your certs are valid.")
