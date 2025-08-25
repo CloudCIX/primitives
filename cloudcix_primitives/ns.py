@@ -88,7 +88,7 @@ def build(
 
     name_grepsafe = name.replace('.', '\.')
 
-    def run_podnet(podnet_node, , successful_payloads):
+    def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
         fmt = PodnetErrorFormatter(
             config_file,
