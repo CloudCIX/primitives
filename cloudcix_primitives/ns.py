@@ -88,7 +88,7 @@ def build(
 
     name_grepsafe = name.replace('.', '\.')
 
-    def run_podnet(podnet_node, prefix, successful_payloads):
+    def run_podnet(podnet_node, , successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
         fmt = PodnetErrorFormatter(
             config_file,
@@ -397,7 +397,7 @@ def scrub(
 
         ret = rcc.run(payloads['find_namespace'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, prefix+1), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+1}: "), fmt.successful_payloads
         delete_namespace = True
         if ret["payload_code"] != SUCCESS_CODE:
             # No need to delete this name space if it is gone already
