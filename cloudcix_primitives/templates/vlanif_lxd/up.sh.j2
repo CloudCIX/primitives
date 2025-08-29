@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Create Vlan tagged interface from {{ ifname }} interface and connect to above bridge
+ip link add link {{ ifname }} name {{ ifname }}.{{ vlan }} type vlan id {{ vlan }}
+ip link set dev {{ ifname }}.{{ vlan }} master br{{ vlan }}
+ip link set dev {{ ifname }}.{{ vlan }} up
