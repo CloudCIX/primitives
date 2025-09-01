@@ -9,7 +9,8 @@ from cloudcix_primitives import lxd
 #
 # * `tools/test_ns.py build mynetns to ensure the name space we want exists
 # * `tools/test_vlanif_ns.py build {vlan} to ensure vlan tagged interface exists on podnet
-# * `tools/test_bridge_lxd.py build br4000 to ensure the LXD bridge exists to connect to the vlan tagged interface
+# * `tools/test_bridge_lxd.py build br1002 in LXD cluster
+# * `tools/test_vlanif_lxd.py build br1002 to build vlan tagged interface on LXD host and connect to br1002
 
 cmd = sys.argv[1]
 
