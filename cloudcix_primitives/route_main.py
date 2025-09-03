@@ -19,35 +19,34 @@ SUCCESS_CODE = 0
 
 
 def build(
-    namespace: str,
-    route: dict = {'destination': '', 'gateway': ''},
+    destination: str,
+    gateway: str,
     config_file=None
 ) -> Tuple[bool,str]:
     """
     description:
-        Creates an IPv4 or IPv6 route accordingly on a namespace
+        Creates an IPv4 or IPv6 route accordingly on the main namespace
 
     parameters:
-        namespace:
-            description: The VRF network namespace identifier which the route will be created on.
+        destination:
+            description: This is the destination network of incoming traffic.
             type: string
             required: true
-        route:
-            description: A dictionary containing the destination and gateway IP addresses which identifies the route that will be created on a namespace.
-            type: dict
+        gateway:
+            description: This is the next-hop gateway through which traffic to the destination should be sent.
+            type: string
             required: true
 
     return:
         description: |
-            A tuple with boolean flag indicating if the route was created or exists
-            and the ouput or error message.
+            A tuple with boolean flag indicating if the route was created or exists and the ouput or error message.
         type: tuple
     """
     try:
-        # change type to ip_network
-        dest = ipaddress.ip_network(route["destination"])
+        # change type to ip_address
+        dest = ipaddress.ip_network(destination)
     except:
-        return False, f'{route["destination"]} is not a valid IP network.'
+        return False, f'{destination} is not a valid IP network.'
 
     v = ''
     version = 4
@@ -59,16 +58,16 @@ def build(
 
     # Define message
     messages = {
-        1000: f'1000: Successfully created IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} with metric {metric}',
-        1001: f'1001: IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} already exists.',
+        1000: f'1000: Successfully created IPv{version} route: {destination} through gateway: {gateway} with metric {metric}',
+        1001: f'1001: IPv{version} route: {destination} through gateway: {gateway} already exists.',
 
-        3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_show:  ',
-        3022: f'3022: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_add:  ',
-        3023: f'3023: Failed to run route_ns_add payload on the enabled PodNet. Payload exited with status ',
+        3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_main_show:  ',
+        3022: f'3022: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_main_add:  ',
+        3023: f'3023: Failed to run route_main_add payload on the enabled PodNet. Payload exited with status ',
 
-        3051: f'3051: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_ns_show:  ',
-        3052: f'3052: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_ns_add:  ',
-        3053: f'3053: Failed to run route_ns_add payload on the disabled PodNet. Payload exited with status ',
+        3051: f'3051: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_main_show:  ',
+        3052: f'3052: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_main_add:  ',
+        3053: f'3053: Failed to run route_main_add payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
@@ -86,7 +85,7 @@ def build(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
-    destination_grepsafe = route["destination"].replace('.', '\.')
+    destination_grepsafe = destination.replace('.', '\.')
 
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
@@ -99,28 +98,28 @@ def build(
         )
 
         payloads = {
-            'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
-            'route_ns_add' : f'ip netns exec {namespace} ip {v} route add {route["destination"]} via {route["gateway"]} metric {metric}'
+            'route_main_show': f'ip {v} route | grep --word "{destination_grepsafe}"',
+            'route_main_add' : f'ip {v} route add {destination} via {gateway} metric {metric}'
             }
 
         route_exists = False
-        ret = rcc.run(payloads['route_ns_show'])
+        ret = rcc.run(payloads['route_main_show'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] == SUCCESS_CODE:
             route_exists = True
-        fmt.add_successful('route_ns_show', ret)
+        fmt.add_successful('route_main_show', ret)
 
         if route_exists:
-            #If the interface already exists returns info and true state
+            # If the interface already exists returns info and true state
             return True, fmt.payload_error(ret, f"1001: " + messages[1001]), fmt.successful_payloads
 
-        ret = rcc.run(payloads['route_ns_add'])
+        ret = rcc.run(payloads['route_main_add'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-        fmt.add_successful('route_ns_add', ret)
+        fmt.add_successful('route_main_add', ret)
 
         return True, "", fmt.successful_payloads
 
@@ -136,8 +135,8 @@ def build(
 
 
 def read(
-    namespace: str,
-    route: dict = {'destination': '', 'gateway': ''},
+    destination: str,
+    gateway: str,
     config_file=None
 ) -> Tuple[bool,dict,str]:
     """
@@ -145,13 +144,13 @@ def read(
         Reads an IPv4 or IPv6 route from a namespace
 
     parameters:
-        namespace:
-            description: The VRF network namespace identifier which the route will be deleted from.
+        destination:
+            description: This is the destination network of incoming traffic.
             type: string
             required: true
-        route:
-            description: A dictionary containing the destination and gateway IP addresses which identifies the route that will be deleted from a namespace.
-            type: dict
+        gateway:
+            description: This is the next-hop gateway through which traffic to the destination should be sent.
+            type: string
             required: true
 
     return:
@@ -162,10 +161,9 @@ def read(
     """
 
     try:
-        #change type to ip_address
-        dest = ipaddress.ip_network(route["destination"])
+        dest = ipaddress.ip_network(destination)
     except:
-        return False, f'{route["destination"]} is not a valid IP address.'
+        return False, f'{destination} is not a valid IP network.'
 
     v = ''
     version = 4
@@ -177,13 +175,13 @@ def read(
 
     # Define message
     messages = {
-        1200: f'1200: Successfully read IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} with metric {metric}',
+        1200: f'1200: Successfully read IPv{version} route: {destination} through gateway: {gateway} with metric {metric}',
 
-        3221: f'3221: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_show:  ',
-        3222: f'3222: Failed to run route_ns_show payload on the enabled PodNet. Payload exited with status ',
+        3221: f'3221: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_main_show:  ',
+        3222: f'3222: Failed to run route_main_show payload on the enabled PodNet. Payload exited with status ',
 
-        3251: f'3251: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_ns_show:  ',
-        3252: f'3252: Failed to run route_ns_show payload on the disabled PodNet. Payload exited with status ',
+        3251: f'3251: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_main_show:  ',
+        3252: f'3252: Failed to run route_main_show payload on the disabled PodNet. Payload exited with status ',
     }
 
 
@@ -202,7 +200,7 @@ def read(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
-    destination_grepsafe = route["destination"].replace('.', '\.')
+    destination_grepsafe = destination.replace('.', '\.')
     # Define payload
 
     def run_podnet(podnet_node, prefix, successful_payloads, data_dict):
@@ -219,10 +217,10 @@ def read(
         )
 
         payloads = {
-            'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
+            'route_main_show': f'ip {v} route | grep --word "{destination_grepsafe}"',
         }
 
-        ret = rcc.run(payloads['route_ns_show'])
+        ret = rcc.run(payloads['route_main_show'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
             fmt.store_channel_error(ret, f"{prefix+1} : " + messages[prefix+1])
@@ -231,7 +229,7 @@ def read(
             fmt.store_payload_error(ret, f"{prefix+2} : " + messages[prefix+2])
         else:
             data_dict[podnet_node]['entry'] = ret["payload_message"].strip()
-            fmt.add_successful('route_ns_show', ret)
+            fmt.add_successful('route_main_show', ret)
 
         return retval, fmt.message_list, fmt.successful_payloads, data_dict
 
@@ -246,8 +244,8 @@ def read(
 
 
 def scrub(
-    namespace: str,
-    route: dict = {'destination': '', 'gateway': ''},
+    destination: str,
+    gateway: str,
     config_file=None
 ) -> Tuple[bool,str]:
 
@@ -256,13 +254,13 @@ def scrub(
         Deletes an IPv4 or IPv6 route accordingly on a namespace
 
     parameters:
-        namespace:
-            description: The VRF network namespace identifier which the route will be deleted from.
+        destination:
+            description: This is the destination network of incoming traffic.
             type: string
             required: true
-        route:
-            description: A dictionary containing the destination and gateway IP addresses which identifies the route that will be deleted from a namespace.
-            type: dict
+        gateway:
+            description: This is the next-hop gateway through which traffic to the destination should be sent.
+            type: string
             required: true
 
     return:
@@ -274,9 +272,9 @@ def scrub(
 
     try:
         #change type to ip_address
-        dest = ipaddress.ip_network(route["destination"])
+        dest = ipaddress.ip_network(destination)
     except:
-        return False, f'{route["destination"]} is not a valid IP address.'
+        return False, f'{destination} is not a valid IP address.'
 
     v = ''
     version = 4
@@ -287,17 +285,18 @@ def scrub(
         metric = 1024
 
     # Define message
+
     messages = {
-        1100: f'1100: Successfully deleted IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} with metric {metric}',
-        1101: f'1101: IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} already does not exist.',
+        1100: f'1100: Successfully deleted IPv{version} route: {destination} through gateway: {gateway} with metric {metric}',
+        1101: f'1101: IPv{version} route: {destination} through gateway: {gateway} already does not exist.',
 
-        3121: f'3121: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_show:  ',
-        3122: f'3122: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_del:  ',
-        3123: f'3123: Failed to run route_ns_del payload on the enabled PodNet. Payload exited with status ',
+        3121: f'3121: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_main_show:  ',
+        3122: f'3122: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_main_del:  ',
+        3123: f'3123: Failed to run route_main_del payload on the enabled PodNet. Payload exited with status ',
 
-        3151: f'3151: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_ns_show:  ',
-        3152: f'3152: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_ns_del:  ',
-        3153: f'3153: Failed to run route_ns_del payload on the disabled PodNet. Payload exited with status ',
+        3151: f'3151: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_main_show:  ',
+        3152: f'3152: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_main_del:  ',
+        3153: f'3153: Failed to run route_main_del payload on the disabled PodNet. Payload exited with status ',
     }
 
 
@@ -316,7 +315,7 @@ def scrub(
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
-    destination_grepsafe = route["destination"].replace('.', '\.')
+    destination_grepsafe = destination.replace('.', '\.')
 
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
@@ -329,28 +328,28 @@ def scrub(
         )
 
         payloads = {
-            'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
-            'route_ns_del' : f'ip netns exec {namespace} ip {v} route del {route["destination"]} via {route["gateway"]}'
+            'route_main_show': f'ip {v} route | grep --word "{destination_grepsafe}"',
+            'route_main_del' : f'ip {v} route del {destination} via {gateway}'
             }
         route_exists = True
 
-        ret = rcc.run(payloads['route_ns_show'])
+        ret = rcc.run(payloads['route_main_show'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             route_exists = False
-        fmt.add_successful('route_ns_show', ret)
+        fmt.add_successful('route_main_show', ret)
 
         if not route_exists:
-            #If the interface already does not exists returns info and true state
+            # If the interface already does not exists returns info and true state
             return True, fmt.payload_error(ret, f"1101: " + messages[1101]), fmt.successful_payloads
 
-        ret = rcc.run(payloads['route_ns_del'])
+        ret = rcc.run(payloads['route_main_del'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-        fmt.add_successful('route_ns_del', ret)
+        fmt.add_successful('route_main_del', ret)
 
         return True, "", fmt.successful_payloads
 

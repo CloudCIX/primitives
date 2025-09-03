@@ -37,7 +37,6 @@ def build(
             description: The VRF network namespace identifier, such as 'VRF123'.
             type: string
             required: true
-
     return:
         description: |
             A tuple with a boolean flag indicating if the veth link creation was successful,
@@ -112,7 +111,8 @@ def build(
             'interface_add' : f'ip link add {bridgename}.{namespace} type veth peer name {namespace}.{bridgename}',
             'interface_main' : f'ip link set dev {bridgename}.{namespace} master {bridgename}',
             'interface_ns': f'ip link set dev {namespace}.{bridgename} netns {namespace}',
-            'interface_up' : f'ip netns exec {namespace} ip link set dev {namespace}.{bridgename} up',
+            'interface_main_up': f'ip link set dev {bridgename}.{namespace} up',
+            'interface_ns_up' : f'ip netns exec {namespace} ip link set dev {namespace}.{bridgename} up',
         }
 
         interface_present_inside = False
