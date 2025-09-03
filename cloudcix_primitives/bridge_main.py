@@ -3,6 +3,7 @@ Primitive for Public Subnet Bridge on PodNet
 """
 
 # stdlib
+import ipaddress
 from typing import Any, Dict, List, Tuple
 # lib
 from cloudcix.rcc import comms_lsh, CHANNEL_SUCCESS
@@ -46,6 +47,19 @@ def build(
         type: tuple
     """
 
+    try:
+        # change type to ip_address
+        dest = ipaddress.ip_network(address_range)
+    except:
+        return False, f'{address_range} is not a valid IP address.'
+
+    if dest.version == 4:
+        version = ''
+    elif dest.version == 6:
+        version = '-6'
+    else:
+        return False, f'{address_range} is not a valid IP address.'
+
     up_script_path = f'/usr/local/bin/bridge_main_{bridge}_up.sh'
     down_script_path = f'/usr/local/bin/bridge_main_{bridge}_down.sh'
     service_file_path = f'/etc/systemd/system/bridge_main_{bridge}.service'
@@ -78,6 +92,7 @@ def build(
         'bridge': bridge,
         'down_script_path': down_script_path,
         'up_script_path': up_script_path,
+        'version': version, 
     }
 
     # Templates

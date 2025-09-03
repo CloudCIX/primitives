@@ -1,5 +1,5 @@
 #!/bin/bash
 
-ip link add {{ bridge }} type bridge
-ip addr add {{ address_range }} dev {{ bridge }}
-ip link set dev {{ bridge }} up
+ip {{ version }} link add {{ bridge }} type bridge
+ip {{ version }} addr add {{ address_range }} dev {{ bridge }}
+ip {{ version }} link set dev {{ bridge }} up
