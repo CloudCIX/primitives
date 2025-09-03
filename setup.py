@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="cloudcix_primitives",
-    version='0.2.0',
+    version='0.2.1',
     author="CloudCIX",
     author_email="developers@cloudcix.com",
     maintainer="CloudCIX",
