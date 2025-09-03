@@ -2,9 +2,9 @@
 Primitive for modifying virtual machine's CPU count on Windows hypervisor
 """
 # stdlib
-from typing import Any, Dict, List, Tuple
+from typing import Tuple
 # lib
-from cloudcix.rcc import CHANNEL_SUCCESS, comms_lsh, comms_ssh
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from cloudcix_primitives.utils import (
     HostErrorFormatter,

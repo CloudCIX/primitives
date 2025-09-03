@@ -1,10 +1,9 @@
 # stdlib
 import ipaddress
 import json
-from pathlib import Path
 from typing import Tuple
 # lib
-from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh, CONNECTION_ERROR, VALIDATION_ERROR
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from cloudcix_primitives.utils import load_pod_config, PodnetErrorFormatter, SSHCommsWrapper
 
@@ -43,8 +42,8 @@ def build(
         type: tuple
     """
     try:
-        # change type to ip_address
-        dest = ipaddress.ip_network(destination)
+        # change type to ip_interface
+        dest = ipaddress.ip_interface(destination)
     except:
         return False, f'{destination} is not a valid IP network.'
 
@@ -161,7 +160,8 @@ def read(
     """
 
     try:
-        dest = ipaddress.ip_network(destination)
+        # change type to ip_interface
+        dest = ipaddress.ip_interface(destination)
     except:
         return False, f'{destination} is not a valid IP network.'
 
@@ -271,8 +271,8 @@ def scrub(
     """
 
     try:
-        #change type to ip_address
-        dest = ipaddress.ip_network(destination)
+        # change type to ip_interface
+        dest = ipaddress.ip_interface(destination)
     except:
         return False, f'{destination} is not a valid IP address.'
 

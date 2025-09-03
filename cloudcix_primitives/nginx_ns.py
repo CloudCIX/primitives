@@ -2,14 +2,10 @@
 Primitive to Build, Read and Scrub nginx for cloud-init userdata/metadata delivery on PodNet HA
 """
 # stdlib
-import ipaddress
 import json
-import os
-from pathlib import Path
-from textwrap import dedent
 from typing import Tuple
 # lib
-from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh, CONNECTION_ERROR, VALIDATION_ERROR
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from cloudcix_primitives.utils import (
     check_template_data,

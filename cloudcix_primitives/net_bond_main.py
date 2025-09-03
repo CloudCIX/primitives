@@ -5,7 +5,7 @@ Primitive for Global Network (Netplan interface config) on PodNet
 import logging
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_lsh, comms_ssh, CHANNEL_SUCCESS, CONNECTION_ERROR
+from cloudcix.rcc import comms_lsh, comms_ssh, CHANNEL_SUCCESS
 # local
 from cloudcix_primitives.utils import JINJA_ENV, check_template_data
 

@@ -6,7 +6,7 @@ import logging
 from collections import deque
 from typing import Tuple
 # lib
-from cloudcix.rcc import comms_lsh, CHANNEL_SUCCESS, CONNECTION_ERROR
+from cloudcix.rcc import comms_lsh, CHANNEL_SUCCESS
 # local
 from .controllers import FirewallPodNet
 from cloudcix_primitives.utils import JINJA_ENV, check_template_data
