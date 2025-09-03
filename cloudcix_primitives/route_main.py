@@ -161,10 +161,9 @@ def read(
     """
 
     try:
-        #change type to ip_address
         dest = ipaddress.ip_network(destination)
     except:
-        return False, f'{destination} is not a valid IP address.'
+        return False, f'{destination} is not a valid IP network.'
 
     v = ''
     version = 4

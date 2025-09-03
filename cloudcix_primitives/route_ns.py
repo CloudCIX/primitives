@@ -59,8 +59,8 @@ def build(
 
     # Define message
     messages = {
-        1000: f'1000: Successfully created IPv{version} route: {route["destination"]} through gateway: {gateway} with metric {metric}',
-        1001: f'1001: IPv{version} route: {route["destination"]} through gateway: {gateway} already exists.',
+        1000: f'1000: Successfully created IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} with metric {metric}',
+        1001: f'1001: IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} already exists.',
 
         3021: f'3021: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_show:  ',
         3022: f'3022: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_add:  ',
@@ -100,7 +100,7 @@ def build(
 
         payloads = {
             'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
-            'route_ns_add' : f'ip netns exec {namespace} ip {v} route add {route["destination"]} via {gateway} metric {metric}'
+            'route_ns_add' : f'ip netns exec {namespace} ip {v} route add {route["destination"]} via {route["gateway"]} metric {metric}'
             }
 
         route_exists = False
@@ -177,7 +177,7 @@ def read(
 
     # Define message
     messages = {
-        1200: f'1200: Successfully read IPv{version} route: {route["destination"]} through gateway: {gateway} with metric {metric}',
+        1200: f'1200: Successfully read IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} with metric {metric}',
 
         3221: f'3221: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_show:  ',
         3222: f'3222: Failed to run route_ns_show payload on the enabled PodNet. Payload exited with status ',
@@ -288,8 +288,8 @@ def scrub(
 
     # Define message
     messages = {
-        1100: f'1100: Successfully deleted IPv{version} route: {route["destination"]} through gateway: {gateway} with metric {metric}',
-        1101: f'1101: IPv{version} route: {route["destination"]} through gateway: {gateway} already does not exist.',
+        1100: f'1100: Successfully deleted IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} with metric {metric}',
+        1101: f'1101: IPv{version} route: {route["destination"]} through gateway: {route["gateway"]} already does not exist.',
 
         3121: f'3121: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_show:  ',
         3122: f'3122: Failed to connect to the enabled PodNet from the config file {config_file} for payload route_ns_del:  ',
@@ -330,7 +330,7 @@ def scrub(
 
         payloads = {
             'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
-            'route_ns_del' : f'ip netns exec {namespace} ip {v} route del {route["destination"]} via {gateway}'
+            'route_ns_del' : f'ip netns exec {namespace} ip {v} route del {route["destination"]} via {route["gateway"]}'
             }
         route_exists = True
 

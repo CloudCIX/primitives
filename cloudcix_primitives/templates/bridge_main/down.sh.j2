@@ -1,5 +1,5 @@
 #!/bin/bash
 
-ip {{ version }} link set dev {{ bridge }} down
+ip link set dev {{ bridge }} down
 # Delete the bridge next
-ip {{ version }} link del {{ bridge }}
+ip link del {{ bridge }}
