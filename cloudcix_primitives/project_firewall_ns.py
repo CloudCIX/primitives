@@ -10,7 +10,6 @@ from cloudcix_primitives.utils import load_pod_config, PodnetErrorFormatter, SSH
 __all__ = [
     'build',
     'read',
-    'scrub',
 ]
 
 SUCCESS_CODE = 0
@@ -23,8 +22,7 @@ def build(
 ) -> Tuple[bool, str]:
     """
     description: |
-        Creates user defined rules in the PROJECT_IN and PROJECT_OUT user
-        chains in the FILTER tale of a project's network name space.
+        Creates user defined rules in the PROJECT_IN and PROJECT_OUT user chains in the FILTER tale of a project's network name space.
 
     parameters:
         namespace: |
@@ -32,86 +30,80 @@ def build(
             type: string
             required: true
         inbound:
-          description: |
-              list of rule dictionaries for inbound rules to be created in
-              PROJECT_IN chain. These dictionaries will be processed by
-              cloudcix_primitives.utils.write_rule().
-          type: list
-          required: true
-          properties:
-            version:
-                type: int
-                description:
-                required: true
-                    IP version. Must be either 4 or 6.
-            source:
-                description:
-                type: string
-                required: true
-                    Source address with optional CIDR prefix length, e.g. 0.0.0.0/0
-            destination:
-                description:
-                required: true
-                    Destination address with optional CIDR prefix length, e.g. 0.0.0.0/0
-            protocol:
-                description: IP protocol, such as 'tcp', 'udp' or 'any'.
-            port:
-                description: port number
-                required: false
-            action:
-                description: |
-                    action to take if the rule matches. Can be 'accept', 'drop' or 'reject'.
-            log:
-                description: whether to log matches of the rule.
-                type: bool
-                required: true
-            order:
-                description: position of the rule in the chain.
-                type: int
-                required: true
-
+            description: |
+                list of rule dictionaries for inbound rules to be created in PROJECT_IN chain.
+                These dictionaries will be processed by cloudcix_primitives.utils.write_rule().
+            type: list
+            required: true
+            properties:
+                version:
+                    description: IP version. Must be either 4 or 6.
+                    type: integer
+                    required: true
+                source:
+                    description: Source address with optional CIDR prefix length, e.g. 0.0.0.0/0
+                    type: string
+                    required: true
+                destination:
+                    description: Destination address with optional CIDR prefix length, e.g. 0.0.0.0/0
+                    type: string
+                    required: true   
+                protocol:
+                    description: IP protocol, such as 'tcp', 'udp', 'icmp' or 'any'.
+                    type: string
+                    required: true   
+                port:
+                    description: port number
+                    required: false
+                action:
+                    description: action to take if the rule matches. Can be 'accept', 'drop' or 'reject'.
+                log:
+                    description: whether to log matches of the rule.
+                    type: bool
+                    required: true
+                order:
+                    description: position of the rule in the chain.
+                    type: int
+                    required: true
         outbound:
-          description: |
-              list of rule dictionaries for outbound rules to be created in
-              PROJECT_OUT chain. These dictionaries will be processed by
-              cloudcix_primitives.utils.write_rule().
-          type: list
-          required: true
-          properties:
-            version:
-                type: int
-                description:
-                required: true
-                    IP version. Must be either 4 or 6.
-            source:
-                description:
-                type: string
-                required: true
-                    Source address with optional CIDR prefix length, e.g. 0.0.0.0/0
-            destination:
-                description:
-                required: true
-                    Destination address with optional CIDR prefix length, e.g. 0.0.0.0/0
-            protocol:
-                description: IP protocol, such as 'tcp', 'udp' or 'any'.
-            port:
-                description: port number
-                required: false
-            action:
-                description: |
-                    action to take if the rule matches. Can be 'accept', 'drop' or 'reject'.
-            log:
-                description: whether to log matches of the rule.
-                type: bool
-                required: true
-            order:
-                description: position of the rule in the chain.
-                type: int
-                required: true
+            description: |
+                list of rule dictionaries for outbound rules to be created in PROJECT_OUT chain.
+                These dictionaries will be processed by cloudcix_primitives.utils.write_rule().
+            type: list
+            required: true
+            properties:
+                vversion:
+                    description: IP version. Must be either 4 or 6.
+                    type: integer
+                    required: true
+                source:
+                    description: Source address with optional CIDR prefix length, e.g. 0.0.0.0/0
+                    type: string
+                    required: true
+                destination:
+                    description: Destination address with optional CIDR prefix length, e.g. 0.0.0.0/0
+                    type: string
+                    required: true   
+                protocol:
+                    description: IP protocol, such as 'tcp', 'udp', 'icmp' or 'any'.
+                    type: string
+                    required: true   
+                port:
+                    description: port number
+                    required: false
+                action:
+                    description: action to take if the rule matches. Can be 'accept', 'drop' or 'reject'.
+                log:
+                    description: whether to log matches of the rule.
+                    type: bool
+                    required: true
+                order:
+                    description: position of the rule in the chain.
+                    type: int
+                    required: true
     return:
         description: |
-            A tuple with a boolean flag stating if the build was successful or not and
-            the output or error message.
+            A tuple with a boolean flag stating if the build was successful or not and the output or error message.
         type: tuple
     """
 
@@ -168,8 +160,8 @@ def build(
         )
 
         payloads = {
-            'flush_inbound': f'ip netns exec {namespace} nft flush chain inet FILTER PROJECT_IN',
-            'flush_outbound': f'ip netns exec {namespace} nft flush chain inet FILTER PROJECT_OUT',
+            'flush_inbound':    f'ip netns exec {namespace} nft flush chain inet FILTER PROJECT_IN',
+            'flush_outbound':   f'ip netns exec {namespace} nft flush chain inet FILTER PROJECT_OUT',
             'add_final_accept': f'ip netns exec {namespace} nft add rule inet FILTER PROJECT_OUT accept',
         }
 
@@ -229,8 +221,4 @@ def build(
 
 
 def read() -> Tuple[bool, dict, str]:
-    return(False, {}, 'Not Implemented')
-
-
-def scrub() -> Tuple[bool, str]:
     return(False, {}, 'Not Implemented')

@@ -99,8 +99,8 @@ def build(
 
         payloads = {
             'route_main_show': f'ip {v} route | grep --word "{destination_grepsafe}"',
-            'route_main_add' : f'ip {v} route add {destination} via {gateway} metric {metric}'
-            }
+            'route_main_add' : f'ip {v} route add {destination} via {gateway} metric {metric}',
+        }
 
         route_exists = False
         ret = rcc.run(payloads['route_main_show'])
