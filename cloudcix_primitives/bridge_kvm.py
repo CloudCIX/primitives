@@ -2,7 +2,6 @@
 Primitive for Private VLAN Bridge (KVM only)
 """
 # stdlib
-import os
 from typing import Tuple
 # lib
 from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh

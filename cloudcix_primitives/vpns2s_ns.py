@@ -7,7 +7,7 @@ from typing import Tuple, Dict, List
 # lib
 from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
-from primitives.cloudcix_primitives.utils import (
+from cloudcix_primitives.utils import (
     PodnetErrorFormatter,
     SSHCommsWrapper,
     load_pod_config,

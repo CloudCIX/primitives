@@ -48,6 +48,16 @@ def build(
             and the output or error message.
         type: tuple
     """
+    try:
+        # change type to ip_interface
+        dest = ipaddress.ip_interface(address_range)
+    except:
+        return False, f'{address_range} is not a valid IP network.'
+
+    version = ''
+    if dest.version == 6:
+        version = '-6'
+
     # Define message
     messages = {
         1000: f'Successfully added {address_range} to {device} inside namespace {namespace} ',
@@ -87,13 +97,6 @@ def build(
             {'payload_message': 'STDOUT', 'payload_error': 'STDERR'},
             successful_payloads
         )
-
-
-        ip_ver = ipaddress.ip_interface(address_range)
-        if ip_ver.version == 4:
-          version = ''
-        else:
-          version = '-6'
 
         address_range_grepsafe = address_range.replace('.', '\.')
    
@@ -300,6 +303,16 @@ def scrub(
             and the output or error message.
         type: tuple
     """
+    try:
+        # change type to ip_interface
+        dest = ipaddress.ip_interface(address_range)
+    except:
+        return False, f'{address_range} is not a valid IP network.'
+
+    version = ''
+    if dest.version == 6:
+        version = '-6'
+
     # Define message
     messages = {
         1100: f'Successfully removed address_range {address_range} inside namespace {namespace} ',
@@ -339,17 +352,11 @@ def scrub(
             successful_payloads
         )
 
-        ip_ver = ipaddress.ip_interface(address_range)
-        if ip_ver.version == 4:
-          version = ''
-        else:
-          version = '-6'
-
         address_range_grepsafe = address_range.replace('.', '\.')
 
         payloads = {
-                'find_address_range': f'ip netns exec {namespace} ip address show | grep {address_range_grepsafe}',
-                'address_range_del':  f'ip netns exec {namespace} ip {version} addr del {address_range} dev {device}'
+            'find_address_range': f'ip netns exec {namespace} ip address show | grep {address_range_grepsafe}',
+            'address_range_del':  f'ip netns exec {namespace} ip {version} addr del {address_range} dev {device}'
         }
 
 

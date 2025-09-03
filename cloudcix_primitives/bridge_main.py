@@ -1,7 +1,6 @@
 """
 Primitive for Public Subnet Bridge on PodNet
 """
-
 # stdlib
 import ipaddress
 from typing import Any, Dict, List, Tuple
@@ -48,8 +47,8 @@ def build(
     """
 
     try:
-        # change type to ip_address
-        dest = ipaddress.ip_network(address_range)
+        # change type to ip_interface
+        dest = ipaddress.ip_interface(address_range)
     except:
         return False, f'{address_range} is not a valid IP address.'
 

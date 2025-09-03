@@ -2,7 +2,6 @@
 Primitive for Private Bridge in LXD
 """
 # stdlib
-import json
 from typing import Tuple
 # libs
 from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd

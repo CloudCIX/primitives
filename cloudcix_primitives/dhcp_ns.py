@@ -3,7 +3,6 @@ Primitive to Build, Read and Scrub dnsmasq for VRF name space DHCP on PodNet HA
 """
 # stdlib
 import json
-import os
 from typing import Tuple
 # lib
 from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh

@@ -3,12 +3,10 @@ Primitive to Build, Read and Scrub a network name space on PodNet HA
 """
 
 # stdlib
-import ipaddress
 import json
-from pathlib import Path
 from typing import Tuple
 # lib
-from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh, CONNECTION_ERROR, VALIDATION_ERROR
+from cloudcix.rcc import CHANNEL_SUCCESS, comms_ssh
 # local
 from cloudcix_primitives.utils import load_pod_config, PodnetErrorFormatter, SSHCommsWrapper
 
