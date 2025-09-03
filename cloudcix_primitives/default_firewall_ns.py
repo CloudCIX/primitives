@@ -17,34 +17,35 @@ SUCCESS_CODE = 0
 
 def build(
         namespace: str,
-        public_bridge: str,
+        ipv4_public_bridge: str,
+        ipv6_public_bridge: str,
         config_file=None,
 ) -> Tuple[bool, str]:
     """
     description:
-        Builds nftables tables, base chains, user chains, interface sets, jump
-        rules and default base chain rules required for a CloudCIX project.
-        Throughout the life time of a project, the base chains are never
-        modified by another primitive. The user chains are managed by user
-        chain primitives such as project_firewall_ns or nat_firewall_ns.
+        Builds nftables tables, base chains, user chains, interface sets, jump rules and default base chain rules required for a CloudCIX project.
+        Throughout the life time of a project, the base chains are never modified by another primitive.
+        The user chains are managed by user chain primitives such as project_firewall_ns or nat_firewall_ns.
 
     parameters:
         namespace:
-            description: VRF network name space's identifier, such as 'VRF453
+            description: VRF network namespace identifier, e.g. 'VRF453'
             type: string
             required: true
-        public_bridge:
-          description: the name space's public bridge interface's name, such as 'br-B1'.
-          type: string
-          required: true
+        ipv4_public_bridge:
+            description: The IPv4 public bridge interface name of the namespace, such as 'BM1'.
+            type: string
+            required: true
+        ipv6_public_bridge:
+            description: The IPv6 public bridge interface name of the namespace, such as 'BM2'.
+            type: string
+            required: true
         config_file:
             description: path to the config.json file
             type: string
             required: false
     return:
-        description: |
-            A tuple with a boolean flag stating if the build was successful or not and
-            the output or error message.
+        description: A tuple with a boolean flag stating if the build was successful or not and the output or error message.
         type: tuple
     """
 
@@ -150,108 +151,50 @@ def build(
             'PRVT_2_PRVT',
         ]
 
+        interfaces = f'"{namespace}.{ipv4_public_bridge}", "{namespace}.{ipv6_public_bridge}"'
         rules = [
             # INPUT
-            f'ip netns exec {namespace} nft add rule inet FILTER INPUT '
-            f'ct state established,related accept',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER INPUT '
-            'icmp type { echo-reply, destination-unreachable, echo-request, time-exceeded } accept',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER INPUT '
-            'icmpv6 type { echo-request, mld-listener-query, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER INPUT '
-            'meta l4proto { tcp, udp } th dport 53 accept',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER INPUT '
-            'udp dport {500, 4500} accept',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER INPUT '
-            'ip protocol esp accept',
+            f'ip netns exec {namespace} nft add rule inet FILTER INPUT ct state established,related accept',
+            f'ip netns exec {namespace} nft add rule inet FILTER INPUT icmp type {{ echo-reply, destination-unreachable, echo-request, time-exceeded }} accept',
+            f'ip netns exec {namespace} nft add rule inet FILTER INPUT icmpv6 type {{ echo-request, mld-listener-query, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert }} accept',
+            f'ip netns exec {namespace} nft add rule inet FILTER INPUT meta l4proto {{ tcp, udp }} th dport 53 accept',
+            f'ip netns exec {namespace} nft add rule inet FILTER INPUT udp dport {{ 500, 4500 }} accept',
+            f'ip netns exec {namespace} nft add rule inet FILTER INPUT ip protocol esp accept',
 
             # PREROUTING
-            f'ip netns exec {namespace} nft add rule inet FILTER PREROUTING '
-            'ct state established,related accept',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER PREROUTING '
-            f'iifname {namespace}.{public_bridge} jump GEO_IN_ALLOW',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER PREROUTING '
-            f'iifname {namespace}.{public_bridge} jump GEO_IN_BLOCK',
-
+            f'ip netns exec {namespace} nft add rule inet FILTER PREROUTING ct state established,related accept',
+            f'ip netns exec {namespace} nft add rule inet FILTER PREROUTING iifname {{ {interfaces} }} jump GEO_IN_ALLOW',
+            f'ip netns exec {namespace} nft add rule inet FILTER PREROUTING iifname {{ {interfaces} }} jump GEO_IN_BLOCK',
 
             # POSTROUTING
-            f'ip netns exec {namespace} nft add rule inet FILTER POSTROUTING '
-            'ct state established,related accept',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER POSTROUTING '
-            f'oifname {namespace}.{public_bridge} jump GEO_OUT_ALLOW',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER POSTROUTING '
-            f'oifname {namespace}.{public_bridge} jump GEO_OUT_BLOCK',
+            f'ip netns exec {namespace} nft add rule inet FILTER POSTROUTING ct state established,related accept',
+            f'ip netns exec {namespace} nft add rule inet FILTER POSTROUTING oifname {{ {interfaces} }} jump GEO_OUT_ALLOW',
+            f'ip netns exec {namespace} nft add rule inet FILTER POSTROUTING oifname {{ {interfaces} }} jump GEO_OUT_BLOCK',
 
             # FORWARD
-            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
-            'ct state established,related accept',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
-            f'iifname @PRIVATE oifname {namespace}.{public_bridge} jump PROJECT_OUT',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
-            f'iifname {namespace}.{public_bridge} oifname @PRIVATE jump PROJECT_IN',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
-            'iifname @PRIVATE oifname @S2S_TUNNEL jump VPNS2S',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
-            'iifname @S2S_TUNNEL oifname @PRIVATE jump VPNS2S',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
-            'iifname @PRIVATE oifname @DYN_TUNNEL jump VPNDYN',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
-            'iifname @DYN_TUNNEL oifname @PRIVATE jump VPNDYN',
-
-            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD '
-            'iifname @PRIVATE oifname @PRIVATE jump PRVT_2_PRVT',
-
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD ct state established,related accept',
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname @PRIVATE oifname {{ {interfaces} }} jump PROJECT_OUT',
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname {{ {interfaces} }} oifname @PRIVATE jump PROJECT_IN',
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname @PRIVATE oifname @S2S_TUNNEL jump VPNS2S',
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname @S2S_TUNNEL oifname @PRIVATE jump VPNS2S',
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname @PRIVATE oifname @DYN_TUNNEL jump VPNDYN',
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname @DYN_TUNNEL oifname @PRIVATE jump VPNDYN',
+            f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname @PRIVATE oifname @PRIVATE jump PRVT_2_PRVT',
         ]
 
         payloads = {
-            'flush_ruleset': f'ip netns exec {namespace} nft flush ruleset',
-
-            'create_nat_table': f'ip netns exec {namespace} '
-                                'nft add table ip NAT',
-            'create_filter_table': f'ip netns exec {namespace} '
-                                   'nft add table inet FILTER',
-
-            'create_nat_postrouting_chain': f'ip netns exec {namespace} '
-                                            'nft add chain ip NAT POSTROUTING '
-                                            '{ type nat hook postrouting priority 100 \\; policy accept \\; }',
-            'create_nat_prerouting_chain': f'ip netns exec {namespace} '
-                                           'nft add chain ip NAT PREROUTING '
-                                           '{ type nat hook prerouting priority -100 \\; policy accept \\; }',
-
-            'create_filter_postrouting_chain': f'ip netns exec {namespace} nft add chain inet '
-                                              'FILTER POSTROUTING '
-                                              '{ type filter hook postrouting priority 0 \\; policy accept \\; }',
-            'create_filter_prerouting_chain': f'ip netns exec {namespace} nft add chain inet '
-                                              'FILTER PREROUTING '
-                                              '{ type filter hook prerouting priority 0 \\; policy accept \\; }',
-            'create_filter_output_chain': f'ip netns exec {namespace} nft '
-                                          'add chain inet FILTER OUTPUT '
-                                          '{ type filter hook output priority 0 \\; policy accept \\; }',
-            'create_filter_input_chain': f'ip netns exec {namespace} '
-                                         'nft add chain inet FILTER INPUT '
-                                         '{ type filter hook input priority 0 \\; policy drop \\; }',
-            'create_filter_forward_chain': f'ip netns exec {namespace} '
-                                           'nft add chain inet FILTER FORWARD '
-                                           '{ type filter hook forward priority 0 \\; policy drop \\; }',
-            'create_interface_set': f'ip netns exec {namespace} '
-                                       'nft add set inet FILTER %(set_name)s { type ifname\\; }',
-            'create_user_chain': f'ip netns exec {namespace} '
-                                 'nft add chain inet FILTER %(chain_name)s',
+            'flush_ruleset':                    f'ip netns exec {namespace} nft flush ruleset',
+            'create_nat_table':                 f'ip netns exec {namespace} nft add table ip NAT',
+            'create_filter_table':              f'ip netns exec {namespace} nft add table inet FILTER',
+            'create_nat_postrouting_chain':     f'ip netns exec {namespace} nft add chain ip NAT POSTROUTING {{ type nat hook postrouting priority 100 \\; policy accept \\; }}',
+            'create_nat_prerouting_chain':      f'ip netns exec {namespace} nft add chain ip NAT PREROUTING {{ type nat hook prerouting priority -100 \\; policy accept \\; }}',
+            'create_filter_postrouting_chain':  f'ip netns exec {namespace} nft add chain inet FILTER POSTROUTING {{ type filter hook postrouting priority 0 \\; policy accept \\; }}',
+            'create_filter_prerouting_chain':   f'ip netns exec {namespace} nft add chain inet FILTER PREROUTING {{ type filter hook prerouting priority 0 \\; policy accept \\; }}',
+            'create_filter_output_chain':       f'ip netns exec {namespace} nft add chain inet FILTER OUTPUT {{ type filter hook output priority 0 \\; policy accept \\; }}',
+            'create_filter_input_chain':        f'ip netns exec {namespace} nft add chain inet FILTER INPUT {{ type filter hook input priority 0 \\; policy drop \\; }}',
+            'create_filter_forward_chain':      f'ip netns exec {namespace} nft add chain inet FILTER FORWARD {{ type filter hook forward priority 0 \\; policy drop \\; }}',
+            'create_interface_set':             f'ip netns exec {namespace} nft add set inet FILTER %(set_name)s {{ type ifname\\; }}',
+            'create_user_chain':                f'ip netns exec {namespace} nft add chain inet FILTER %(chain_name)s',
         }
 
         ret = rcc.run(payloads['flush_ruleset'])

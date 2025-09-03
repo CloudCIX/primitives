@@ -32,32 +32,29 @@ def build(
             type: string
             required: true
         one_to_one:
-          description: List of 1:1 mapping dictonaries from private IP address to public IP address. May be empty.
-          type: list
-          properties:
-            private:
-                description:
-                    The private IP address to map to a public IP address.
-            public:
-                description:
-                    The public IP address a private IP address is mapped to.
-          required: true
+            description: List of 1:1 mapping dictonaries from private IP address to public IP address. May be empty.
+            type: list
+            properties:
+                private:
+                    description: The private IP address to map to a public IP address.
+                public:
+                    description: The public IP address a private IP address is mapped to.
+            required: true
         ranges
-          description: flat list of IP addresses to map to the name space's public IP address. May be empty.
-          type: list
-          required: true
+            description: flat list of IP addresses to map to the name space's public IP address. May be empty.
+            type: list
+            required: true
         public_ip_ns:
-          description: the name space's pulic IP address.
-          type: str
-          required: true
+            description: the name space's pulic IP address.
+            type: str
+            required: true
         config_file:
             description: path to the config.json file
             type: string
             required: false
     return:
         description: |
-            A tuple with a boolean flag stating if the build was successful or not and
-            the output or error message.
+            A tuple with a boolean flag stating if the build was successful or not and the output or error message.
         type: tuple
     """
 
@@ -68,10 +65,10 @@ def build(
     3022: f'Failed to run flush_postrouting payload on the enabled PodNet. Payload exited with status ',
     3023: f'Failed to connect to the enabled PodNet for flush_prerouting payload: ',
     3024: f'Failed to run flush_prerouting payload on the enabled PodNet. Payload exited with status ',
-    3025: f'Failed to connect to the enabled PodNet for postrouting_11 payload (%(payload)s): ',
-    3026: f'Failed to run postrouting_11 payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
-    3027: f'Failed to connect to the enabled PodNet for prerouting_11 payload (%(payload)s): ',
-    3028: f'Failed to run prerouting_11 payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
+    3025: f'Failed to connect to the enabled PodNet for postrouting_one_to_one payload (%(payload)s): ',
+    3026: f'Failed to run postrouting_one_to_one payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
+    3027: f'Failed to connect to the enabled PodNet for prerouting_one_to_one payload (%(payload)s): ',
+    3028: f'Failed to run prerouting_one_to_one payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
     3029: f'Failed to connect to the enabled PodNet for range payload (%(payload)s): ',
     3030: f'Failed to run range payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
 
@@ -79,10 +76,10 @@ def build(
     3062: f'Failed to run flush_postrouting payload on the enabled PodNet. Payload exited with status ',
     3063: f'Failed to connect to the enabled PodNet for flush_prerouting payload: ',
     3064: f'Failed to run flush_prerouting payload on the enabled PodNet. Payload exited with status ',
-    3065: f'Failed to connect to the enabled PodNet for postrouting_11 payload (%(payload)s): ',
-    3066: f'Failed to run postrouting_11 payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
-    3067: f'Failed to connect to the enabled PodNet for prerouting_11 payload (%(payload)s): ',
-    3068: f'Failed to run prerouting_11 payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
+    3065: f'Failed to connect to the enabled PodNet for postrouting_one_to_one payload (%(payload)s): ',
+    3066: f'Failed to run postrouting_one_to_one payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
+    3067: f'Failed to connect to the enabled PodNet for prerouting_one_to_one payload (%(payload)s): ',
+    3068: f'Failed to run prerouting_one_to_one payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
     3069: f'Failed to connect to the enabled PodNet for range payload (%(payload)s): ',
     3070: f'Failed to run range payload (%(payload)s) on the enabled PodNet. Payload exited with status ',
     }
@@ -115,18 +112,13 @@ def build(
 
         payloads = {
             'flush_postrouting': f'ip netns exec {namespace} nft flush chain NAT POSTROUTING',
-            'flush_prerouting': f'ip netns exec {namespace} nft flush chain NAT PREROUTING',
+            'flush_prerouting':  f'ip netns exec {namespace} nft flush chain NAT PREROUTING',
         }
 
-
-
         rule_templates = {
-          'prerouting_11': f'ip netns exec {namespace} '
-                           'nft add rule ip NAT POSTROUTING ip saddr %(private)s snat to %(public)s',
-          'postrouting_11': f'ip netns exec {namespace} '
-                            'nft add rule ip NAT PREROUTING ip daddr %(public)s dnat ip to %(private)s',
-          'range': f'ip netns exec {namespace} '
-                   f'nft add rule ip NAT POSTROUTING ip saddr %(network)s snat to {public_ip_ns}'
+          'postrouting_one_to_one': f'ip netns exec {namespace} nft add rule ip NAT POSTROUTING ip saddr %(private)s snat to %(public)s',
+          'prerouting_one_to_one':  f'ip netns exec {namespace} nft add rule ip NAT PREROUTING ip daddr %(public)s dnat ip to %(private)s',
+          'range':                  f'ip netns exec {namespace} nft add rule ip NAT POSTROUTING ip saddr %(network)s snat to {public_ip_ns}'
         }
 
         ret = rcc.run(payloads['flush_postrouting'])
@@ -144,8 +136,8 @@ def build(
         fmt.add_successful('flush_prerouting', ret)
 
         for mapping in one_to_one:
-            payload_prerouting = rule_templates['prerouting_11'] % mapping
-            payload_postrouting = rule_templates['postrouting_11'] % mapping
+            payload_prerouting = rule_templates['prerouting_one_to_one'] % mapping
+            payload_postrouting = rule_templates['postrouting_one_to_one'] % mapping
 
             ret = rcc.run(payload_postrouting)
             if ret["channel_code"] != CHANNEL_SUCCESS:
