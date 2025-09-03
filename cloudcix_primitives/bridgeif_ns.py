@@ -74,8 +74,10 @@ def build(
         3060: f'Failed to run interface_main payload on the disabled PodNet. Payload exited with status ',
         3061: f'Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_ns:  ',
         3062: f'Failed to run interface_ns payload on the disabled PodNet. Payload exited with status ',
-        3063: f'Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_up:  ',
-        3064: f'Failed to run interface_up payload on the disabled PodNet. Payload exited with status ',
+        3063: f'Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_main_up:  ',
+        3064: f'Failed to run interface_main_up payload on the disabled PodNet. Payload exited with status ',
+        3065: f'Failed to connect to the disabled PodNet from the config file {config_file} for payload interface_ns_up:  ',
+        3066: f'Failed to run interface_ns_up payload on the disabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
@@ -182,12 +184,19 @@ def build(
                 return False, fmt.payload_error(ret, f"{prefix+12}: " + messages[prefix+12]), fmt.successful_payloads
             fmt.add_successful('interface_ns', ret)
 
-        ret = rcc.run(payloads['interface_up'])
+        ret = rcc.run(payloads['interface_main_up'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+13}: " + messages[prefix+13]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             return False, fmt.payload_error(ret, f"{prefix+14}: " + messages[prefix+14]), fmt.successful_payloads
-        fmt.add_successful('interface_up', ret)
+        fmt.add_successful('interface_main_up', ret)
+
+        ret = rcc.run(payloads['interface_ns_up'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+15}: " + messages[prefix+15]), fmt.successful_payloads
+        if ret["payload_code"] != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+16}: " + messages[prefix+16]), fmt.successful_payloads
+        fmt.add_successful('interface_ns_up', ret)
 
         return True, "", fmt.successful_payloads
 
