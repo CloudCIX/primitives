@@ -55,7 +55,7 @@ def build(
         version = 6
         metric = 1024
     # route is created with network address
-    destination_grepsafe = str(dest.netwotk).replace('.', '\\.')
+    destination_grepsafe = str(dest.network).replace('.', '\\.')
 
     # Define message
     messages = {
@@ -173,7 +173,7 @@ def read(
         version = 6
         metric = 1024
     # route is created with network address
-    destination_grepsafe = str(dest.netwotk).replace('.', '\\.')
+    destination_grepsafe = str(dest.network).replace('.', '\\.')
 
     # Define message
     messages = {
@@ -282,7 +282,7 @@ def scrub(
         version = 6
         metric = 1024
     # route is created with network address
-    destination_grepsafe = str(dest.netwotk).replace('.', '\\.')
+    destination_grepsafe = str(dest.network).replace('.', '\\.')
 
     # Define message
     messages = {
