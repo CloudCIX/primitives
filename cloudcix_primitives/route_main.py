@@ -54,6 +54,8 @@ def build(
         v = '-6'
         version = 6
         metric = 1024
+    # route is created with network address
+    destination_grepsafe = str(dest.netwotk).replace('.', '\\.')
 
     # Define message
     messages = {
@@ -83,8 +85,6 @@ def build(
               sort_keys=True)
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
-
-    destination_grepsafe = destination.replace('.', '\.')
 
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
@@ -160,7 +160,7 @@ def read(
     """
 
     try:
-        # change type to ip_interface
+        # route contains network address of sent destination        
         dest = ipaddress.ip_interface(destination)
     except:
         return False, f'{destination} is not a valid IP network.'
@@ -172,6 +172,8 @@ def read(
         v = '-6'
         version = 6
         metric = 1024
+    # route is created with network address
+    destination_grepsafe = str(dest.netwotk).replace('.', '\\.')
 
     # Define message
     messages = {
@@ -183,7 +185,6 @@ def read(
         3251: f'3251: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_main_show:  ',
         3252: f'3252: Failed to run route_main_show payload on the disabled PodNet. Payload exited with status ',
     }
-
 
     # Default config_file if it is None
     if config_file is None:
@@ -199,9 +200,6 @@ def read(
               sort_keys=True)
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
-
-    destination_grepsafe = destination.replace('.', '\.')
-    # Define payload
 
     def run_podnet(podnet_node, prefix, successful_payloads, data_dict):
         retval = True
@@ -283,9 +281,10 @@ def scrub(
         v = '-6'
         version = 6
         metric = 1024
+    # route is created with network address
+    destination_grepsafe = str(dest.netwotk).replace('.', '\\.')
 
     # Define message
-
     messages = {
         1100: f'1100: Successfully deleted IPv{version} route: {destination} through gateway: {gateway} with metric {metric}',
         1101: f'1101: IPv{version} route: {destination} through gateway: {gateway} already does not exist.',
@@ -298,7 +297,6 @@ def scrub(
         3152: f'3152: Failed to connect to the disabled PodNet from the config file {config_file} for payload route_main_del:  ',
         3153: f'3153: Failed to run route_main_del payload on the disabled PodNet. Payload exited with status ',
     }
-
 
     # Default config_file if it is None
     if config_file is None:
@@ -314,8 +312,6 @@ def scrub(
               sort_keys=True)
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
-
-    destination_grepsafe = destination.replace('.', '\.')
 
     def run_podnet(podnet_node, prefix, successful_payloads):
         rcc = SSHCommsWrapper(comms_ssh, podnet_node, 'robot')
