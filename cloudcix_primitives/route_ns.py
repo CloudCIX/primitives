@@ -44,19 +44,18 @@ def build(
     """
     try:
         # change type to ip_interface
-        dest = ipaddress.ip_interface(route["destination"])
+        gateway = ipaddress.ip_interface(route["gateway"])
     except:
-        return False, f'{route["destination"]} is not a valid IP network.'
+        return False, f'{route["gateway"]} is not a valid IP network.'
 
     v = ''
     version = 4
     metric = 512
-    if dest.version == 6:
+    if gateway.version == 6:
         v = '-6'
         version = 6
         metric = 1024
-    # route is created with network address
-    destination_grepsafe = str(dest.network).replace('.', '\\.')
+    gateway_grepsafe = route["gateway"].replace('.', '\\.')
 
     # Define message
     messages = {
@@ -98,7 +97,7 @@ def build(
         )
 
         payloads = {
-            'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
+            'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{gateway_grepsafe}"',
             'route_ns_add' : f'ip netns exec {namespace} ip {v} route add {route["destination"]} via {route["gateway"]} metric {metric}'
             }
 
@@ -162,19 +161,18 @@ def read(
 
     try:
         # change type to ip_interface
-        dest = ipaddress.ip_interface(route["destination"])
+        gateway = ipaddress.ip_interface(route["gateway"])
     except:
-        return False, f'{route["destination"]} is not a valid IP address.'
+        return False, f'{route["gateway"]} is not a valid IP address.'
 
     v = ''
     version = 4
     metric = 512
-    if dest.version == 6:
+    if gateway.version == 6:
         v = '-6'
         version = 6
         metric = 1024
-    # route is created with network address
-    destination_grepsafe = str(dest.network).replace('.', '\\.')
+    gateway_grepsafe = route["gateway"].replace('.', '\\.')
 
     # Define message
     messages = {
@@ -216,7 +214,7 @@ def read(
         )
 
         payloads = {
-            'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
+            'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{gateway_grepsafe}"',
         }
 
         ret = rcc.run(payloads['route_ns_show'])
@@ -270,20 +268,19 @@ def scrub(
     """
 
     try:
-        # change type to ip_ip_interface
-        dest = ipaddress.ip_interface(route["destination"])
+        # change type to ip_interface
+        gateway = ipaddress.ip_interface(route["gateway"])
     except:
-        return False, f'{route["destination"]} is not a valid IP address.'
+        return False, f'{route["gateway"]} is not a valid IP address.'
 
     v = ''
     version = 4
     metric = 512
-    if dest.version == 6:
+    if gateway.version == 6:
         v = '-6'
         version = 6
         metric = 1024
-    # route is created with network address
-    destination_grepsafe = str(dest.network).replace('.', '\\.')
+    gateway_grepsafe = route["gateway"].replace('.', '\\.')
 
     # Define message
     messages = {
@@ -325,7 +322,7 @@ def scrub(
         )
 
         payloads = {
-            'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{destination_grepsafe}"',
+            'route_ns_show': f'ip netns exec {namespace} ip {v} route | grep --word "{gateway_grepsafe}"',
             'route_ns_del' : f'ip netns exec {namespace} ip {v} route del {route["destination"]} via {route["gateway"]}'
             }
         route_exists = True
