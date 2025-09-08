@@ -76,6 +76,7 @@ table inet firewall_main {
     # Traffic FROM PodNet
     chain output {
         type filter hook output priority 0; policy drop;
+        jump icmp6_accept
 {% for rule in outbound_rules %}
         {{ rule }}
 {% endfor %}
