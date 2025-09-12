@@ -92,8 +92,8 @@ def build(
         # Define all payloads
         payloads = {
             'check_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" 2>/dev/null || echo "Interface does not exist"',  
-            'add_route': 'ip netns exec {namespace} ip route add %(network)s dev xfrm{vpn_id}',
-            'del_route': 'ip netns exec {namespace} ip route del %(route)s',
+            'add_route': f'ip netns exec {namespace} ip route add %(network)s dev xfrm{vpn_id}',
+            'del_route': f'ip netns exec {namespace} ip route del %(route)s',
         }
 
         # Remove existing routes first
@@ -217,7 +217,7 @@ def scrub(
         # Define all payloads upfront with consistent formatting
         payloads = {
             'check_routes': f'ip netns exec {namespace} ip route show | grep "dev xfrm{vpn_id}" 2>/dev/null || echo "No routes found"',
-            'del_route': 'ip netns exec {namespace} ip route del %(route)s',
+            'del_route': f'ip netns exec {namespace} ip route del %(route)s',
         }
 
         # Check for existing routes
