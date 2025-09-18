@@ -1,6 +1,6 @@
 connections {
     {{ namespace }}-{{ vpn_id }} {
-        version = "{{ ike_version }}"
+        version = {{ ike_version }}
         aggressive = {{ 'yes' if ike_version == '1' else 'no' }}
         proposals = "{{ ike_encryption }}-{{ ike_authentication }}-{{ ike_dh_groups }}"
 {% if ike_version == '1' %}
