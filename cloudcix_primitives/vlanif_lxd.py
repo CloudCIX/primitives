@@ -137,7 +137,7 @@ def build(
             ]),
             'find_service': f'systemctl status vlanif_lxd_br{vlan}.service',
             'start_service': f'systemctl restart vlanif_lxd_br{vlan}.service && systemctl enable vlanif_lxd_br{vlan}.service',
-            'reload_services': 'systemctl daemon-reload',
+            'reload_services': 'sudo systemctl daemon-reload',
         }
 
         ret = rcc.run(payloads['find_service'])
@@ -399,7 +399,7 @@ def scrub(
             'delete_down_file': f'rm --force {down_script_path}',
             'check_service_file': f'if [ -f "{service_file_path}" ]; then exit 0; else exit 1; fi',
             'delete_service_file': f'rm --force {service_file_path}',
-            'reload_services': 'systemctl daemon-reload',
+            'reload_services': 'sudo systemctl daemon-reload',
         }
 
         ret = rcc.run(payloads['find_service'])
