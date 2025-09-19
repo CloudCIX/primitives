@@ -135,8 +135,8 @@ def build(
                 service_file,
                 "EOF"
             ]),
-            'find_service': f'systemctl status vlanif_lxd_br{vlan}.service',
-            'start_service': f'systemctl restart vlanif_lxd_br{vlan}.service && systemctl enable vlanif_lxd_br{vlan}.service',
+            'find_service': f'sudo systemctl status vlanif_lxd_br{vlan}.service',
+            'start_service': f'sudo systemctl restart vlanif_lxd_br{vlan}.service && sudo systemctl enable vlanif_lxd_br{vlan}.service',
             'reload_services': 'sudo systemctl daemon-reload',
         }
 
@@ -252,7 +252,7 @@ def read(
 
         # define payloads
         payloads = {
-            'find_service': f'systemctl status vlanif_lxd_br{vlan}.service',
+            'find_service': f'sudo systemctl status vlanif_lxd_br{vlan}.service',
             'read_bridge': f'ip link show br{vlan}',
             'read_up_script': f'cat {up_script_path}',
             'read_down_script': f'cat {down_script_path}',
@@ -391,8 +391,8 @@ def scrub(
 
         # define payloads
         payloads = {
-            'find_service': f'systemctl status vlanif_lxd_br{vlan}.service',
-            'stop_service': f'systemctl stop vlanif_lxd_br{vlan}.service && systemctl disable vlanif_lxd_br{vlan}.service',
+            'find_service': f'sudo systemctl status vlanif_lxd_br{vlan}.service',
+            'stop_service': f'sudo systemctl stop vlanif_lxd_br{vlan}.service && sudo systemctl disable vlanif_lxd_br{vlan}.service',
             'check_up_file': f'if [ -f "{up_script_path}" ]; then exit 0; else exit 1; fi',
             'delete_up_file': f'rm --force {up_script_path}',
             'check_down_file': f'if [ -f "{down_script_path}" ]; then exit 0; else exit 1; fi',
