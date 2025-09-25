@@ -178,7 +178,7 @@ def build(
             'root': {
                 'type': 'disk',
                 'path': '/',
-                'pool': 'default',
+                'pool': 'local',
                 'size': f'{size}GB',
             },
             'eth0': {
