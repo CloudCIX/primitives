@@ -19,6 +19,7 @@ __all__ = [
 
 SUCCESS_CODE = 0
 
+
 def build(
         host: str,
         instance_name: str,
@@ -56,18 +57,31 @@ def build(
             description: SSH username for connecting to the host, will default to robot
             type: string
             required: false
+    return:
+        description: |
+            A tuple with a boolean flag stating if the build was successful or not and
+            the output or error message.
+        type: tuple
     """
     # Generate backup name and path
     backup_name = f"{instance_name}_{backup_id}"
     backup_path = os.path.join(backup_dir, f"{backup_name}.tar.gz")
 
+    # Define messages
     messages = {
+        # Success messages
         1000: f"Successfully created backup '{backup_name}' for {instance_type} '{instance_name}' at {backup_path}",
         1001: f"Backup '{backup_name}' for {instance_type} '{instance_name}' already exists on host {host} at {backup_path}",
-        3021: f"Failed to connect to host {host} for payload check_backup: ",
-        3022: f"Failed to create backup for {instance_type} '{instance_name}': ",
-        3023: f"Failed to export backup '{backup_name}' for {instance_type} '{instance_name}': ",
-        3024: f"Failed to verify backup file was created: ",
+        
+        # Error messages
+        3021: f"Failed to connect to host {host} for check_backup payload: ",
+        3022: f"Failed to connect to host {host} for create_backup payload: ",
+        3023: f"Failed to run create_backup payload on {host}. ",
+        3024: f"Failed to connect to host {host} for wait_backup payload: ",
+        3025: f"Failed to connect to host {host} for export_backup payload: ",
+        3026: f"Failed to connect to host {host} for verify_backup payload: ",
+        3027: f"Failed to verify backup file was created at {backup_path}. ",
+        3028: f"Failed to connect to host {host} for cleanup_backup payload: ",
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -90,49 +104,63 @@ def build(
         # 1. Check if backup already exists
         ret = rcc.run(payload=payloads['check_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         
         if 'payload_message' in ret and 'exists' in ret['payload_message']:
             # No need to create backup: it exists already
             return True, f"1001: {messages[1001]}", fmt.successful_payloads
         
-        fmt.add_successful('check_backup', {'exists': False, 'path': backup_path})
+        fmt.add_successful('check_backup', ret)
         
         # 2. Create the backup 
         ret = rcc.run(payload=payloads['create_backup'])
-        if ret["channel_code"] != CHANNEL_SUCCESS or 'payload_message' not in ret or not ret['payload_message']:
-            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+        if 'payload_message' not in ret or not ret['payload_message']:
+            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
         
         try:
             response = json.loads(ret['payload_message'])
             operation_url = response.get("operation")
             if not operation_url:
-                return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}Invalid response"), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3] + "Invalid response, no operation URL"), fmt.successful_payloads
         except (json.JSONDecodeError, TypeError):
-            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}Invalid JSON response"), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+3}: " + messages[prefix+3] + "Invalid JSON response"), fmt.successful_payloads
         
-        fmt.add_successful('create_backup', {'backup_name': backup_name})
+        fmt.add_successful('create_backup', ret)
         
         # 3. Wait for backup to complete
         ret = rcc.run(payload=payloads['wait_backup'](operation_url))
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+2}: {messages[prefix+2]}Backup operation failed"), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+        
+        fmt.add_successful('wait_backup', ret)
         
         # 4. Export the backup
         ret = rcc.run(payload=payloads['export_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+        
+        fmt.add_successful('export_backup', ret)
         
         # 5. Verify the file was created
         ret = rcc.run(payload=payloads['verify_backup'])
-        if ret["channel_code"] != CHANNEL_SUCCESS or 'payload_message' not in ret or 'exists' not in ret['payload_message']:
-            return False, fmt.payload_error(ret, f"{prefix+4}: {messages[prefix+4]}"), fmt.successful_payloads
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+        if 'payload_message' not in ret or 'exists' not in ret['payload_message']:
+            return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
+        
+        fmt.add_successful('verify_backup', ret)
         
         # 6. Clean up - Delete the local LXD backup
         ret = rcc.run(payload=payloads['cleanup_backup'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            # This is not critical - log but don't fail
+            fmt.add_successful('cleanup_warning', {'message': f"{prefix+8}: " + messages[prefix+8] + "Non-critical error"})
+        else:
+            fmt.add_successful('cleanup_backup', ret)
         
         # Success
-        fmt.add_successful('build_complete', {'backup_path': backup_path})
         return True, f"1000: {messages[1000]}", fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3020, {})
@@ -176,6 +204,27 @@ def read(
             description: SSH username for connecting to the host, will default to robot
             type: string
             required: false
+    return:
+        description:
+            status:
+                description: True if all read operations were successful, False otherwise.
+                type: boolean
+            data:
+                type: object
+                description: backup meta data retrieved from host. May be empty if nothing could be retrieved.
+                properties:
+                    backup_exists:
+                        description: whether the backup file exists
+                        type: boolean
+                    backup_path:
+                        description: full path to the backup file
+                        type: string
+                    backup_details:
+                        description: file details if backup exists
+                        type: object
+            messages:
+                type: list
+                description: list of error messages encountered during read operation. May be empty.
     """
     # Generate backup name and filename
     backup_name = f"{instance_name}_{backup_id}"
@@ -183,10 +232,13 @@ def read(
 
     # Define messages
     messages = {
+        # Success messages
         1300: f"Successfully read backup information for {instance_type} '{instance_name}' backup '{backup_name}' at {backup_path}",
-        3321: f"Failed to connect to host {host} for payload check_backup: ",
+        
+        # Error messages
+        3321: f"Failed to connect to host {host} for check_backup payload: ",
         3322: f"Backup '{backup_name}' does not exist on host {host}",
-        3323: f"Failed to get backup details for '{backup_name}': ",
+        3323: f"Failed to connect to host {host} for get_backup_details payload: ",
     }
 
     data_dict = {host: {}}  # Initialize with host key
@@ -211,7 +263,7 @@ def read(
         ret = rcc.run(payload=payloads['check_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             retval = False
-            fmt.store_channel_error(ret, f"{prefix+1}: {messages[prefix+1]}")
+            fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
             return retval, fmt.message_list, fmt.successful_payloads, data_dict
         
         backup_exists = 'payload_message' in ret and 'exists' in ret['payload_message']
@@ -228,14 +280,14 @@ def read(
         
         # 3. Get detailed backup info if it exists
         if backup_exists:
-            fmt.add_successful('check_backup', {'exists': True, 'path': backup_path})
+            fmt.add_successful('check_backup', ret)
             
             # Get file details
             file_ret = rcc.run(payload=payloads['get_backup_details'])
             
             if file_ret["channel_code"] != CHANNEL_SUCCESS:
                 retval = False
-                fmt.store_channel_error(file_ret, f"{prefix+3}: {messages[prefix+3]}")
+                fmt.store_channel_error(file_ret, f"{prefix+3}: " + messages[prefix+3])
                 return retval, fmt.message_list, fmt.successful_payloads, data_dict
             
             # Parse file details
@@ -247,11 +299,11 @@ def read(
                     'size': file_info[2] if len(file_info) > 2 else "Unknown"
                 }
                 data_dict[host]['backup_details'] = backup_details
-                fmt.add_successful('get_backup_info', backup_details)
+                fmt.add_successful('get_backup_details', file_ret)
         else:
             # Backup doesn't exist
             retval = False
-            fmt.store_payload_error(ret, f"{prefix+2}: {messages[prefix+2]}")
+            fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix+2])
             
         return retval, fmt.message_list, fmt.successful_payloads, data_dict
 
@@ -302,6 +354,11 @@ def scrub(
             description: SSH username for connecting to the host, will default to robot
             type: string
             required: false
+    return:
+        description: |
+            A tuple with a boolean flag stating if the scrub was successful or not and
+            the output or error message.
+        type: tuple
     """
     # Generate backup name and filename
     backup_name = f"{instance_name}_{backup_id}"
@@ -309,11 +366,15 @@ def scrub(
 
     # Define messages
     messages = {
+        # Success messages
         1100: f"Successfully removed {instance_type} '{instance_name}' backup '{backup_name}' from {backup_path} on host {host}",
         1101: f"Backup '{backup_name}' for {instance_type} '{instance_name}' does not exist on host {host}",
-        3121: f"Failed to connect to host {host} for payload check_backup: ",
-        3122: f"Failed to delete backup file for '{backup_name}' of {instance_type} '{instance_name}': ",
-        3123: f"Failed to verify deletion of backup file: ",
+        
+        # Error messages
+        3121: f"Failed to connect to host {host} for check_backup payload: ",
+        3122: f"Failed to connect to host {host} for remove_backup payload: ",
+        3123: f"Failed to connect to host {host} for verify_removal payload: ",
+        3124: f"Backup file '{backup_name}' still exists after deletion attempt",
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -333,7 +394,7 @@ def scrub(
         # 1. Check if backup file exists
         ret = rcc.run(payload=payloads['check_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         
         backup_exists = 'payload_message' in ret and 'exists' in ret['payload_message']
         
@@ -341,25 +402,28 @@ def scrub(
         if not backup_exists:
             return True, f"1101: {messages[1101]}", fmt.successful_payloads
         
-        fmt.add_successful('check_backup', {'exists': True, 'path': backup_path})
+        fmt.add_successful('check_backup', ret)
         
         # 3. Delete backup file
         delete_ret = rcc.run(payload=payloads['remove_backup'])
         
         if delete_ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(delete_ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+            return False, fmt.channel_error(delete_ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+        
+        fmt.add_successful('remove_backup', delete_ret)
         
         # 4. Verify the file was deleted
         ret = rcc.run(payload=payloads['verify_removal'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
         
         # 5. Confirm file is gone
         if 'payload_message' in ret and 'exists' in ret['payload_message']:
-            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}Deletion failed"), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+        
+        fmt.add_successful('verify_removal', ret)
         
         # Success
-        fmt.add_successful('remove_backup', {'backup_name': backup_name, 'path': backup_path})
         return True, f"1100: {messages[1100]}", fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3120, {})
