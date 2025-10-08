@@ -69,11 +69,12 @@ def build(
     # Define the messages
     messages = {
         1000: f'Successfully attached network interface to {instance_type} {instance_name} on {endpoint_url}',
-        3021: f'Failed to connect to {endpoint_url} for network or instance operations',
-        3022: f'Failed to retrieve networks from {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to retrieve instance {instance_name}. Payload exited with status ',
-        3024: f'Network br{vlan_id} does not exist on {endpoint_url}.',
-        3025: f'Failed to create network device: ',
+        3021: f'Failed to connect to {endpoint_url} for networks.all payload (channel error)',
+        3022: f'Failed to retrieve networks from {endpoint_url} (payload error)',
+        3023: f'Network br{vlan_id} does not exist on {endpoint_url}.',
+        3024: f'Failed to connect to {endpoint_url} for instances.get payload (channel error)',
+        3025: f'Failed to retrieve instance {instance_name} (payload error)',
+        3026: f'Failed to create network device: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -103,14 +104,14 @@ def build(
                 network_exists = True
 
         if not network_exists:
-            return False, f"{prefix+4}: {messages[prefix+4]}", fmt.successful_payloads
+            return False, f"{prefix+3}: {messages[prefix+3]}", fmt.successful_payloads
 
         # Get the instance
         ret = rcc.run(cli='instances.get', name=instance_name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+4}: {messages[prefix+4]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
-            return False, fmt.payload_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+5}: {messages[prefix+5]}"), fmt.successful_payloads
 
         instance = ret['payload_message']
         fmt.add_successful('instances.get', ret)
@@ -140,7 +141,7 @@ def build(
             instance.save(wait=True)
             fmt.add_successful('network_device.create', {device_name: 'created'})
         except Exception as e:
-            return False, f"{prefix+5}: {messages[prefix+5]}{e}", fmt.successful_payloads
+            return False, f"{prefix+6}: {messages[prefix+6]}{e}", fmt.successful_payloads
 
         return True, f'1000: {messages[1000]}', fmt.successful_payloads
 
@@ -192,8 +193,8 @@ def read(
     messages = {
         1200: f'Successfully read network configuration for {instance_type} {instance_name} on {endpoint_url}',
         1201: f'No secondary network interfaces found for {instance_type} {instance_name} on {endpoint_url}',
-        3221: f'Failed to connect to {endpoint_url} for instance operations',
-        3222: f'Failed to retrieve instance {instance_name}. Payload exited with status ',
+        3221: f'Failed to connect to {endpoint_url} for instances.get payload (channel error)',
+        3222: f'Failed to retrieve instance {instance_name} (payload error)',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -294,8 +295,8 @@ def scrub(
     # Define the messages
     messages = {
         1100: f'Successfully removed network interface {device_name} from {instance_type} {instance_name} on {endpoint_url}',
-        3121: f'Failed to connect to {endpoint_url} for instance operations',
-        3122: f'Failed to retrieve instance {instance_name}. Payload exited with status ',
+        3121: f'Failed to connect to {endpoint_url} for instances.get payload (channel error)',
+        3122: f'Failed to retrieve instance {instance_name} (payload error)',
         3123: f'Failed to remove network interface: ',
     }
 
