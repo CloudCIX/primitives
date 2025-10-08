@@ -75,14 +75,21 @@ def build(
         
         # Error messages
         3021: f"Failed to connect to host {host} for check_backup payload: ",
-        3022: f"Failed to connect to host {host} for check_lxd_backup payload: ",
-        3023: f"Failed to connect to host {host} for create_backup payload: ",
-        3024: f"Failed to run create_backup payload on {host}. ",
-        3025: f"Failed to connect to host {host} for wait_backup payload: ",
-        3026: f"Failed to connect to host {host} for export_backup payload: ",
-        3027: f"Failed to connect to host {host} for verify_backup payload: ",
-        3028: f"Failed to verify backup file was created at {backup_path}. ",
-        3029: f"Failed to connect to host {host} for cleanup_backup payload: ",
+        3022: f"Failed to execute check_backup payload on {host}. ",
+        3023: f"Failed to connect to host {host} for check_lxd_backup payload: ",
+        3024: f"Failed to execute check_lxd_backup payload on {host}. ",
+        3025: f"Failed to connect to host {host} for create_backup payload: ",
+        3026: f"Failed to execute create_backup payload on {host}. ",
+        3027: f"Failed to parse create_backup response on {host}. ",
+        3028: f"Failed to connect to host {host} for wait_backup payload: ",
+        3029: f"Failed to execute wait_backup payload on {host}. ",
+        3030: f"Failed to connect to host {host} for export_backup payload: ",
+        3031: f"Failed to execute export_backup payload on {host}. ",
+        3032: f"Export command produced errors on {host}: ",
+        3033: f"Failed to connect to host {host} for verify_backup payload: ",
+        3034: f"Failed to verify backup file was created at {backup_path}. ",
+        3035: f"Failed to connect to host {host} for cleanup_backup payload: ",
+        3036: f"Failed to execute cleanup_backup payload on {host}. ",
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -113,6 +120,11 @@ def build(
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: " + messages[prefix+1]), fmt.successful_payloads
         
+        # Verify the command executed successfully
+        if ret.get("payload_code") != SUCCESS_CODE and ret.get("payload_code") != 1:
+            # Note: exit code 1 is expected when file doesn't exist, anything else is an error
+            return False, fmt.payload_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+        
         if 'payload_message' in ret and 'exists' in ret['payload_message']:
             return True, f"1001: {messages[1001]}", fmt.successful_payloads
         
@@ -121,60 +133,83 @@ def build(
         # 2. Check if LXD backup exists
         ret = rcc.run(payload=payloads['check_lxd_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+        
+        # Check if the curl command succeeded
+        if ret.get("payload_code") != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
         
         # Check if response indicates backup exists (not a 404 error)
         response_msg = ret.get('payload_message', '')
-        if 'error_code":404' not in response_msg and 'not found' not in response_msg.lower():
-            # Backup exists in LXD, return success
-            return True, f"1001: {messages[1001]}", fmt.successful_payloads
+        lxd_backup_exists = 'error_code":404' not in response_msg and 'not found' not in response_msg.lower()
         
-        # 3. Create the backup 
-        ret = rcc.run(payload=payloads['create_backup'])
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
-        if 'payload_message' not in ret or not ret['payload_message']:
-            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4] + f"Backup creation command was: {payloads['create_backup']}"), fmt.successful_payloads
-        
-        
-        try:
-            response = json.loads(ret['payload_message'])
-            operation_url = response.get("operation")
-            if not operation_url:
-                return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4] + f"Invalid response, no operation URL. Response was: {ret['payload_message']}"), fmt.successful_payloads
-        except (json.JSONDecodeError, TypeError) as e:
-            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4] + f"Invalid JSON response: {e}. Raw response: {ret['payload_message']}"), fmt.successful_payloads
-        
-        fmt.add_successful('create_backup', ret)
-        
-        # 4. Wait for backup to complete
-        wait_command = payloads['wait_backup'](operation_url)
-        ret = rcc.run(payload=wait_command)
-        if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-        
-        fmt.add_successful('wait_backup', ret)
+        # 3. Create the backup (only if it doesn't exist in LXD)
+        if not lxd_backup_exists:
+            ret = rcc.run(payload=payloads['create_backup'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+            
+            # Check if the curl command succeeded
+            if ret.get("payload_code") != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+            
+            if 'payload_message' not in ret or not ret['payload_message']:
+                return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7] + f"Backup creation command was: {payloads['create_backup']}"), fmt.successful_payloads
+            
+            try:
+                response = json.loads(ret['payload_message'])
+                operation_url = response.get("operation")
+                if not operation_url:
+                    return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7] + f"Invalid response, no operation URL. Response was: {ret['payload_message']}"), fmt.successful_payloads
+            except (json.JSONDecodeError, TypeError) as e:
+                return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7] + f"Invalid JSON response: {e}. Raw response: {ret['payload_message']}"), fmt.successful_payloads
+            
+            fmt.add_successful('create_backup', ret)
+            
+            # 4. Wait for backup to complete
+            wait_command = payloads['wait_backup'](operation_url)
+            ret = rcc.run(payload=wait_command)
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
+            
+            # Check if the curl command succeeded
+            if ret.get("payload_code") != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
+            
+            fmt.add_successful('wait_backup', ret)
         
         # 5. Export the backup
         ret = rcc.run(payload=payloads['export_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+10}: " + messages[prefix+10]), fmt.successful_payloads
+        
+        # Check if the export command succeeded (curl exit code should be 0)
+        if ret.get("payload_code") != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+11}: " + messages[prefix+11]), fmt.successful_payloads
+        
+        # Check for any errors in stderr output
+        if ret.get("payload_error") and ret["payload_error"].strip():
+            return False, fmt.payload_error(ret, f"{prefix+12}: " + messages[prefix+12] + ret['payload_error']), fmt.successful_payloads
         
         fmt.add_successful('export_backup', ret)
         
         # 6. Verify the file was created
         ret = rcc.run(payload=payloads['verify_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+13}: " + messages[prefix+13]), fmt.successful_payloads
         if 'payload_message' not in ret or 'exists' not in ret['payload_message']:
-            return False, fmt.payload_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+14}: " + messages[prefix+14]), fmt.successful_payloads
         
         fmt.add_successful('verify_backup', ret)
         
         # 7. Clean up - Delete the local LXD backup
         ret = rcc.run(payload=payloads['cleanup_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+15}: " + messages[prefix+15]), fmt.successful_payloads
+        
+        # Check if the curl command succeeded
+        if ret.get("payload_code") != SUCCESS_CODE:
+            return False, fmt.payload_error(ret, f"{prefix+16}: " + messages[prefix+16]), fmt.successful_payloads
         
         fmt.add_successful('cleanup_backup', ret)
         
@@ -427,6 +462,10 @@ def scrub(
         
         if delete_ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(delete_ret, f"{prefix+2}: " + messages[prefix+2]), fmt.successful_payloads
+        
+        # Check if rm command succeeded
+        if delete_ret.get("payload_code") != SUCCESS_CODE:
+            return False, fmt.payload_error(delete_ret, f"{prefix+2}: " + messages[prefix+2] + "Remove command failed. "), fmt.successful_payloads
         
         fmt.add_successful('remove_backup', delete_ret)
         
