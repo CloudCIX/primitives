@@ -68,6 +68,10 @@ def build(
         gateway_interface:
             type: object
             properties:
+                device_identifier:
+                    description: The device identifier of network device fro the gateway interface for the LXD instance e.g. eth0
+                    type: string
+                    required: true
                 vlan:
                     description: The VLAN ID of the gateway interface for the LXD instance
                     type: string
@@ -120,6 +124,10 @@ def build(
             items:
                 type: object
                 properties:
+                    device_identifier:
+                        description: The device identifier of network device fro the gateway interface for the LXD instance e.g. eth1
+                        type: string
+                        required: true
                     vlan:
                         description: The VLAN ID of the interface for the LXD instance
                         type: string
@@ -170,7 +178,6 @@ def build(
         'config': {
             'limits.cpu': f'{cpu}',
             'limits.memory': f'{ram}GB',
-            'volatile.eth0.hwaddr': gateway_interface['mac_address'],
             'cloud-init.network-config': network_config,
             'cloud-init.user-data': userdata,
         },
@@ -181,7 +188,7 @@ def build(
                 'pool': 'local',
                 'size': f'{size}GB',
             },
-            'eth0': {
+            gateway_interface['device_identifier']: {
                 'type': 'nic',
                 'network': f'br{gateway_interface["vlan"]}',
                 'ipv4.address': None,
@@ -196,17 +203,20 @@ def build(
             'server': image['filename'],
         },
     }
+    if gateway_interface['mac_address']:
+        config['config'][f'volatile.{gateway_interface["device_identifier"]}.hwaddr'] = gateway_interface['mac_address']
+
     if len(secondary_interfaces) > 0:
-        n = 1
         for interface in secondary_interfaces:
-            config['devices'][f'eth{n}'] = {
+            device_identifier = interface['device_identifier']
+            config['devices'][device_identifier] = {
                 'type': 'nic',
                 'network': f'br{interface["vlan"]}',
                 'ipv4.address': None,
                 'ipv6.address': None,
             }
-            config['config'][f'volatile.eth{n}.hwaddr'] = interface['mac_address']
-            n += 1
+            if interface['mac_address']:
+                config['config'][f'volatile.{device_identifier}.hwaddr'] = interface['mac_address']
 
     def run_host(endpoint_url, prefix, successful_payloads):
 
