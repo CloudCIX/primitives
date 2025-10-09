@@ -178,7 +178,6 @@ def build(
         'config': {
             'limits.cpu': f'{cpu}',
             'limits.memory': f'{ram}GB',
-            f'volatile.{gateway_interface["device_identifier"]}.hwaddr': gateway_interface['mac_address'],
             'cloud-init.network-config': network_config,
             'cloud-init.user-data': userdata,
         },
@@ -204,6 +203,9 @@ def build(
             'server': image['filename'],
         },
     }
+    if gateway_interface['mac_address']:
+        config['config'][f'volatile.{gateway_interface["device_identifier"]}.hwaddr'] = gateway_interface['mac_address']
+
     if len(secondary_interfaces) > 0:
         for interface in secondary_interfaces:
             device_identifier = interface['device_identifier']
@@ -213,7 +215,8 @@ def build(
                 'ipv4.address': None,
                 'ipv6.address': None,
             }
-            config['config'][f'volatile.{device_identifier}.hwaddr'] = interface['mac_address']
+            if interface['mac_address']:
+                config['config'][f'volatile.{device_identifier}.hwaddr'] = interface['mac_address']
 
     def run_host(endpoint_url, prefix, successful_payloads):
 
