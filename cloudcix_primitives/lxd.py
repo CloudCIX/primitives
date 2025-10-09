@@ -523,11 +523,10 @@ def scrub(endpoint_url: str, project: str, instance_name: str, instance_type: st
         1100: f'Successfully scrubbed {instance_type} {instance_name} on {endpoint_url}',
 
         3121: f'Failed to connect to {endpoint_url} for instances.get payload',
-        3122: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
-        3123: f'Failed to connect to {endpoint_url} for instances.all payload',
-        3124: f'Failed to run instances.all payload on {endpoint_url}. Payload exited with status ',
-        3125: f'Failed to connect to {endpoint_url} for projects["{project}"].delete payload',
-        3126: f'Failed to run projects["{project}"].delete payload on {endpoint_url}. Payload exited with status ',
+        3122: f'Failed to connect to {endpoint_url} for instances.all payload',
+        3123: f'Failed to run instances.all payload on {endpoint_url}. Payload exited with status ',
+        3124: f'Failed to connect to {endpoint_url} for projects["{project}"].delete payload',
+        3125: f'Failed to run projects["{project}"].delete payload on {endpoint_url}. Payload exited with status ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -544,7 +543,8 @@ def scrub(endpoint_url: str, project: str, instance_name: str, instance_type: st
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
-            return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+            # Instance not found - already removed from host
+            return True, '', fmt.successful_payloads
 
         # Stop the instance.
         instance = ret['payload_message']
@@ -557,17 +557,17 @@ def scrub(endpoint_url: str, project: str, instance_name: str, instance_type: st
         # Check if it is the last instance in the project
         ret = project_rcc.run(cli=f'instances.all')
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
-            return False, fmt.payload_error(ret, f"{prefix+4}: {messages[prefix+4]}"), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
 
         if len(ret['payload_message']) == 0:
             # It was the last LXD instance in the project on this LXD host so the project can be deleted.
             ret = rcc.run(cli=f'projects["{project}"].delete', api=True)
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
             if ret["payload_code"] != API_SUCCESS:
-                return False, fmt.payload_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
 
         return True, '', fmt.successful_payloads
 
