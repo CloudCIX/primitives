@@ -65,11 +65,13 @@ def build(
         1000: f'Successfully created bridge_lxd {name} on {endpoint_url} cluster.',
         3021: f'Failed to connect to {endpoint_url} for networks.exists payload',
         3022: f'Failed to run networks.exists payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to connect to {endpoint_url} for networks.create payload',
-        3024: f'Failed to run networks.create payload on {endpoint_url}. Payload exited with status ',
-        3025: f'Failed to retrieve cluster nodes from {endpoint_url}',
-        3026: f'Failed to stage network on cluster node ',
-        3027: f'Failed to commit network configuration cluster-wide on {endpoint_url}',
+        3023: f'Failed to connect to {endpoint_url} for cluster.members.get (channel error)',
+        3024: f'Failed to run cluster.members.get on {endpoint_url} (payload error)',
+        3025: f'Failed to retrieve cluster nodes from {endpoint_url} - Invalid response format: ',
+        3026: f'Failed to connect to {endpoint_url} for networks.post stage on node ',
+        3027: f'Failed to run networks.post stage payload on node ',
+        3028: f'Failed to connect to {endpoint_url} for networks.post commit (channel error)',
+        3029: f'Failed to run networks.post commit payload on {endpoint_url} (payload error)',
     }
 
     rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
@@ -96,17 +98,17 @@ def build(
             ret = rcc.run(cli='cluster.members.get', api=True)
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
-                return False, f"{prefix+5}: {messages[prefix+5]}{error_detail}"
+                return False, f"{prefix+3}: {messages[prefix+3]}{error_detail}"
             if ret["payload_code"] != API_SUCCESS:
                 error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
                 payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
-                return False, f"{prefix+5}: {messages[prefix+5]}{error_detail}{payload_msg}"
+                return False, f"{prefix+4}: {messages[prefix+4]}{error_detail}{payload_msg}"
             
             try:
                 metadata = ret['payload_message']['metadata']
                 cluster_nodes = [node['server_name'] for node in metadata]
             except (KeyError, TypeError) as e:
-                return False, f"{prefix+5}: {messages[prefix+5]} - Invalid response format: {str(e)}"
+                return False, f"{prefix+5}: {messages[prefix+5]}{str(e)}"
         
         fmt.add_successful('cluster.members.get', ret)
         
@@ -130,11 +132,11 @@ def build(
             
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
-                return False, f"{prefix+6}: {messages[prefix+6]} {node} - {error_detail}"
+                return False, f"{prefix+6}: {messages[prefix+6]}{node}{error_detail}"
             if ret["payload_code"] != API_SUCCESS:
                 error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
                 payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
-                return False, f"{prefix+6}: {messages[prefix+6]} {node} - {error_detail}{payload_msg}"
+                return False, f"{prefix+7}: {messages[prefix+7]}{node}{error_detail}{payload_msg}"
             
             fmt.add_successful(f'networks.create.stage.{node}', ret)
             
@@ -154,11 +156,11 @@ def build(
         
         if ret["channel_code"] != CHANNEL_SUCCESS:
             error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
-            return False, f"{prefix+7}: {messages[prefix+7]}{error_detail}"
+            return False, f"{prefix+8}: {messages[prefix+8]}{error_detail}"
         if ret["payload_code"] != API_SUCCESS:
             error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
             payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
-            return False, f"{prefix+7}: {messages[prefix+7]}{error_detail}{payload_msg}"
+            return False, f"{prefix+9}: {messages[prefix+9]}{error_detail}{payload_msg}"
         
         fmt.add_successful('networks.create.commit', ret)
     
@@ -197,8 +199,8 @@ def read(endpoint_url: str,
     # Define message
     messages = {
         1200: f'Successfully read bridge_lxd {name} on {endpoint_url}.',
-        3221: f'Failed to connect to {endpoint_url} for networks.get payload',
-        3222: f'Failed to run networks.get payload on {endpoint_url}. Payload exited with status ',
+        3221: f'Failed to connect to {endpoint_url} for networks.get payload (channel error)',
+        3222: f'Failed to run networks.get payload on {endpoint_url} (payload error)',
     }
 
     # Initialize data structures
@@ -295,10 +297,10 @@ def scrub(
     # Define message
     messages = {
         1100: f'Successfully scrubbed bridge_lxd {name} on {endpoint_url}.',
-        3121: f'Failed to connect to {endpoint_url} for networks.exists payload',
-        3122: f'Failed to run networks.exists payload on {endpoint_url}. Payload exited with status ',
-        3123: f'Failed to connect to {endpoint_url} for networks["{name}"].delete payload',
-        3124: f'Failed to run networks["{name}"].delete payload on {endpoint_url}. Payload exited with status ',
+        3121: f'Failed to connect to {endpoint_url} for networks.exists payload (channel error)',
+        3122: f'Failed to run networks.exists payload on {endpoint_url} (payload error)',
+        3123: f'Failed to connect to {endpoint_url} for networks["{name}"].delete payload (channel error)',
+        3124: f'Failed to run networks["{name}"].delete payload on {endpoint_url} (payload error)',
     }
 
     rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
