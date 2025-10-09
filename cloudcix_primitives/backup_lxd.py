@@ -475,9 +475,10 @@ def scrub(
         
         # Error messages
         3121: f"Failed to connect to host {host} for check_backup payload: ",
-        3122: f"Failed to connect to host {host} for remove_backup payload: ",
-        3123: f"Failed to connect to host {host} for verify_removal payload: ",
-        3124: f"Backup file '{backup_name}' still exists after deletion attempt",
+        3122: f"Failed to connect to host {host} for remove_backup payload (channel error): ",
+        3123: f"Failed to execute remove_backup payload on {host} (payload error): ",
+        3124: f"Failed to connect to host {host} for verify_removal payload: ",
+        3125: f"Backup file '{backup_name}' still exists after deletion attempt",
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -515,18 +516,18 @@ def scrub(
         
         # Check if rm command succeeded
         if delete_ret.get("payload_code") != SUCCESS_CODE:
-            return False, fmt.payload_error(delete_ret, f"{prefix+2}: " + messages[prefix+2] + "Remove command failed. "), fmt.successful_payloads
+            return False, fmt.payload_error(delete_ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
         
         fmt.add_successful('remove_backup', delete_ret)
         
         # 4. Verify the file was deleted
         ret = rcc.run(payload=payloads['verify_removal'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
         
         # 5. Confirm file is gone
         if 'payload_message' in ret and 'exists' in ret['payload_message']:
-            return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
         
         fmt.add_successful('verify_removal', ret)
         
