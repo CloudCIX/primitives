@@ -81,8 +81,8 @@ def build(
         )
 
         payloads = {
-           'check_backup': f'Test-Path -Path "{backup_destination}"',
-           'create_backup': f'Export-VM -Name "{vm_identifier}" -Path "{backup_destination}"',
+           'check_backup': f"Test-Path -Path '{backup_destination}'",
+           'create_backup': f"Export-VM -Name '{vm_identifier}'-Path '{backup_destination}'",
         }
 
         ret = rcc.run(payloads['check_backup'])
@@ -188,7 +188,7 @@ def read(
         )
 
         payloads = {
-            'check_backup': f'Test-Path -Path "{backup_destination}"',
+            'check_backup': f"Test-Path -Path '{backup_destination}'",
             'get_backup_size': f'Get-Item {backup_destination} | Get-ChildItem -Recurse -File | Measure-Object -Sum Length | Select Sum,Count'
         }
 
@@ -284,7 +284,7 @@ def scrub(
         )
 
         payloads = {
-            'check_backup': f'Test-Path -Path "{backup_destination}"',
+            'check_backup': f"Test-Path -Path '{backup_destination}'",
             'remove_backup': f'Remove-Item -Path {backup_destination} -Recurse -Force -Confirm:$false',
         }
 
