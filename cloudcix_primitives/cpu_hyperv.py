@@ -70,7 +70,7 @@ def update(
         )
 
         payloads = {
-            'get_state':    f'$state = Get-VM -Name "{vm_identifier}"; $state.State',
+            'get_state':    f"$state = Get-VM -Name '{vm_identifier}'; $state.State",
             'set_cpu':      f'Set-VMProcessor -VMName {vm_identifier} -Count {cpu}',
         }
 
