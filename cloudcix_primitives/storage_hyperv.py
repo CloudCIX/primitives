@@ -94,7 +94,7 @@ def build(
                                     'Set-Disk -Number $mountedVHD.Number -IsOffline $false;'
                                     '$partition = New-Partition -DiskNumber $mountedVHD.Number -UseMaximumSize -AssignDriveLetter;'
                                     'Format-Volume -DriveLetter $partition.DriveLetter -FileSystem NTFS'
-                                    f' -NewFileSystemLabel "{storage_identifier}" -Confirm:$false;',
+                                    f" -NewFileSystemLabel '{storage_identifier}' -Confirm:$false;",
             'dismount_storage_file': f'Dismount-VHD -Path {storage_path}',
             'attach_storage_file': f'Add-VMHardDiskDrive -VMName {vm_identifier} -Path {storage_path} -ControllerType SCSI'
         }
@@ -284,7 +284,7 @@ def scrub(
         payloads = {
             'read_storage_file': f'Get-VHD -Path {storage_path}',
             'detach_storage_file': f'Remove-VMHardDiskDrive -VMHardDiskDrive (Get-VMHardDiskDrive -VMName "{vm_identifier}"'
-                                   f' | Where-Object {{ $_.Path -EQ "{storage_path}" }}) -Confirm:$false',
+                                   f" | Where-Object {{ $_.Path -EQ '{storage_path}' }}) -Confirm:$false",
             'remove_storage_file': f'Remove-Item -Path {storage_path} -Force -Confirm:$false',
         }
 

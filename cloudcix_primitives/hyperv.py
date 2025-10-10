@@ -246,12 +246,12 @@ def build(
             'dismount_primary_storage': f'Dismount-VHD -Path {storage_path}',
             'remove_mount_dir':         f'Remove-Item -Path {vm_path}\\mount -Recurse -Force',
             'remove_local_mount_dir':   f'rm --force --recursive {vm_local_mount_path}',
-            'create_vm':                f'New-VM -Name {vm_identifier} -Path {vm_path} -Generation 2 -SwitchName "Virtual Switch" -VHDPath {storage_path}',
+            'create_vm':                f"New-VM -Name {vm_identifier} -Path {vm_path} -Generation 2 -SwitchName 'Virtual Switch' -VHDPath {storage_path}",
             'set_cpu':                  f'Set-VMProcessor {vm_identifier} -Count {cpu}',
             'set_ram':                  f'Set-VMMemory {vm_identifier} -DynamicMemoryEnabled $false -StartupBytes {ram}GB',
             'remove_default_nic':       f'Remove-VMNetworkAdapter -VMName {vm_identifier}',
-            'add_vlan_template':        f'Add-VMNetworkAdapter -VMName {vm_identifier} -Name "vNIC-%(vlan)s" -SwitchName "Virtual Switch" -DeviceNaming On; '
-                                        f'Set-VMNetworkAdapterVlan -VMName {vm_identifier} -VMNetworkAdapterName "vNIC-%(vlan)s" -Access -VlanId %(vlan)s',
+            'add_vlan_template':        f"Add-VMNetworkAdapter -VMName {vm_identifier} -Name 'vNIC-%(vlan)s' -SwitchName 'Virtual Switch' -DeviceNaming On; "
+                                        f"Set-VMNetworkAdapterVlan -VMName {vm_identifier} -VMNetworkAdapterName 'vNIC-%(vlan)s' -Access -VlanId %(vlan)s",
             'start_vm':                 f'Start-VM -Name {vm_identifier}; Wait-VM -Name {vm_identifier} -For IPAddress',
         }
 
@@ -439,10 +439,10 @@ def quiesce(host: str, vm_identifier: str) -> Tuple[bool, str]:
 
         payloads = {
             'shutdown_vm':  f'try {{ Stop-VM -Name {vm_identifier} }} catch {{}}; $timeout=300; $interval=1; $elapsed=0; '
-                            f'while($elapsed -lt $timeout -and (Get-VM -Name {vm_identifier}).State -ne "Off")'
+                            f"while($elapsed -lt $timeout -and (Get-VM -Name {vm_identifier}).State -ne 'Off')"
                             '{ Start-Sleep -Seconds $interval; $elapsed+=$interval; }; '
-                            f'if((Get-VM -Name {vm_identifier}).State -ne "Off"){{ Stop-VM -Name $vmName -TurnOff }}',
-            'get_state':    f'$state = Get-VM -Name "{vm_identifier}"; $state.State',
+                            f"if((Get-VM -Name {vm_identifier}).State -ne 'Off'){{ Stop-VM -Name $vmName -TurnOff }}",
+            'get_state':    f"$state = Get-VM -Name '{vm_identifier}'; $state.State",
         }
 
         ret = rcc.run(payloads['shutdown_vm'])
@@ -597,8 +597,8 @@ def restart(host: str, vm_identifier: str) -> Tuple[bool, str]:
         )
 
         payloads = {
-            'restart_vm': f'Start-VM -Name "{vm_identifier}"; Wait-VM "{vm_identifier}" -Timeout 300 -For IPAddress',
-            'get_state':  f'$state = Get-VM -Name "{vm_identifier}"; $state.State',
+            'restart_vm': f"Start-VM -Name '{vm_identifier}'; Wait-VM '{vm_identifier}' -Timeout 300 -For IPAddress",
+            'get_state':  f"$state = Get-VM -Name '{vm_identifier}'; $state.State",
         }
 
         ret = rcc.run(payloads['restart_vm'])
