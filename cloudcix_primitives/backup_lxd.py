@@ -80,17 +80,23 @@ def build(
         3024: f"Failed to execute check_lxd_backup payload on {host}. ",
         3025: f"Failed to connect to host {host} for create_backup payload: ",
         3026: f"Failed to execute create_backup payload on {host}. ",
-        3027: f"Failed to parse create_backup response on {host}. ",
-        3028: f"Failed to connect to host {host} for wait_backup payload: ",
-        3029: f"Failed to execute wait_backup payload on {host}. ",
-        3030: f"Failed to connect to host {host} for export_backup payload: ",
-        3031: f"Failed to execute export_backup payload on {host}. ",
-        3032: f"Export command produced errors on {host}: ",
-        3033: f"Failed to connect to host {host} for verify_backup payload: ",
-        3034: f"Failed to verify backup file was created at {backup_path}. ",
-        3035: f"Backup file at {backup_path} is empty. ",
-        3036: f"Failed to connect to host {host} for cleanup_backup payload: ",
-        3037: f"Failed to execute cleanup_backup payload on {host}. ",
+        3027: f"Failed to parse create_backup response on {host} - no payload: ",
+        3028: f"Failed to parse create_backup response on {host} - no operation URL: ",
+        3029: f"Failed to parse create_backup response on {host} - invalid JSON: ",
+        3030: f"Failed to connect to host {host} for wait_backup payload: ",
+        3031: f"Failed to execute wait_backup payload on {host}. ",
+        3032: f"Failed to connect to host {host} for export_backup payload: ",
+        3033: f"Failed to execute export_backup payload on {host}. ",
+        3034: f"Export command produced errors on {host}: ",
+        3035: f"Failed to connect to host {host} for verify_backup payload: ",
+        3036: f"Failed to verify backup file was created at {backup_path}. ",
+        3037: f"Failed to connect to host {host} for verify_backup_size payload: ",
+        3038: f"Backup file at {backup_path} is empty. ",
+        3039: f"Failed to parse backup file size on {host}. ",
+        3040: f"Failed to connect to host {host} for cleanup_backup payload (export failed): ",
+        3041: f"Failed to execute cleanup_backup payload on {host} (export failed). ",
+        3042: f"Failed to connect to host {host} for cleanup_backup payload (final cleanup): ",
+        3043: f"Failed to execute cleanup_backup payload on {host} (final cleanup). ",
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -171,9 +177,9 @@ def build(
                 response = json.loads(ret['payload_message'])
                 operation_url = response.get("operation")
                 if not operation_url:
-                    return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7] + f"Invalid response, no operation URL. Response was: {ret['payload_message']}"), fmt.successful_payloads
+                    return False, fmt.payload_error(ret, f"{prefix+8}: " + messages[prefix+8] + f"Invalid response, no operation URL. Response was: {ret['payload_message']}"), fmt.successful_payloads
             except (json.JSONDecodeError, TypeError) as e:
-                return False, fmt.payload_error(ret, f"{prefix+7}: " + messages[prefix+7] + f"Invalid JSON response: {e}. Raw response: {ret['payload_message']}"), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9] + f"Invalid JSON response: {e}. Raw response: {ret['payload_message']}"), fmt.successful_payloads
             
             fmt.add_successful('create_backup', ret)
             
@@ -181,11 +187,11 @@ def build(
             wait_command = payloads['wait_backup'](operation_url)
             ret = rcc.run(payload=wait_command)
             if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f"{prefix+8}: " + messages[prefix+8]), fmt.successful_payloads
+                return False, fmt.channel_error(ret, f"{prefix+10}: " + messages[prefix+10]), fmt.successful_payloads
             
             # Check if the curl command succeeded
             if ret.get("payload_code") != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f"{prefix+9}: " + messages[prefix+9]), fmt.successful_payloads
+                return False, fmt.payload_error(ret, f"{prefix+11}: " + messages[prefix+11]), fmt.successful_payloads
             
             fmt.add_successful('wait_backup', ret)
         
@@ -193,7 +199,7 @@ def build(
         ret = rcc.run(payload=payloads['export_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
             # Don't cleanup if we can't even connect
-            return False, fmt.channel_error(ret, f"{prefix+10}: " + messages[prefix+10]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+12}: " + messages[prefix+12]), fmt.successful_payloads
         
         # Check if the export command succeeded (curl exit code should be 0)
         export_failed = False
@@ -201,12 +207,12 @@ def build(
         
         if ret.get("payload_code") != SUCCESS_CODE:
             export_failed = True
-            export_error_msg = fmt.payload_error(ret, f"{prefix+11}: " + messages[prefix+11])
+            export_error_msg = fmt.payload_error(ret, f"{prefix+13}: " + messages[prefix+13])
         
         # Check for any errors in stderr output
         if ret.get("payload_error") and ret["payload_error"].strip():
             export_failed = True
-            export_error_msg = fmt.payload_error(ret, f"{prefix+12}: " + messages[prefix+12] + ret['payload_error'])
+            export_error_msg = fmt.payload_error(ret, f"{prefix+14}: " + messages[prefix+14] + ret['payload_error'])
         
         if not export_failed:
             fmt.add_successful('export_backup', ret)
@@ -216,12 +222,12 @@ def build(
         if ret["channel_code"] != CHANNEL_SUCCESS:
             # Attempt cleanup before returning error
             rcc.run(payload=payloads['cleanup_backup'])
-            return False, fmt.channel_error(ret, f"{prefix+13}: " + messages[prefix+13]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+15}: " + messages[prefix+15]), fmt.successful_payloads
         
         if 'payload_message' not in ret or 'exists' not in ret['payload_message']:
             # Attempt cleanup before returning error
             rcc.run(payload=payloads['cleanup_backup'])
-            return False, fmt.payload_error(ret, f"{prefix+14}: " + messages[prefix+14]), fmt.successful_payloads
+            return False, fmt.payload_error(ret, f"{prefix+16}: " + messages[prefix+16]), fmt.successful_payloads
         
         fmt.add_successful('verify_backup', ret)
         
@@ -230,36 +236,42 @@ def build(
         if size_ret["channel_code"] != CHANNEL_SUCCESS:
             # Attempt cleanup before returning error
             rcc.run(payload=payloads['cleanup_backup'])
-            return False, fmt.channel_error(size_ret, f"{prefix+13}: " + messages[prefix+13]), fmt.successful_payloads
+            return False, fmt.channel_error(size_ret, f"{prefix+17}: " + messages[prefix+17]), fmt.successful_payloads
         
         file_size = size_ret.get('payload_message', '0').strip()
         try:
             if int(file_size) == 0:
                 # Attempt cleanup before returning error
                 rcc.run(payload=payloads['cleanup_backup'])
-                return False, fmt.payload_error(size_ret, f"{prefix+15}: " + messages[prefix+15]), fmt.successful_payloads
+                return False, fmt.payload_error(size_ret, f"{prefix+18}: " + messages[prefix+18]), fmt.successful_payloads
         except ValueError:
             # Attempt cleanup before returning error
             rcc.run(payload=payloads['cleanup_backup'])
-            return False, fmt.payload_error(size_ret, f"{prefix+15}: " + messages[prefix+15] + f"Invalid size output: {file_size}"), fmt.successful_payloads
+            return False, fmt.payload_error(size_ret, f"{prefix+19}: " + messages[prefix+19] + f"Invalid size output: {file_size}"), fmt.successful_payloads
         
         fmt.add_successful('verify_backup_size', size_ret)
         
         # If export failed earlier but file exists and has content, still return the error
         if export_failed:
             # Attempt cleanup before returning error
-            rcc.run(payload=payloads['cleanup_backup'])
+            cleanup_ret = rcc.run(payload=payloads['cleanup_backup'])
+            if cleanup_ret["channel_code"] != CHANNEL_SUCCESS:
+                # Add cleanup error to the export error message
+                cleanup_error = fmt.channel_error(cleanup_ret, f"{prefix+20}: " + messages[prefix+20])
+                export_error_msg += f" Additionally, cleanup failed: {cleanup_error}"
+            elif cleanup_ret.get("payload_code") != SUCCESS_CODE:
+                cleanup_error = fmt.payload_error(cleanup_ret, f"{prefix+21}: " + messages[prefix+21])
+                export_error_msg += f" Additionally, cleanup failed: {cleanup_error}"
             return False, export_error_msg, fmt.successful_payloads
         
         # Step 7: Clean up - Delete the local LXD backup
         ret = rcc.run(payload=payloads['cleanup_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            # Don't fail the whole operation if cleanup fails - backup file exists and is valid
-            # Just log the warning but return success
-            pass  # Could log this
+            # Log warning but don't fail the operation since backup file exists and is valid
+            warning_msg = fmt.channel_error(ret, f"{prefix+22}: " + messages[prefix+22])
         elif ret.get("payload_code") != SUCCESS_CODE:
-            # Don't fail the whole operation if cleanup fails
-            pass  # Could log this
+            # Log warning but don't fail the operation
+            warning_msg = fmt.payload_error(ret, f"{prefix+23}: " + messages[prefix+23])
         else:
             fmt.add_successful('cleanup_backup', ret)
         
@@ -340,8 +352,10 @@ def read(
         
         # Error messages
         3321: f"Failed to connect to host {host} for check_backup payload: ",
-        3322: f"Backup '{backup_name}' does not exist on host {host}",
-        3323: f"Failed to connect to host {host} for get_backup_details payload: ",
+        3322: f"Failed to execute check_backup payload on {host}. ",
+        3323: f"Backup '{backup_name}' does not exist on host {host}",
+        3324: f"Failed to connect to host {host} for get_backup_details payload: ",
+        3325: f"Failed to execute get_backup_details payload on {host}. ",
     }
 
     data_dict = {host: {}}  # Initialize with host key
@@ -369,6 +383,12 @@ def read(
             fmt.store_channel_error(ret, f"{prefix+1}: " + messages[prefix+1])
             return retval, fmt.message_list, fmt.successful_payloads, data_dict
         
+        # Check if the test command succeeded (should be 0 or 1)
+        if ret.get("payload_code") not in (SUCCESS_CODE, 1):
+            retval = False
+            fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix+2])
+            return retval, fmt.message_list, fmt.successful_payloads, data_dict
+        
         backup_exists = 'payload_message' in ret and 'exists' in ret['payload_message']
         
         # 2. Add basic information to response
@@ -390,7 +410,13 @@ def read(
             
             if file_ret["channel_code"] != CHANNEL_SUCCESS:
                 retval = False
-                fmt.store_channel_error(file_ret, f"{prefix+3}: " + messages[prefix+3])
+                fmt.store_channel_error(file_ret, f"{prefix+4}: " + messages[prefix+4])
+                return retval, fmt.message_list, fmt.successful_payloads, data_dict
+            
+            # Check if the commands succeeded
+            if file_ret.get("payload_code") != SUCCESS_CODE:
+                retval = False
+                fmt.store_payload_error(file_ret, f"{prefix+5}: " + messages[prefix+5])
                 return retval, fmt.message_list, fmt.successful_payloads, data_dict
             
             # Parse file details
@@ -406,7 +432,7 @@ def read(
         else:
             # Backup doesn't exist
             retval = False
-            fmt.store_payload_error(ret, f"{prefix+2}: " + messages[prefix+2])
+            fmt.store_payload_error(ret, f"{prefix+3}: " + messages[prefix+3])
             
         return retval, fmt.message_list, fmt.successful_payloads, data_dict
 
