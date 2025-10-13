@@ -93,8 +93,10 @@ def build(
         3037: f"Failed to connect to host {host} for verify_backup_size payload: ",
         3038: f"Backup file at {backup_path} is empty. ",
         3039: f"Failed to parse backup file size on {host}. ",
-        3040: f"Failed to connect to host {host} for cleanup_backup payload: ",
-        3041: f"Failed to execute cleanup_backup payload on {host}. ",
+        3040: f"Failed to connect to host {host} for cleanup_backup payload (export failed): ",
+        3041: f"Failed to execute cleanup_backup payload on {host} (export failed). ",
+        3042: f"Failed to connect to host {host} for cleanup_backup payload (final cleanup): ",
+        3043: f"Failed to execute cleanup_backup payload on {host} (final cleanup). ",
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -252,18 +254,24 @@ def build(
         # If export failed earlier but file exists and has content, still return the error
         if export_failed:
             # Attempt cleanup before returning error
-            rcc.run(payload=payloads['cleanup_backup'])
+            cleanup_ret = rcc.run(payload=payloads['cleanup_backup'])
+            if cleanup_ret["channel_code"] != CHANNEL_SUCCESS:
+                # Add cleanup error to the export error message
+                cleanup_error = fmt.channel_error(cleanup_ret, f"{prefix+20}: " + messages[prefix+20])
+                export_error_msg += f" Additionally, cleanup failed: {cleanup_error}"
+            elif cleanup_ret.get("payload_code") != SUCCESS_CODE:
+                cleanup_error = fmt.payload_error(cleanup_ret, f"{prefix+21}: " + messages[prefix+21])
+                export_error_msg += f" Additionally, cleanup failed: {cleanup_error}"
             return False, export_error_msg, fmt.successful_payloads
         
         # Step 7: Clean up - Delete the local LXD backup
         ret = rcc.run(payload=payloads['cleanup_backup'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            # Don't fail the whole operation if cleanup fails - backup file exists and is valid
-            # Just log the warning but return success
-            pass  # Could log this
+            # Log warning but don't fail the operation since backup file exists and is valid
+            warning_msg = fmt.channel_error(ret, f"{prefix+22}: " + messages[prefix+22])
         elif ret.get("payload_code") != SUCCESS_CODE:
-            # Don't fail the whole operation if cleanup fails
-            pass  # Could log this
+            # Log warning but don't fail the operation
+            warning_msg = fmt.payload_error(ret, f"{prefix+23}: " + messages[prefix+23])
         else:
             fmt.add_successful('cleanup_backup', ret)
         
