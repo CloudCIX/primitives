@@ -61,6 +61,8 @@ def build(
         3001: f'Failed to connect to {endpoint_url} for storage pool operations',
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to create RadOS Block Device volume {volume_name} in pool {pool_name}',
+        3004: f'Missing required methods on pool object for volume creation',
+        3005: f'Invalid pool object structure during volume creation',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -101,9 +103,9 @@ def build(
             else:
                 return False, f"{prefix+3}: {messages[prefix+3]} - Missing required methods on pool object", fmt.successful_payloads
         except AttributeError as e:
-            return False, f"{prefix+3}: {messages[prefix+3]} - Invalid pool object structure: {str(e)}", fmt.successful_payloads
+            return False, f"{prefix+4}: {messages[prefix+4]} - Invalid pool object structure: {str(e)}", fmt.successful_payloads
         except Exception as e:
-            return False, f"{prefix+3}: {messages[prefix+3]} - {str(e)}", fmt.successful_payloads
+            return False, f"{prefix+5}: {messages[prefix+5]} - {str(e)}", fmt.successful_payloads
 
         return True, '', fmt.successful_payloads
 
@@ -155,6 +157,9 @@ def read(
         3001: f'Failed to connect to {endpoint_url} for storage pool operations',
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to get volume {volume_name} in pool {pool_name}',
+        3004: f'Volume {volume_name} not found in pool {pool_name}',
+        3005: f'Invalid volume object structure during read operation',
+        3006: f'Unexpected error occurred while reading volume "{volume_name}" from storage pool "{pool_name}". Check LXD logs and Ceph cluster status',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -191,7 +196,7 @@ def read(
                 volume = pool_obj.volumes.get("custom", volume_name)
 
             if not volume:
-                return False, {}, f"{prefix+3}: {messages[prefix+3]} - Volume not found"
+                return False, {}, f"{prefix+4}: {messages[prefix+4]}"
                 
             # Extract volume details
             result["volume"] = {
@@ -203,9 +208,9 @@ def read(
             # Return success
             return True, {endpoint_url: result}, messages[1000]
         except AttributeError as e:
-            return False, {}, f"{prefix+3}: {messages[prefix+3]} - Invalid volume object structure: {str(e)}"
+            return False, {}, f"{prefix+5}: {messages[prefix+5]} - Invalid volume object structure: {str(e)}"
         except Exception as e:
-            return False, {}, f"{prefix+3}: {messages[prefix+3]} - {str(e)}"
+            return False, {}, f"{prefix+6}: {messages[prefix+6]} - {str(e)}"
 
     status, result, msg = run_host(endpoint_url, 3000, {})
     
@@ -255,6 +260,8 @@ def scrub(
         3001: f'Failed to connect to {endpoint_url} for storage pool operations',
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to delete volume {volume_name} from pool {pool_name}',
+        3004: f'Invalid volume object structure during scrub operation',
+        3005: f'Unexpected error occurred while deleting volume "{volume_name}" from storage pool "{pool_name}". Volume may be in use or check Ceph cluster status',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -297,9 +304,9 @@ def scrub(
             fmt.add_successful('volume.delete', {'name': volume_name})
             
         except AttributeError as e:
-            return False, f"{prefix+3}: {messages[prefix+3]} - Invalid volume object structure: {str(e)}", fmt.successful_payloads
+            return False, f"{prefix+4}: {messages[prefix+4]} - Invalid volume object structure: {str(e)}", fmt.successful_payloads
         except Exception as e:
-            return False, f"{prefix+3}: {messages[prefix+3]} - {str(e)}", fmt.successful_payloads
+            return False, f"{prefix+5}: {messages[prefix+5]} - {str(e)}", fmt.successful_payloads
 
         return True, '', fmt.successful_payloads
 
@@ -358,6 +365,7 @@ def update(
         3003: f'Failed to get volume {volume_name} in pool {pool_name}',
         3004: f'Failed to update volume {volume_name} in pool {pool_name}',
         3005: f'Volume {volume_name} not found in pool {pool_name}',
+        3006: f'Unexpected error occurred while updating volume "{volume_name}" to {size}GiB. Check LXD logs and ensure volume is not attached to instances',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -407,8 +415,7 @@ def update(
         except AttributeError as e:
             return False, f"{prefix+4}: {messages[prefix+4]} - Invalid volume object structure: {str(e)}", fmt.successful_payloads
         except Exception as e:
-            return False, f"{prefix+4}: {messages[prefix+4]} - {str(e)}", fmt.successful_payloads
-
+            return False, f"{prefix+6}: {messages[prefix+6]} - {str(e)}", fmt.successful_payloads 
         return True, '', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(endpoint_url, 3000, {})
