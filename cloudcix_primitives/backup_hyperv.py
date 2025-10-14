@@ -82,7 +82,7 @@ def build(
 
         payloads = {
            'check_backup': f"Test-Path -Path '{backup_destination}'",
-           'create_backup': f"Export-VM -Name '{vm_identifier}' -Path '{backup_destination}'",
+           'create_backup': f"$job = Export-VM -Name '{vm_identifier}' -Path '{backup_destination}'; Wait-Job $job'",
         }
 
         ret = rcc.run(payloads['check_backup'])
