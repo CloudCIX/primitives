@@ -159,7 +159,7 @@ def read(
         3003: f'Failed to get volume {volume_name} in pool {pool_name}',
         3004: f'Volume {volume_name} not found in pool {pool_name}',
         3005: f'Invalid volume object structure during read operation',
-        3006: f'General error during volume read operation',
+        3006: f'Unexpected error occurred while reading volume "{volume_name}" from storage pool "{pool_name}". Check LXD logs and Ceph cluster status',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -261,7 +261,7 @@ def scrub(
         3002: f'Failed to get storage pool {pool_name} on {endpoint_url}',
         3003: f'Failed to delete volume {volume_name} from pool {pool_name}',
         3004: f'Invalid volume object structure during scrub operation',
-        3005: f'General error during volume scrub operation',
+        3005: f'Unexpected error occurred while deleting volume "{volume_name}" from storage pool "{pool_name}". Volume may be in use or check Ceph cluster status',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -365,7 +365,7 @@ def update(
         3003: f'Failed to get volume {volume_name} in pool {pool_name}',
         3004: f'Failed to update volume {volume_name} in pool {pool_name}',
         3005: f'Volume {volume_name} not found in pool {pool_name}',
-        3006: f'General error during volume update operation',
+        3006: f'Unexpected error occurred while updating volume "{volume_name}" to {size}GiB. Check LXD logs and ensure volume is not attached to instances',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
