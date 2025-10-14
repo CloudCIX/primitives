@@ -16,11 +16,7 @@ __all__ = [
 SUCCESS_CODE = 0
 
 
-def build(
-    bridgename: str,
-    namespace: str,
-    config_file=None
-) -> Tuple[bool, str]:
+def build(bridgename: str, namespace: str, config_file=None) -> Tuple[bool, str]:
     """
     description:
         Creates a veth link on the main namespace and connects it to a bridge.
@@ -210,11 +206,7 @@ def build(
     return True, messages[1000] + '\n' + msg
 
 
-def read(
-    bridgename: str,
-    namespace: str,
-    config_file=None
-) -> Tuple[bool, dict, str]:
+def read(bridgename: str, namespace: str, config_file=None) -> Tuple[bool, dict, str]:
     """
     description:
         reads a namespace.bridgename interface from namespace.
@@ -321,12 +313,7 @@ def read(
         return True, data_dict, (messages[1200])
 
 
-
-def scrub(
-    bridgename: str,
-    namespace: str,
-    config_file=None
-) -> Tuple[bool, str]:
+def scrub(bridgename: str, namespace: str, config_file=None) -> Tuple[bool, str]:
     """
     description:
         Removes the specified veth interface from the given namespace.
@@ -351,26 +338,24 @@ def scrub(
     # Define message
     messages = {
         1100: f'1100: Successfully removed interface {namespace}.{bridgename} inside namespace {namespace} on both PodNet nodes.',
-        1121: f'Interface {namespace}.{bridgename} does not exist on enabled PodNet: interface_check payload exited with status ',
-        1151: f'Interface {namespace}.{bridgename} does not exist on disabled PodNet: interface_check payload exited with status ',
 
         3121: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check_inside: ',
         3122: f'Failed to run payload interface_check_inside on the enabled PodNet. Payload exited with status ',
-        3123: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check_outside: ',
-        3124: f'Failed to run payload interface_check_outside on the enabled PodNet. Payload exited with status ',
-        3125: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload stale_inside_interface_del:  ',
-        3126: f'Failed to run payload stale_inside_interface_del on the enabled PodNet. Payload exited with status ',
-        3127: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload stale_outside_interface_del:  ',
-        3128: f'Failed to run payload stale_outside_interface_del on the enabled PodNet. Payload exited with status ',
+        3123: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload inside_interface_del:  ',
+        3124: f'Failed to run payload inside_interface_del on the enabled PodNet. Payload exited with status ',
+        3125: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check_outside: ',
+        3126: f'Failed to run payload interface_check_outside on the enabled PodNet. Payload exited with status ',
+        3127: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload outside_interface_del:  ',
+        3128: f'Failed to run payload outside_interface_del on the enabled PodNet. Payload exited with status ',
 
         3121: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check_inside: ',
         3122: f'Failed to run payload interface_check_inside on the enabled PodNet. Payload exited with status ',
-        3123: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check_outside: ',
-        3124: f'Failed to run payload interface_check_outside on the enabled PodNet. Payload exited with status ',
-        3125: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload stale_inside_interface_del:  ',
-        3126: f'Failed to run payload stale_inside_interface_del on the enabled PodNet. Payload exited with status ',
-        3127: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload stale_outside_interface_del:  ',
-        3128: f'Failed to run payload stale_outside_interface_del on the enabled PodNet. Payload exited with status ',
+        3123: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload inside_interface_del:  ',
+        3124: f'Failed to run payload inside_interface_del on the enabled PodNet. Payload exited with status ',
+        3125: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload interface_check_outside: ',
+        3126: f'Failed to run payload interface_check_outside on the enabled PodNet. Payload exited with status ',
+        3127: f'Failed to connect to the enabled PodNet from the config file {config_file} for payload outside_interface_del:  ',
+        3128: f'Failed to run payload outside_interface_del on the enabled PodNet. Payload exited with status ',
     }
 
     # Default config_file if it is None
@@ -382,9 +367,7 @@ def scrub(
         if config_data['raw'] is None:
             return False, msg
         else:
-            return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'],
-                                                                               indent=2,
-                                                                               sort_keys=True)
+            return False, msg + "\nJSON dump of raw configuration:\n" + json.dumps(config_data['raw'], indent=2, sort_keys=True)
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
 
@@ -399,9 +382,9 @@ def scrub(
         )
 
         payloads = {
-            'interface_check_outside' : f'ip link show {bridgename}.{namespace}',
             'interface_check_inside' : f'ip netns exec {namespace} ip link show {namespace}.{bridgename}',
             'inside_interface_del':  f'ip netns exec {namespace} ip link del {namespace}.{bridgename}',
+            'interface_check_outside' : f'ip link show {bridgename}.{namespace}',
             'outside_interface_del':  f'ip link del {bridgename}.{namespace}',
         }
 
@@ -419,27 +402,24 @@ def scrub(
                 interface_present_outside = False
         fmt.add_successful('interface_check_inside', ret)
 
+        if interface_present_inside:
+            ret = rcc.run(payloads['inside_interface_del'])
+            if ret["channel_code"] != CHANNEL_SUCCESS:
+                return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+            if ret["payload_code"] != SUCCESS_CODE:
+                return False, fmt.payload_error(ret, f"{prefix+4}: " + messages[prefix+4]), fmt.successful_payloads
+            fmt.add_successful('inside_interface_del', ret)
+
         ret = rcc.run(payloads['interface_check_outside'])
         if ret["channel_code"] != CHANNEL_SUCCESS:
-            return False, fmt.channel_error(ret, f"{prefix+3}: " + messages[prefix+3]), fmt.successful_payloads
+            return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
         if ret["payload_code"] != SUCCESS_CODE:
             if ret["payload_code"] >= 2:
-                fmt.store_payload_error(ret, f"{prefix+4} : " + messages[prefix+4])
+                fmt.store_payload_error(ret, f"{prefix+6} : " + messages[prefix+6])
             # If the interface already does NOT exists returns info and true state
             if ret["payload_code"] == 1:
                 interface_present_inside = False
         fmt.add_successful('interface_check_outside', ret)
-
-        if (not interface_present_inside) and (not interface_present_outside):
-            return True, fmt.payload_error(ret, f"{prefix+1-2000}: " + messages[prefix+1-2000]), fmt.successful_payloads
-
-        if interface_present_inside:
-            ret = rcc.run(payloads['inside_interface_del'])
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                return False, fmt.channel_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
-            if ret["payload_code"] != SUCCESS_CODE:
-                return False, fmt.payload_error(ret, f"{prefix+6}: " + messages[prefix+6]), fmt.successful_payloads
-            fmt.add_successful('inside_interface_del', ret)
 
         if interface_present_outside:
             ret = rcc.run(payloads['outside_interface_del'])
