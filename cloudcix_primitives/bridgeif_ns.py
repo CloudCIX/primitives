@@ -399,7 +399,7 @@ def scrub(bridgename: str, namespace: str, config_file=None) -> Tuple[bool, str]
                 fmt.store_payload_error(ret, f"{prefix+2} : " + messages[prefix+2])
             # If the interface already does NOT exists returns info and true state
             if ret["payload_code"] == 1:
-                interface_present_outside = False
+                interface_present_inside = False
         fmt.add_successful('interface_check_inside', ret)
 
         if interface_present_inside:
@@ -418,7 +418,7 @@ def scrub(bridgename: str, namespace: str, config_file=None) -> Tuple[bool, str]
                 fmt.store_payload_error(ret, f"{prefix+6} : " + messages[prefix+6])
             # If the interface already does NOT exists returns info and true state
             if ret["payload_code"] == 1:
-                interface_present_inside = False
+                interface_present_outside = False
         fmt.add_successful('interface_check_outside', ret)
 
         if interface_present_outside:
