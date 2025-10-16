@@ -16,6 +16,7 @@ instance_name = 'test'
 backup_id = 'backup001'
 backup_dir = '/home/robot/lxd_backups'
 instance_type = 'virtual-machines'
+project_name = 'default'
 username = 'robot'
 
 if len(sys.argv) > 2:
@@ -34,7 +35,10 @@ if len(sys.argv) > 6:
     instance_type = sys.argv[6]
 
 if len(sys.argv) > 7:
-    username = sys.argv[7]
+    project_name = sys.argv[7]
+
+if len(sys.argv) > 8:
+    username = sys.argv[8]
 
 if host is None:
     print('Host is required, please supply the host as second argument.')
@@ -51,6 +55,7 @@ if cmd == 'build':
         backup_id=backup_id,
         backup_dir=backup_dir,
         instance_type=instance_type,
+        project_name=project_name,
         username=username,
     )
 elif cmd == 'read':
