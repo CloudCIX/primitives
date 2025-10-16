@@ -274,7 +274,7 @@ def scrub(
         payloads = {
             'read_snapshot_info': f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
             'remove_snapshot':    f'$job = Remove-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -AsJob; Wait-Job $job ',
-             'remove_subtree':    f'$job = Remove-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -IncludeAllChildSnapshots -AsJob; Wait-Job $job',
+            'remove_subtree':     f'$job = Remove-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -IncludeAllChildSnapshots -AsJob; Wait-Job $job',
         }
 
         ret = rcc.run(payloads['read_snapshot_info'])
