@@ -74,7 +74,7 @@ def build(
             # check if snapshot exists already
             'read_snapshot':        f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
             'set_check_point_type': f'Set-VM -Name {vm_identifier} -CheckpointType Standard',
-            'create_snapshot':      f'Checkpoint-VM -Name {vm_identifier} -SnapshotName {snapshot_identifier} -ErrorAction Stop',
+            'create_snapshot':      f' $job = Checkpoint-VM -Name {vm_identifier} -SnapshotName {snapshot_identifier} -ErrorAction Stop -AsJob; Wait-Job $job',
             # verify snapshot created successfully
             'verify_snapshot':   f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
         }
@@ -273,9 +273,8 @@ def scrub(
 
         payloads = {
             'read_snapshot_info': f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
-            'remove_snapshot':    f'Remove-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} ',
-            'remove_subtree':     f'Remove-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -IncludeAllChildSnapshots',
-
+            'remove_snapshot':    f'$job = Remove-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -AsJob; Wait-Job $job ',
+             'remove_subtree':    f'$job = Remove-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -IncludeAllChildSnapshots -AsJob; Wait-Job $job',
         }
 
         ret = rcc.run(payloads['read_snapshot_info'])
@@ -375,7 +374,7 @@ def update(
 
         payloads = {
             'read_snapshot_info': f'Get-VMSnapshot -VMName {vm_identifier} -Name {snapshot_identifier} -ea SilentlyContinue',
-            'restore_snapshot':   f'Restore-VMCheckpoint -Name {snapshot_identifier} -VMName {vm_identifier} -Confirm:$false',
+            'restore_snapshot':   f'$job = Restore-VMCheckpoint -Name {snapshot_identifier} -VMName {vm_identifier} -Confirm:$false -AsJob; Wait-Job $job',
         }
 
         ret = rcc.run(payloads['read_snapshot_info'])
