@@ -26,6 +26,7 @@ def build(
         backup_id: str,
         backup_dir: str,
         instance_type: str,
+        project_name: str,
         username: str = 'robot',
 ) -> Tuple[bool, str]:
     """
@@ -51,6 +52,10 @@ def build(
             required: true
         instance_type:
             description: type of LXD instance, either 'vms' or 'containers'
+            type: string
+            required: true
+        project_name:
+            description: The project name the instance belongs to
             type: string
             required: true
         username:
@@ -110,17 +115,17 @@ def build(
         payloads = {
             'check_backup': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
             'verify_backup_size': f"test -s {backup_path} && stat -c%s {backup_path} 2>/dev/null || echo '0'",
-            'check_lxd_backup': f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{instance_name}/backups/{backup_name}",
+            'check_lxd_backup': f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket 'lxd/1.0/instances/{instance_name}/backups/{backup_name}?project={project_name}'",
             'create_backup': (
                 f"curl -s -X POST --unix-socket /var/snap/lxd/common/lxd/unix.socket "
-                f"lxd/1.0/instances/{instance_name}/backups "
+                f"'lxd/1.0/instances/{instance_name}/backups?project={project_name}' "
                 f"-H 'Content-Type: application/json' "
                 f"-d '{json.dumps({'name': backup_name, 'compression_algorithm': 'gzip', 'instance_only': False})}'"
             ),
             'wait_backup': lambda op_url: f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd{op_url}/wait",
-            'export_backup': f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{instance_name}/backups/{backup_name}/export > {backup_path}",
+            'export_backup': f"curl -s -X GET --unix-socket /var/snap/lxd/common/lxd/unix.socket 'lxd/1.0/instances/{instance_name}/backups/{backup_name}/export?project={project_name}' > {backup_path}",
             'verify_backup': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
-            'cleanup_backup': f"curl -s -X DELETE --unix-socket /var/snap/lxd/common/lxd/unix.socket lxd/1.0/instances/{instance_name}/backups/{backup_name}",
+            'cleanup_backup': f"curl -s -X DELETE --unix-socket /var/snap/lxd/common/lxd/unix.socket 'lxd/1.0/instances/{instance_name}/backups/{backup_name}?project={project_name}'",
         }
         
         # Step 1: Check if backup file already exists on filesystem
