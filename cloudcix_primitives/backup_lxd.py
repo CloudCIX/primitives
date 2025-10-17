@@ -542,6 +542,9 @@ def scrub(
         3123: f"Failed to execute remove_backup payload on {host} (payload error): ",
         3124: f"Failed to connect to host {host} for verify_removal payload: ",
         3125: f"Backup file '{backup_name}' still exists after deletion attempt",
+        3126: f"Failed to connect to host {host} for check_backup_dir_empty payload: ",
+        3127: f"Failed to connect to host {host} for remove_backup_dir payload: ",
+        3128: f"Failed to execute remove_backup_dir payload on {host}: ",
     }
 
     def run_host(host, prefix, successful_payloads):
@@ -556,6 +559,8 @@ def scrub(
             'check_backup': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
             'remove_backup': f"rm -f {backup_path}",
             'verify_removal': f"[ -f {backup_path} ] && echo 'exists' || echo 'not_found'",
+            'check_backup_dir_empty': f"[ -d {backup_dir} ] && [ -z \"$(ls -A {backup_dir})\" ] && echo 'empty' || echo 'not_empty'",
+            'remove_backup_dir': f"rmdir {backup_dir}",
         }
         
         # 1. Check if backup file exists
@@ -593,6 +598,28 @@ def scrub(
             return False, fmt.payload_error(ret, f"{prefix+5}: " + messages[prefix+5]), fmt.successful_payloads
         
         fmt.add_successful('verify_removal', ret)
+        
+        # 6. Check if backup directory is empty
+        ret = rcc.run(payload=payloads['check_backup_dir_empty'])
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            # Not a critical error, just log and continue
+            warning_msg = fmt.channel_error(ret, f"{prefix+6}: " + messages[prefix+6])
+            return True, f"1100: {messages[1100]}", fmt.successful_payloads
+        
+        # If directory is empty, remove it
+        if 'payload_message' in ret and 'empty' in ret['payload_message']:
+            fmt.add_successful('check_backup_dir_empty', ret)
+            
+            # 7. Remove the empty backup directory
+            dir_ret = rcc.run(payload=payloads['remove_backup_dir'])
+            if dir_ret["channel_code"] != CHANNEL_SUCCESS:
+                # Not a critical error, just log and continue
+                warning_msg = fmt.channel_error(dir_ret, f"{prefix+7}: " + messages[prefix+7])
+            elif dir_ret.get("payload_code") != SUCCESS_CODE:
+                # Not a critical error, just log and continue
+                warning_msg = fmt.payload_error(dir_ret, f"{prefix+8}: " + messages[prefix+8])
+            else:
+                fmt.add_successful('remove_backup_dir', dir_ret)
         
         # Success
         return True, f"1100: {messages[1100]}", fmt.successful_payloads
