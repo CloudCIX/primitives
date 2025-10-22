@@ -88,13 +88,13 @@ def build(
 
         payloads = {
             'read_storage_file': f'Get-VHD -Path {storage_path}',
-            'create_storage_file': f'$job = New-VHD -Path {storage_path} -SizeBytes {size}GB -Dynamic; Wait-Job $job',
+            'create_storage_file': f'$job = New-VHD -Path {storage_path} -SizeBytes {size}GB -Dynamic -AsJob; Wait-Job $job',
             'prepare_storage_file': f'$mountedVHD = Mount-VHD -Path {storage_path} -NoDriveLetter -PassThru;'
                                     'Initialize-Disk -Number $mountedVHD.Number -PartitionStyle GPT;'
                                     'Set-Disk -Number $mountedVHD.Number -IsOffline $false;'
                                     '$partition = New-Partition -DiskNumber $mountedVHD.Number -UseMaximumSize;'
                                     '$job = Format-Volume -Partition $partition -FileSystem NTFS'
-                                    f" -NewFileSystemLabel '{storage_identifier}' -Confirm:$false; Wait-Job $job",
+                                    f" -NewFileSystemLabel '{storage_identifier}' -Confirm:$false -AsJob; Wait-Job $job",
             'dismount_storage_file': f'Dismount-VHD -Path {storage_path}',
             'attach_storage_file': f'Add-VMHardDiskDrive -VMName {vm_identifier} -Path {storage_path} -ControllerType SCSI',
         }
