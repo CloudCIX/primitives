@@ -438,10 +438,11 @@ def quiesce(host: str, vm_identifier: str) -> Tuple[bool, str]:
         )
 
         payloads = {
-            'shutdown_vm':  f'try {{ Stop-VM -Name {vm_identifier} }} catch {{}}; $timeout=300; $interval=1; $elapsed=0; '
+            'shutdown_vm':  f'try {{ Stop-VM -Name {vm_identifier} -AsJob -ErrorAction SilentlyContinue}} catch {{}};'
+                            '$timeout=300; $interval=1; $elapsed=0; '
                             f"while($elapsed -lt $timeout -and (Get-VM -Name {vm_identifier}).State -ne 'Off')"
                             '{ Start-Sleep -Seconds $interval; $elapsed+=$interval; }; '
-                            f"if((Get-VM -Name {vm_identifier}).State -ne 'Off'){{ Stop-VM -Name $vmName -TurnOff }}",
+                            f"if((Get-VM -Name {vm_identifier}).State -ne 'Off'){{ Stop-VM -Name {vm_identifier} -TurnOff -AsJob; Wait-Job $job }}",
             'get_state':    f"$state = Get-VM -Name '{vm_identifier}'; $state.State",
         }
 
@@ -597,7 +598,7 @@ def restart(host: str, vm_identifier: str) -> Tuple[bool, str]:
         )
 
         payloads = {
-            'restart_vm': f"Start-VM -Name '{vm_identifier}'; Wait-VM '{vm_identifier}' -Timeout 300 -For IPAddress",
+            'restart_vm': f"Start-VM -Name '{vm_identifier}' -AsJob; Wait-VM '{vm_identifier}' -Timeout 300 -For IPAddress",
             'get_state':  f"$state = Get-VM -Name '{vm_identifier}'; $state.State",
         }
 
@@ -682,8 +683,8 @@ def scrub(
 
         payloads = {
             'vm_exists': f'$exists = (Get-VM -Name {vm_identifier} -ErrorAction SilentlyContinue) -as [bool]; $exists',
-            'shutdown_vm': f'Stop-VM -Name {vm_identifier} -TurnOff',
-            'remove_vm': f'Remove-VM -Name {vm_identifier} -Force',
+            'shutdown_vm': f'$job = Stop-VM -Name {vm_identifier} -TurnOff -AsJob; Wait-Job $job',
+            'remove_vm': f'$job = Remove-VM -Name {vm_identifier} -Force -AsJob; Wait-Job $job',
             'remove_storage': f'Remove-Item -Path {storage_path} -Force -Confirm:$false',
             'remove_dir': f'Remove-Item -LiteralPath {vm_path} -Force -Recurse'
         }
