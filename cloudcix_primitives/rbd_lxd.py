@@ -89,17 +89,18 @@ def build(
         # STEP 2: Create the volume configuration
         volume_config = {
             "config": {
-                "size": f"{size}GiB"
+                "size": f"{size}GB"
             },
             "name": volume_name,
-            "type": "custom"
+            "type": "custom",
+            "content_type": "filesystem"
         }
         
         # STEP 3: Create the volume (in the specified project)
         try:
             if hasattr(pool_obj, 'volumes') and hasattr(pool_obj.volumes, 'create'):
                 pool_obj.volumes.create(pool_obj.client, volume_config, project=project)
-                fmt.add_successful('volume.create', {'name': volume_name, 'size': f"{size}GiB", 'project': project})
+                fmt.add_successful('volume.create', {'name': volume_name, 'size': f"{size}GB", 'project': project})
             else:
                 return False, f"{prefix+3}: {messages[prefix+3]} - Missing required methods on pool object", fmt.successful_payloads
         except AttributeError as e:
@@ -365,7 +366,7 @@ def update(
         3003: f'Failed to get volume {volume_name} in pool {pool_name}',
         3004: f'Failed to update volume {volume_name} in pool {pool_name}',
         3005: f'Volume {volume_name} not found in pool {pool_name}',
-        3006: f'Unexpected error occurred while updating volume "{volume_name}" to {size}GiB. Check LXD logs and ensure volume is not attached to instances',
+        3006: f'Unexpected error occurred while updating volume "{volume_name}" to {size}GB. Check LXD logs and ensure volume is not attached to instances',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -406,12 +407,12 @@ def update(
             # STEP 4: Update the volume's size
             new_config = {
                 "config": {
-                    "size": f"{size}GiB"
+                    "size": f"{size}GB"
                 }
             }
             volume.config.update(new_config["config"])
             volume.save()
-            fmt.add_successful('volume.update', {'name': volume_name, 'new_size': f"{size}GiB", 'project': project})
+            fmt.add_successful('volume.update', {'name': volume_name, 'new_size': f"{size}GB", 'project': project})
         except AttributeError as e:
             return False, f"{prefix+4}: {messages[prefix+4]} - Invalid volume object structure: {str(e)}", fmt.successful_payloads
         except Exception as e:
