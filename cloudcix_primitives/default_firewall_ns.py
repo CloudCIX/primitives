@@ -180,6 +180,9 @@ def build(
             f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname @PRIVATE oifname @DYN_TUNNEL jump VPNDYN',
             f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname @DYN_TUNNEL oifname @PRIVATE jump VPNDYN',
             f'ip netns exec {namespace} nft add rule inet FILTER FORWARD iifname @PRIVATE oifname @PRIVATE jump PRVT_2_PRVT',
+
+            # Default Allow Outbound to Public Internet
+            f'ip netns exec {namespace} nft add rule inet FILTER PROJECT_OUT accept',
         ]
 
         payloads = {
