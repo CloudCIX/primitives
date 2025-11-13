@@ -197,9 +197,12 @@ def scrub(
     # Define messages
     messages = {
         1100: f'Successfully scrubbed project {name} from {host}',
-        3121: f'Failed to connect to {host} for projects.get payload',
-        3122: f'Failed to run projects.get payload on {host}. Payload exited with status ',
-        3123: f'Failed to delete project {name}. Error: ',
+        1101: f'Project {name} does not exist on {host} (already scrubbed)',
+        3121: f'Failed to connect to {host} for projects.exists payload',
+        3122: f'Failed to run projects.exists payload on {host}. Payload exited with status ',
+        3123: f'Failed to connect to {host} for projects.get payload',
+        3124: f'Failed to run projects.get payload on {host}. Payload exited with status ',
+        3125: f'Failed to delete project {name}. Error: ',
     }
 
     def run_host(endpoint_url, prefix, successful_payloads):
@@ -210,12 +213,26 @@ def scrub(
             successful_payloads,
         )
 
-        # Get the project
-        ret = rcc.run(cli='projects.get', name=name)
+        # Check if project exists first
+        ret = rcc.run(cli='projects.exists', name=name)
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+1}: {messages[prefix+1]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
             return False, fmt.payload_error(ret, f"{prefix+2}: {messages[prefix+2]}"), fmt.successful_payloads
+
+        project_exists = ret['payload_message']
+        fmt.add_successful('projects.exists', ret)
+
+        # If project doesn't exist, that's success for scrub operation
+        if not project_exists:
+            return True, f'1101: {messages[1101]}', fmt.successful_payloads
+
+        # Get the project so we can delete it
+        ret = rcc.run(cli='projects.get', name=name)
+        if ret["channel_code"] != CHANNEL_SUCCESS:
+            return False, fmt.channel_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
+        if ret["payload_code"] != API_SUCCESS:
+            return False, fmt.payload_error(ret, f"{prefix+4}: {messages[prefix+4]}"), fmt.successful_payloads
 
         project = ret['payload_message']
         fmt.add_successful('projects.get', ret)
@@ -225,13 +242,9 @@ def scrub(
             project.delete()
             fmt.add_successful('projects.delete', {'name': name})
         except Exception as e:
-            return False, f"{prefix+3}: {messages[prefix+3]}{e}", fmt.successful_payloads
+            return False, f"{prefix+5}: {messages[prefix+5]}{e}", fmt.successful_payloads
 
-        return True, '', fmt.successful_payloads
+        return True, f'1100: {messages[1100]}', fmt.successful_payloads
 
     status, msg, successful_payloads = run_host(host, 3120, {})
-
-    if status is False:
-        return status, msg
-
-    return True, f'1100: {messages[1100]}'
+    return status, msg
