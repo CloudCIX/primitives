@@ -30,6 +30,7 @@ def build(
     network_config: str,
     userdata: str,
     secondary_interfaces=[],
+    node: str,
     instance_type: str = "container",
     verify_lxd_certs=True,
 ) -> Tuple[bool, str]:
@@ -92,26 +93,23 @@ def build(
             description: |
                 The network details of the interfaces for the LXD instance e.g.
                 '''
-                "version": 2
-                "ethernets": {
-                  "eth0": {
-                      "match": {
-                          "macaddress": "00:16:3e:f0:cc:45"
-                      },
-                      "addresses" : [
-                         "10.0.0.3/24"
-                      ],
-                      "nameservers": {
-                          "addresses": ["8.8.8.8"],
-                          "search": ["cloudcix.com", "cix.ie"]
-                      },
-                      "routes": [{
-                        "to": "default",
-                        "via": "10.0.0.1"
-                      }
-                    ]
-                  }
-                }
+                version: 2
+                ethernets:
+                  eth0:
+                      match:
+                          macaddress: 00:16:3e:f0:cc:45
+                      set-name: "eth0"
+                      addresses:
+                         - 10.0.0.3/24
+                      nameservers:
+                          addresses:
+                            - 8.8.8.8
+                          search:
+                            - cloudcix.com
+                            - cix.ie
+                      routes:
+                        to: default
+                        via: 10.0.0.1
                 '''
             type: string
             required: true
@@ -136,6 +134,9 @@ def build(
                         description: The MAC address of the the interface for the LXD instance
                         type: string
                         required: true
+        node:
+            description: The name of the node in the LXD cluster to place the LXD instance on.
+            type: string 
         instance_type:
             description: The type of LXD instance to create - "container" or "virtual-machine"
             type: string
@@ -256,7 +257,7 @@ def build(
 
         if instance_exists == False:
             # Build instance in Project
-            ret = project_rcc.run(cli='instances.create', config=config, wait=True)
+            ret = project_rcc.run(cli='instances.create', config=config, wait=True, target=node)
             if ret["channel_code"] != CHANNEL_SUCCESS:
                 return False, fmt.channel_error(ret, f"{prefix+7}: " + messages[prefix+7]), fmt.successful_payloads
             if ret["payload_code"] != API_SUCCESS:
