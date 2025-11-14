@@ -98,7 +98,7 @@ def build(
                   eth0:
                       match:
                           macaddress: 00:16:3e:f0:cc:45
-                      set-name: "eth0"
+                      set-name: eth0
                       addresses:
                          - 10.0.0.3/24
                       nameservers:
@@ -108,8 +108,8 @@ def build(
                             - cloudcix.com
                             - cix.ie
                       routes:
-                        to: default
-                        via: 10.0.0.1
+                        - to: default
+                         via: 10.0.0.1
                 '''
             type: string
             required: true
