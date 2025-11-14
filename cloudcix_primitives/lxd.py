@@ -109,7 +109,7 @@ def build(
                             - cix.ie
                       routes:
                         - to: default
-                         via: 10.0.0.1
+                          via: 10.0.0.1
                 '''
             type: string
             required: true
