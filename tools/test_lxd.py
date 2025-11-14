@@ -31,28 +31,23 @@ ram = 2
 size = 50
 secondary_interfaces = []
 verify_lxd_certs  =  False 
+node = 'tux001'
 
 network_config = """
-"version": 2
-"ethernets": {
-  "eth0": {
-      "match": {
-          "macaddress": "00:16:3e:f0:cc:45"
-      },
-      "addresses" : [
-         "10.0.0.3/24"
-      ],
-      "nameservers": {
-          "addresses": ["8.8.8.8"],
-          "search": ["cloudcix.com", "cix.ie"]
-      },
-      "routes": [{
-        "to": "default",
-        "via": "10.0.0.1"
-      }
-    ]
-  }
-}
+version: 2
+ethernets:
+  eth0:
+    match:
+      macaddress: 00:16:3e:f0:cc:45
+    set-name: eth0
+    addresses:
+      - 10.0.0.3/24
+    nameservers:
+      addresses:
+        - 8.8.8.8
+    routes:
+      - to: default
+        via: 10.0.0.1
 """
 
 userdata = """
@@ -107,6 +102,7 @@ if cmd == 'build':
         network_config=network_config,
         userdata=userdata,
         secondary_interfaces=secondary_interfaces,
+        node=node,
         verify_lxd_certs=verify_lxd_certs,
         instance_type='virtual-machine',
     )
