@@ -29,8 +29,8 @@ def build(
     size: int,
     network_config: str,
     userdata: str,
-    secondary_interfaces=[],
     node: str,
+    secondary_interfaces=[],
     instance_type: str = "container",
     verify_lxd_certs=True,
 ) -> Tuple[bool, str]:
@@ -117,6 +117,10 @@ def build(
             description: The cloudinit userdata for the LXD instance
             type: string
             required: true
+        node:
+            description: The name of the node in the LXD cluster to place the LXD instance on.
+            type: string
+            required: true
         secondary_interfaces:
             type: array
             items:
@@ -134,9 +138,6 @@ def build(
                         description: The MAC address of the the interface for the LXD instance
                         type: string
                         required: true
-        node:
-            description: The name of the node in the LXD cluster to place the LXD instance on.
-            type: string 
         instance_type:
             description: The type of LXD instance to create - "container" or "virtual-machine"
             type: string
