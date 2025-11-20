@@ -22,7 +22,7 @@ def build(
         mount_point: str,
         instance_type: str,
         verify_lxd_certs: bool = True,
-        storage_pool: str = "default",
+        storage_pool: str,
 ) -> Tuple[bool, str]:
     """
     description:
