@@ -21,7 +21,7 @@ status = None
 msg = None
 
 def test_update():
-    config_updates = {
+    config = {
         'security.csm': 'true',
         'security.secureboot': 'false',
     }
@@ -30,7 +30,7 @@ def test_update():
         project=project,
         instance_name=name,
         instance_type=instance_type,
-        config_updates=config_updates,
+        config=config,
         verify_lxd_certs=verify_lxd_certs,
     )
     print("Status: %s" % status)

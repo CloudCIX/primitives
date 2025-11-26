@@ -17,7 +17,7 @@ def update(
     project: str,
     instance_name: str,
     instance_type: str,
-    config_updates: Dict[str, str],
+    config: Dict[str, str],
     verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
     """
@@ -41,7 +41,7 @@ def update(
             description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
             required: true
-        config_updates:
+        config:
             description: Dictionary of config key-value pairs to update on the instance.
             type: object
             required: true
@@ -79,9 +79,9 @@ def update(
 
         # Apply config updates
         try:
-            instance.config.update(config_updates)
+            instance.config.update(config)
             instance.save(wait=True)
-            fmt.add_successful('instances.config_update', {'config_updates': config_updates})
+            fmt.add_successful('instances.config_update', {'config': config})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
 
