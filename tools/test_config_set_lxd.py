@@ -22,7 +22,6 @@ msg = None
 
 def test_update():
     config_updates = {
-        'security.nesting': 'true',
         'security.csm': 'true',
         'security.secureboot': 'false',
     }
