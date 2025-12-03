@@ -62,10 +62,11 @@ def build(
         3023: f'Failed to connect to {endpoint_url} for cluster.members.get (channel error)',
         3024: f'Failed to run cluster.members.get on {endpoint_url} (payload error)',
         3025: f'Failed to retrieve cluster nodes from {endpoint_url} - Invalid response format: ',
-        3026: f'Failed to connect to {endpoint_url} for networks.post stage on node ',
-        3027: f'Failed to run networks.post stage payload on node ',
-        3028: f'Failed to connect to {endpoint_url} for networks.post commit (channel error)',
-        3029: f'Failed to run networks.post commit payload on {endpoint_url} (payload error)',
+        3026: f'Failed to parse cluster nodes from {endpoint_url} - Exception: ',
+        3027: f'Failed to connect to {endpoint_url} for networks.post stage on node ',
+        3028: f'Failed to run networks.post stage payload on node ',
+        3029: f'Failed to connect to {endpoint_url} for networks.post commit (channel error)',
+        3030: f'Failed to run networks.post commit payload on {endpoint_url} (payload error)',
     }
 
     rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs)
@@ -117,7 +118,7 @@ def build(
             return False, f"{prefix+5}: {messages[prefix+5]}No cluster nodes found in response"
             
     except Exception as e:
-        return False, f"{prefix+5}: {messages[prefix+5]}{str(e)}"
+        return False, f"{prefix+6}: {messages[prefix+6]}{str(e)}"
     
     # Use all discovered cluster nodes for staging
     cluster_nodes = all_cluster_nodes
@@ -152,13 +153,13 @@ def build(
             json=network_data,
             params={"target": node}
         )
-        
         if ret["channel_code"] != CHANNEL_SUCCESS:
             error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
-            return False, f"{prefix+6}: {messages[prefix+6]}{node}{error_detail}"
+            return False, f"{prefix+7}: {messages[prefix+7]}{node}{error_detail}"
         if ret["payload_code"] != API_SUCCESS:
             error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
             payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
+            return False, f"{prefix+8}: {messages[prefix+8]}{node}{error_detail}{payload_msg}"
             return False, f"{prefix+7}: {messages[prefix+7]}{node}{error_detail}{payload_msg}"
         
         fmt.add_successful(f'networks.create.stage.{node}', ret)
@@ -176,15 +177,15 @@ def build(
         api=True,
         json=final_network
     )
-    
     if ret["channel_code"] != CHANNEL_SUCCESS:
         error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
-        return False, f"{prefix+8}: {messages[prefix+8]}{error_detail}"
+        return False, f"{prefix+9}: {messages[prefix+9]}{error_detail}"
     if ret["payload_code"] != API_SUCCESS:
         error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
         payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
-        return False, f"{prefix+9}: {messages[prefix+9]}{error_detail}{payload_msg}"
+        return False, f"{prefix+10}: {messages[prefix+10]}{error_detail}{payload_msg}"
     
+    fmt.add_successful('networks.create.commit', ret)
     fmt.add_successful('networks.create.commit', ret)
     
     return True, messages[1000]
