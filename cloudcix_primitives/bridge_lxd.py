@@ -21,11 +21,11 @@ def build(
     name: int,
     config=None,
     verify_lxd_certs=True,
-    cluster_nodes=None,
 ) -> Tuple[bool, str]:
     """
     description:
         Configures a bridge on the LXD host in a clustered environment.
+        The bridge will be automatically staged on all cluster members.
 
     parameters:
         endpoint_url:
@@ -45,12 +45,6 @@ def build(
         verify_lxd_certs:
             description: Boolean to verify LXD certs.
             type: boolean
-            required: false
-        cluster_nodes:
-            description: |
-                List of cluster node names to target when creating a bridge in a clustered environment.
-                If not provided, all nodes in the cluster will be used.
-            type: list
             required: false
         
     return:
@@ -92,77 +86,106 @@ def build(
     bridge_exists = ret['payload_message']
     fmt.add_successful('networks.exists', ret)
 
-    if bridge_exists == False:
-        # Fetch cluster nodes if not provided
-        if cluster_nodes is None:
-            ret = rcc.run(cli='cluster.members.get', api=True)
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
-                return False, f"{prefix+3}: {messages[prefix+3]}{error_detail}"
-            if ret["payload_code"] != API_SUCCESS:
-                error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
-                payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
-                return False, f"{prefix+4}: {messages[prefix+4]}{error_detail}{payload_msg}"
-            
-            try:
-                metadata = ret['payload_message']['metadata']
-                cluster_nodes = [node['server_name'] for node in metadata]
-            except (KeyError, TypeError) as e:
-                return False, f"{prefix+5}: {messages[prefix+5]}{str(e)}"
+    if bridge_exists == True:
+        # Network already exists - this is success for idempotent build
+        return True, f'1000: {messages[1000]}'
+
+    # Always fetch all cluster nodes - LXD requires networks to be staged on all members
+    ret = rcc.run(cli='cluster.members.get', api=True)
+    if ret["channel_code"] != CHANNEL_SUCCESS:
+        error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
+        return False, f"{prefix+3}: {messages[prefix+3]}{error_detail}"
+    if ret["payload_code"] != API_SUCCESS:
+        error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
+        payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
+        return False, f"{prefix+4}: {messages[prefix+4]}{error_detail}{payload_msg}"
+    
+    # Parse cluster members from response
+    try:
+        payload = ret['payload_message']
+        response_data = payload.json()
+        metadata = response_data.get('metadata', [])
         
-        fmt.add_successful('cluster.members.get', ret)
+        # Extract node names from URL paths like '/1.0/cluster/members/tux001'
+        all_cluster_nodes = []
+        for item in metadata:
+            if isinstance(item, str) and '/cluster/members/' in item:
+                node_name = item.split('/cluster/members/')[-1]
+                all_cluster_nodes.append(node_name)
         
-        # Step 1: Stage the network on each node using direct API calls
-        for node in cluster_nodes:
-            # Create the network JSON for this specific node
-            network_data = {
-                "name": str(name),
-                "description": f"Bridge network staged on {node}",
-                "type": "bridge",
-                "config": {}
-            }
+        if not all_cluster_nodes:
+            return False, f"{prefix+5}: {messages[prefix+5]}No cluster nodes found in response"
             
-            # Use the direct API endpoint with target parameter
-            ret = rcc.run(
-                cli='networks.post', 
-                api=True,
-                json=network_data,
-                params={"target": node}
-            )
-            
-            if ret["channel_code"] != CHANNEL_SUCCESS:
-                error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
-                return False, f"{prefix+6}: {messages[prefix+6]}{node}{error_detail}"
-            if ret["payload_code"] != API_SUCCESS:
-                error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
-                payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
-                return False, f"{prefix+7}: {messages[prefix+7]}{node}{error_detail}{payload_msg}"
-            
-            fmt.add_successful(f'networks.create.stage.{node}', ret)
-            
-        # Step 2: Commit the final network configuration with full config
-        final_network = {
+    except Exception as e:
+        return False, f"{prefix+5}: {messages[prefix+5]}{str(e)}"
+    
+    # Use all discovered cluster nodes for staging
+    cluster_nodes = all_cluster_nodes
+    fmt.add_successful('cluster.members.get', ret)
+    
+    # Step 1: Stage the network on each node using direct API calls
+    for node in cluster_nodes:
+        # Check if network already exists on this specific node
+        ret_check = rcc.run(
+            cli='networks.exists',
+            name=name,
+            params={"target": node}
+        )
+        
+        # If it exists on this node, skip staging for this node
+        if ret_check.get("payload_code") == API_SUCCESS and ret_check.get('payload_message') == True:
+            fmt.add_successful(f'networks.exists.{node}', ret_check)
+            continue
+        
+        # Create the network JSON for this specific node
+        network_data = {
             "name": str(name),
-            "description": "Clustered bridge network",
+            "description": f"Bridge network staged on {node}",
             "type": "bridge",
-            "config": config or {}
+            "config": {}
         }
         
+        # Use the direct API endpoint with target parameter
         ret = rcc.run(
             cli='networks.post', 
             api=True,
-            json=final_network
+            json=network_data,
+            params={"target": node}
         )
         
         if ret["channel_code"] != CHANNEL_SUCCESS:
             error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
-            return False, f"{prefix+8}: {messages[prefix+8]}{error_detail}"
+            return False, f"{prefix+6}: {messages[prefix+6]}{node}{error_detail}"
         if ret["payload_code"] != API_SUCCESS:
             error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
             payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
-            return False, f"{prefix+9}: {messages[prefix+9]}{error_detail}{payload_msg}"
+            return False, f"{prefix+7}: {messages[prefix+7]}{node}{error_detail}{payload_msg}"
         
-        fmt.add_successful('networks.create.commit', ret)
+        fmt.add_successful(f'networks.create.stage.{node}', ret)
+        
+    # Step 2: Commit the final network configuration with full config
+    final_network = {
+        "name": str(name),
+        "description": "Clustered bridge network",
+        "type": "bridge",
+        "config": config or {}
+    }
+    
+    ret = rcc.run(
+        cli='networks.post', 
+        api=True,
+        json=final_network
+    )
+    
+    if ret["channel_code"] != CHANNEL_SUCCESS:
+        error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
+        return False, f"{prefix+8}: {messages[prefix+8]}{error_detail}"
+    if ret["payload_code"] != API_SUCCESS:
+        error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
+        payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
+        return False, f"{prefix+9}: {messages[prefix+9]}{error_detail}{payload_msg}"
+    
+    fmt.add_successful('networks.create.commit', ret)
     
     return True, messages[1000]
 
