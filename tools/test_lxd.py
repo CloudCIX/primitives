@@ -7,6 +7,7 @@ from cloudcix_primitives import lxd
 
 # Run the following test scripts before this one:
 #
+# * `tools/test_project_lxd.py build` to create the LXD project 'mynetns'
 # * `tools/test_ns.py build mynetns to ensure the name space we want exists
 # * `tools/test_vlanif_ns.py build {vlan} to ensure vlan tagged interface exists on podnet
 # * `tools/test_bridge_lxd.py build br1002 in LXD cluster
