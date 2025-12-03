@@ -12,7 +12,7 @@ from cloudcix_primitives import bridge_lxd
 
 def print_usage():
     print("""
-Usage: test_bridge_lxd.py <command> <endpoint_url> <name> [nodes] [--verify] [--debug]
+Usage: test_bridge_lxd.py <command> <endpoint_url> <name> [--verify] [--debug]
 
 Commands:
   build   - Create a bridge network
@@ -22,17 +22,12 @@ Commands:
 Arguments:
   endpoint_url - The LXD endpoint URL
   name         - The bridge name
-  nodes        - Optional: Comma-separated list of cluster node names
-                 (Only used with build command)
   --verify     - Verify LXD certificates (default: False)
   --debug      - Show more detailed output for debugging
 
 Examples:
-  # Create bridge with auto-detected cluster nodes
+  # Create bridge (auto-discovers all cluster nodes)
   ./test_bridge_lxd.py build https://10.0.0.1:8443 br1002
-  
-  # Create bridge with specific cluster nodes
-  ./test_bridge_lxd.py build https://10.0.0.1:8443 br1002 node1,node2,node3
   
   # Create bridge with certificate verification and debug output
   ./test_bridge_lxd.py build https://10.0.0.1:8443 br1002 --verify --debug
@@ -49,7 +44,6 @@ parser = argparse.ArgumentParser(description='Test LXD bridge operations')
 parser.add_argument('command', choices=['build', 'read', 'scrub'], help='Command to execute')
 parser.add_argument('endpoint_url', help='LXD endpoint URL')
 parser.add_argument('name', nargs='?', default='br1002', help='Bridge name')
-parser.add_argument('nodes', nargs='?', help='Comma-separated cluster nodes (for build command)')
 parser.add_argument('--verify', action='store_true', help='Verify LXD certificates')
 parser.add_argument('--debug', action='store_true', help='Show more detailed output')
 
@@ -74,9 +68,6 @@ config = {
     'ipv4.address': 'none',
 }
 
-# Process cluster nodes if provided
-cluster_nodes = args.nodes.split(',') if args.nodes else None
-
 # Execute command
 status = None
 msg = None
@@ -85,11 +76,7 @@ data = None
 if cmd == 'build':
     print(f"Creating bridge '{name}' on endpoint '{endpoint_url}'")
     print(f"Certificate verification: {'Enabled' if verify_lxd_certs else 'Disabled'}")
-    
-    if cluster_nodes:
-        print(f"Using specified cluster nodes: {', '.join(cluster_nodes)}")
-    else:
-        print("Using auto-detected cluster nodes")
+    print("Auto-discovering all cluster nodes")
     
     if debug_mode:
         print(f"Config: {json.dumps(config, indent=2)}")
@@ -98,8 +85,7 @@ if cmd == 'build':
         endpoint_url=endpoint_url, 
         name=name, 
         config=config, 
-        verify_lxd_certs=verify_lxd_certs,
-        cluster_nodes=cluster_nodes
+        verify_lxd_certs=verify_lxd_certs
     )
 elif cmd == 'read':
     print(f"Reading bridge '{name}' from endpoint '{endpoint_url}'")
