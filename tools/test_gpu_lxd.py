@@ -20,7 +20,7 @@ project = 'default'
 instance_name = 'test-instance'
 instance_type = 'virtual-machine'
 device_identifier = '0000:04:04.0'
-gpu_name = 'gpu0'
+device_name = 'gpu0'
 verify_lxd_certs = False
 
 if len(sys.argv) > 2:
@@ -36,7 +36,7 @@ if len(sys.argv) > 5:
     device_identifier = sys.argv[5]
 
 if len(sys.argv) > 6:
-    gpu_name = sys.argv[6]
+    device_name = sys.argv[6]
 
 if len(sys.argv) > 7:
     instance_type = sys.argv[7]
@@ -51,7 +51,7 @@ if cmd == 'build':
         project=project,
         instance_name=instance_name,
         device_identifier=device_identifier,
-        gpu_name=gpu_name,
+        device_name=device_name,
         instance_type=instance_type,
         verify_lxd_certs=verify_lxd_certs,
     )
@@ -79,7 +79,7 @@ elif cmd == 'scrub':
         project=project,
         instance_name=instance_name,
         device_identifier=device_identifier,
-        gpu_name=gpu_name,
+        device_name=device_name,
         instance_type=instance_type,
         verify_lxd_certs=verify_lxd_certs,
     )
