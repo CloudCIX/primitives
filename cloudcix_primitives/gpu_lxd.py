@@ -271,7 +271,7 @@ def scrub(
             description: The ID of the GPU to detach (PCI address like "0000:01:00.0").
             type: string
             required: true
-        gpu_name:
+        device_name:
             description: The name of the GPU device in LXD to detach.
             type: string
             required: true
