@@ -290,7 +290,7 @@ def scrub(
     """
     # Define messages for different statuses
     messages = {
-        1000: f'Successfully detached GPU {gpu_name} from {instance_type} {instance_name} on {endpoint_url}',
+        1000: f'Successfully detached GPU {device_name} from {instance_type} {instance_name} on {endpoint_url}',
         1001: f'No GPU device matching {device_name} found in {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
