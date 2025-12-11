@@ -63,7 +63,6 @@ def build(
     """
     
     # Use the gpu_name parameter as the device name
-    device_name = gpu_name
     
     messages = {
         1000: f'Successfully attached GPU {device_identifier} as {gpu_name} to {instance_type} {instance_name} on {endpoint_url}',
