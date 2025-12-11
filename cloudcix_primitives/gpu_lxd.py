@@ -246,7 +246,7 @@ def scrub(
         project: str,
         instance_name: str,
         device_identifier: str,
-        gpu_name: str,
+        device_name: str,
         instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
