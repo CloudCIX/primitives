@@ -44,7 +44,7 @@ def build(
             description: The ID of the GPU to attach (PCI address like "0000:01:00.0").
             type: string
             required: true
-        gpu_name:
+        device_name:
             description: The name to use for the GPU device in LXD.
             type: string
             required: true
