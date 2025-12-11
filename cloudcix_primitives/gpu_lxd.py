@@ -65,7 +65,7 @@ def build(
     # Use the gpu_name parameter as the device name
     
     messages = {
-        1000: f'Successfully attached GPU {device_identifier} as {gpu_name} to {instance_type} {instance_name} on {endpoint_url}',
+        1000: f'Successfully attached GPU {device_identifier} as {device_name} to {instance_type} {instance_name} on {endpoint_url}',
         1001: f'GPU {device_identifier} is already attached to {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
