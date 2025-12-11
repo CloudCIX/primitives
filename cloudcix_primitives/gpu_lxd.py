@@ -19,6 +19,7 @@ def build(
         project: str,
         instance_name: str,
         device_identifier: str,
+        gpu_name: str,
         instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
@@ -40,9 +41,11 @@ def build(
             type: string
             required: true
         device_identifier:
-            description: |
-                The ID of the GPU to attach (PCI address like "0000:01:00.0").
-                This will also be used as the device name.
+            description: The ID of the GPU to attach (PCI address like "0000:01:00.0").
+            type: string
+            required: true
+        gpu_name:
+            description: The name to use for the GPU device in LXD.
             type: string
             required: true
         instance_type:
@@ -59,11 +62,11 @@ def build(
         type: tuple
     """
     
-    # Use the device identifier directly as the device name
-    device_name = device_identifier
+    # Use the gpu_name parameter as the device name
+    device_name = gpu_name
     
     messages = {
-        1000: f'Successfully attached GPU {device_identifier} to {instance_type} {instance_name} on {endpoint_url}',
+        1000: f'Successfully attached GPU {device_identifier} as {gpu_name} to {instance_type} {instance_name} on {endpoint_url}',
         1001: f'GPU {device_identifier} is already attached to {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
@@ -244,6 +247,7 @@ def scrub(
         project: str,
         instance_name: str,
         device_identifier: str,
+        gpu_name: str,
         instance_type: str,
         verify_lxd_certs: bool = True
 ) -> Tuple[bool, str]:
@@ -268,6 +272,10 @@ def scrub(
             description: The ID of the GPU to detach (PCI address like "0000:01:00.0").
             type: string
             required: true
+        gpu_name:
+            description: The name of the GPU device in LXD to detach.
+            type: string
+            required: true
         instance_type:
             description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
@@ -283,8 +291,8 @@ def scrub(
     """
     # Define messages for different statuses
     messages = {
-        1000: f'Successfully detached GPU from {instance_type} {instance_name} on {endpoint_url}',
-        1001: f'No GPU device matching {device_identifier} found in {instance_type} {instance_name} on {endpoint_url}',
+        1000: f'Successfully detached GPU {gpu_name} from {instance_type} {instance_name} on {endpoint_url}',
+        1001: f'No GPU device matching {gpu_name} or {device_identifier} found in {instance_type} {instance_name} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
         3023: f'Failed to detach GPU from instance {instance_name}. Error: ',
@@ -315,12 +323,8 @@ def scrub(
         # Check if there are any GPU devices attached
         gpu_devices = []
         for dev_name, config in instance.devices.items():
-            # Look for devices of type 'gpu'
-            if config.get('type') != 'gpu':
-                continue
-            
-            # Check if it matches either the PCI ID or device name
-            if config.get('pci') == device_identifier or dev_name == device_identifier:
+            # Look for GPU device matching by name
+            if config.get('type') == 'gpu' and dev_name == gpu_name:
                 gpu_devices.append(dev_name)
                 
         # If no GPU devices were found
