@@ -298,8 +298,8 @@ def scrub(
     }
 
     # Validate input
-    if not device_identifier or not isinstance(device_identifier, str):
-        return False, f"Invalid device identifier: {device_identifier}"
+    if not device_name or not isinstance(device_name, str):
+        return False, f"Invalid device name: {device_name}"
 
     def run_host(endpoint_url, prefix, successful_payloads):
         rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project)
@@ -319,27 +319,19 @@ def scrub(
         instance = ret['payload_message']
         fmt.add_successful('instances.get', ret)
         
-        # Check if there are any GPU devices attached
-        gpu_devices = []
-        for dev_name, config in instance.devices.items():
-            # Look for GPU device matching by name
-            if config.get('type') == 'gpu' and dev_name == gpu_name:
-                gpu_devices.append(dev_name)
-                
-        # If no GPU devices were found
-        if not gpu_devices:
+        # Check if the GPU device exists
+        if device_name not in instance.devices:
             return True, f'1001: {messages[1001]}', fmt.successful_payloads
         
-        # Remove the GPU devices
-        detached_devices = []
+        # Verify it's actually a GPU device
+        if instance.devices[device_name].get('type') != 'gpu':
+            return True, f'1001: {messages[1001]}', fmt.successful_payloads
+        
+        # Remove the GPU device
         try:
-            for dev_name in gpu_devices:
-                del instance.devices[dev_name]
-                detached_devices.append(dev_name)
-            
-            # Save the instance configuration
+            del instance.devices[device_name]
             instance.save(wait=True)
-            fmt.add_successful('instances.device_remove', {'devices': detached_devices})
+            fmt.add_successful('instances.device_remove', {'device': device_name})
         except Exception as e:
             return False, f"{prefix+3}: {messages[prefix+3]}: {e}", fmt.successful_payloads
 
