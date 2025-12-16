@@ -58,10 +58,10 @@ def update(
         1000: f'Successfully migrated {instance_type} {instance_name} to cluster member {target_cluster_member} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
-        3023: f'Failed to submit migration for {instance_name} to {target_cluster_member} on {endpoint_url}.',
-        3024: f'Failed to connect to {endpoint_url} for operations.wait.get payload',
+        3023: f'PyLXD instance not available or missing client on {endpoint_url}.',
+        3024: f'Could not extract operation ID from migration response on {endpoint_url}.',
         3025: f'Migration operation failed on {endpoint_url}. Error: ',
-        3026: f'Could not extract operation ID from migration response on {endpoint_url}.',
+        3026: f'Failed to submit migration for {instance_name} to {target_cluster_member} on {endpoint_url}. ',
     }
 
     rcc = LXDCommsWrapper(comms_lxd, endpoint_url, verify_lxd_certs, project)
@@ -83,7 +83,7 @@ def update(
     # Get the PyLXD Instance object from the comms wrapper
     instance = ret.get('payload_message') or ret.get('payload')
     if instance is None or not hasattr(instance, 'client'):
-        return False, f"{prefix+3}: " + messages[prefix+3] + "PyLXD instance not available or missing client()."
+        return False, f"{prefix+3}: " + messages[prefix+3]
 
     # Submit migration using low-level API: POST /1.0/instances/<name>?target=<member>
     try:
@@ -94,8 +94,33 @@ def update(
         )
         data = res.json() if hasattr(res, 'json') else res
         fmt.add_successful('instances.migrate.submit', {'target': target_cluster_member, 'response': data})
+        
+        # Extract operation ID from response
+        operation_id = data.get('metadata', {}).get('id')
+        if not operation_id:
+            return False, f"{prefix+4}: " + messages[prefix+4]
+        
+        # Remove leading '/1.0/operations/' if present
+        operation_id = operation_id.split('/')[-1]
+        
+        # Wait for operation to complete using PyLXD client
+        operation = client.operations.get(operation_id)
+        operation.wait()
+        
+        # Check operation status
+        # After wait(), check if operation succeeded by checking status_code or lack of error
+        if hasattr(operation, 'metadata') and operation.metadata:
+            status = operation.metadata.get('status')
+            if status == 'Success':
+                fmt.add_successful('operations.wait', {'operation_id': operation_id, 'status': 'Success'})
+                return True, f'1000: {messages[1000]}'
+            else:
+                error_msg = operation.metadata.get('err', 'Unknown error')
+                return False, f"{prefix+5}: " + messages[prefix+5] + error_msg
+        else:
+            # If wait() completed without exception, consider it successful
+            fmt.add_successful('operations.wait', {'operation_id': operation_id, 'status': 'Completed'})
+            return True, f'1000: {messages[1000]}'
+        
     except Exception as e:
-        # HostErrorFormatter has no .error(); return a plain message
-        return False, f"{prefix+5}: " + messages[prefix+5] + str(e)
-
-    return True, f'1000: {messages[1000]}'
+        return False, f"{prefix+6}: " + messages[prefix+6] + str(e)
