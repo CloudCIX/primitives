@@ -1,6 +1,7 @@
 [Unit]
 Description=Configure br{{ vlan }} network interface
-After=network.target
+After=sys-subsystem-net-devices-br{{ vlan }}.device
+Requires=sys-subsystem-net-devices-br{{ vlan }}.device
 
 [Service]
 Type=oneshot
