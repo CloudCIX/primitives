@@ -33,6 +33,7 @@ def build(
     secondary_interfaces=[],
     instance_type: str = "container",
     verify_lxd_certs=True,
+    protocol: str = "simplestreams",
 ) -> Tuple[bool, str]:
     """
     description:
@@ -146,6 +147,10 @@ def build(
             description: Boolean to verify LXD certs.
             type: boolean
             required: false
+        protocol:
+            description: The protocol to use for image pulling - "simplestreams" or "lxd"
+            type: string
+            required: false
     return:
         description: |
             A tuple with a boolean flag stating if the build was successful or not and
@@ -172,7 +177,7 @@ def build(
         'architecture': 'x86_64',
         'profiles': ['default'],
         'ephemeral': False,
-        'type': instance_type,  # Add instance type to config
+        'type': instance_type,
         'config': {
             'limits.cpu': f'{cpu}',
             'limits.memory': f'{ram}GB',
@@ -197,7 +202,7 @@ def build(
             'type': 'image',
             'alias': image['os_variant'],
             'mode': 'pull',
-            'protocol': 'simplestreams',
+            'protocol': protocol,
             'server': image['filename'],
         },
     }

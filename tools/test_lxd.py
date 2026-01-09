@@ -22,6 +22,10 @@ image = {
     'os_variant': '24.04',
     'filename': 'https://cloud-images.ubuntu.com/releases',
 }
+# image = {
+#     'os_variant': 'test-image',
+#     'filename': 'https://images-boole.cloudcix.com:',
+# }
 cpu = 2
 gateway_interface = {
     'device_identifier': 'eth0',
@@ -33,7 +37,7 @@ size = 50
 secondary_interfaces = []
 verify_lxd_certs  =  False 
 node = 'tux001'
-
+protocol = 'simplestreams'
 network_config = """
 version: 2
 ethernets:
@@ -106,6 +110,7 @@ if cmd == 'build':
         node=node,
         verify_lxd_certs=verify_lxd_certs,
         instance_type='virtual-machine',
+        protocol=protocol,
     )
 elif cmd == 'quiesce':
     status, msg = lxd.quiesce(
