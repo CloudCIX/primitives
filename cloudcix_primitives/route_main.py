@@ -349,11 +349,11 @@ def scrub(
 
         return True, "", fmt.successful_payloads
 
-    status, msg, successful_payloads = run_podnet(enabled,3220,{})
+    status, msg, successful_payloads = run_podnet(enabled,3120,{})
     if status == False:
         return status, msg
 
-    status, msg, successful_payloads = run_podnet(disabled, 3250, successful_payloads)
+    status, msg, successful_payloads = run_podnet(disabled, 3150, successful_payloads)
     if status == False:
         return status, msg
 
