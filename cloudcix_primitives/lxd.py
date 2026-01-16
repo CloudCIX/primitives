@@ -322,7 +322,7 @@ def quiesce(endpoint_url: str, project: str, instance_name: str, instance_type: 
         instance = ret['payload_message']
         state = instance.state()
         if state.status == 'Running':
-            instance.stop(force=False, wait=True)
+            instance.stop(force=True, wait=True)
         elif state.status != 'Stopped':
             return False, f"{prefix+3}: {messages[prefix+3]} {state.status}"
 
@@ -469,7 +469,7 @@ def restart(endpoint_url: str, project: str, instance_name: str, instance_type: 
         instance = ret['payload_message']
         state = instance.state()
         if state.status == 'Stopped':
-            instance.start(force=False, wait=True)
+            instance.start(force=True, wait=True)
         elif state.status != 'Running':
             return False, f"{prefix+3}: {messages[prefix+3]} {state.status}"
 
@@ -541,7 +541,7 @@ def scrub(endpoint_url: str, project: str, instance_name: str, instance_type: st
         instance = ret['payload_message']
         state = instance.state()
         if state.status == 'Running':
-            instance.stop(force=False, wait=True)
+            instance.stop(force=True, wait=True)
 
         instance.delete(wait=True)
 
