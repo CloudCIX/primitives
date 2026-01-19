@@ -169,9 +169,9 @@ def build(
     # Use the processed configuration
     enabled = config_data['processed']['enabled']
     disabled = config_data['processed']['disabled']
-    # Get podnet_cpe from config.json
-    podnet_cpe = config_data['processed'].get('ipv4_link_cpe', '')
-    
+    # Get podnet_cpe from raw config.json
+    podnet_cpe = config_data['raw']['ipv4_link_cpe']
+
     # Get SSH username from config (default to 'robot' if not specified)
     username = config_data.get('ssh', {}).get('username', 'robot')
 
