@@ -26,7 +26,6 @@ SUCCESS_CODE = 0
 def build(
         namespace: str,
         vpn_id: int,
-        stif_number: int,
         ike_version: str,
         ike_pre_shared_key: str,
         ike_local_identifier: str,
@@ -55,10 +54,6 @@ def build(
             required: true
         vpn_id:
             description: VPN identifier for the tunnel
-            type: integer
-            required: true
-        stif_number:
-            description: STIF interface number
             type: integer
             required: true
         ike_version:
@@ -191,7 +186,6 @@ def build(
         'ike_lifetime': ike_lifetime,
         'podnet_cpe': podnet_cpe,
         'ike_gateway_value': ike_gateway_value,
-        'stif_number': stif_number,
         'ike_local_identifier': ike_local_identifier,
         'ike_remote_identifier': ike_remote_identifier,
         'child_sas': child_sas,
