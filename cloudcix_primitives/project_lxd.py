@@ -79,8 +79,7 @@ def build(
             cli='projects.create',
             name=name,
             config={
-                "features.images": "false",
-                "features.profiles": "false",
+                "features.images": "false"
             },
         )
         if ret["channel_code"] != CHANNEL_SUCCESS:
