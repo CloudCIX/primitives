@@ -10,8 +10,8 @@ connections {
 {% endif %}
         local_addrs = "{{ podnet_cpe }}"
         remote_addrs = "{{ ike_gateway_value }}"
-        if_id_in = {{ stif_number }}
-        if_id_out = {{ stif_number }}
+        if_id_in = {{ vpn_id }}
+        if_id_out = {{ vpn_id }}
         local-{{ vpn_id }} {
             auth = psk
             id = "{{ ike_local_identifier }}"
@@ -27,8 +27,8 @@ connections {
                 local_ts = "{{ child_sa['local_ts'] }}"
                 esp_proposals = "{{ ipsec_encryption }}-{{ ipsec_authentication }}-{{ ipsec_groups }}"
                 remote_ts = "{{ child_sa['remote_ts'] }}"
-                if_id_in = {{ stif_number }}
-                if_id_out = {{ stif_number }}
+                if_id_in = {{ vpn_id }}
+                if_id_out = {{ vpn_id }}
                 start_action = {{ 'trap' if ipsec_establish_time == 'on-traffic' else 'start' }}
             }
 {% endfor %}
