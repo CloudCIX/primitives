@@ -75,7 +75,13 @@ def build(
             return True, f'1001: {messages[1001]}', fmt.successful_payloads
 
         # Create the project
-        ret = rcc.run(cli='projects.create', name=name)
+        ret = rcc.run(
+            cli='projects.create',
+            name=name,
+            config={
+                "features.images": "false"
+            },
+        )
         if ret["channel_code"] != CHANNEL_SUCCESS:
             return False, fmt.channel_error(ret, f"{prefix+3}: {messages[prefix+3]}"), fmt.successful_payloads
         if ret["payload_code"] != API_SUCCESS:
