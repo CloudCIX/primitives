@@ -20,6 +20,7 @@ def build(
         one_to_one: List[Dict[str, str]],
         ranges: List[str],
         public_ip_ns: str,
+        ipv4_bridge: str,
         config_file=None,
 ) -> Tuple[bool, str]:
     """
@@ -28,7 +29,7 @@ def build(
 
     parameters:
         namespace:
-            description: VRF network name space's identifier, such as 'VRF453
+            description: VRF network name space's identifier, such as 'VRF453'
             type: string
             required: true
         one_to_one:
@@ -47,6 +48,10 @@ def build(
         public_ip_ns:
             description: the name space's pulic IP address.
             type: str
+            required: true
+        ipv4_bridge:
+            description: IPv4 Bridge name connected to the public interface, such as 'BM123'
+            type: string
             required: true
         config_file:
             description: path to the config.json file
@@ -116,9 +121,9 @@ def build(
         }
 
         rule_templates = {
-          'postrouting_one_to_one': f'ip netns exec {namespace} nft add rule ip NAT POSTROUTING ip saddr %(private)s snat to %(public)s',
-          'prerouting_one_to_one':  f'ip netns exec {namespace} nft add rule ip NAT PREROUTING ip daddr %(public)s dnat ip to %(private)s',
-          'range':                  f'ip netns exec {namespace} nft add rule ip NAT POSTROUTING ip saddr %(network)s snat to {public_ip_ns}'
+          'postrouting_one_to_one': f'ip netns exec {namespace} nft add rule ip NAT POSTROUTING oifname {namespace}.{ipv4_bridge} ip saddr %(private)s snat to %(public)s',
+          'prerouting_one_to_one':  f'ip netns exec {namespace} nft add rule ip NAT PREROUTING iifname {namespace}.{ipv4_bridge} ip daddr %(public)s dnat ip to %(private)s',
+          'range':                  f'ip netns exec {namespace} nft add rule ip NAT POSTROUTING oifname {namespace}.{ipv4_bridge} ip saddr %(network)s snat to {public_ip_ns}'
         }
 
         ret = rcc.run(payloads['flush_postrouting'])
