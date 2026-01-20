@@ -157,10 +157,14 @@ def build(
             error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
             return False, f"{prefix+7}: {messages[prefix+7]}{node}{error_detail}"
         if ret["payload_code"] != API_SUCCESS:
+            # If network already exists - treat as success
+            payload_error = ret.get('payload_error', '')
+            if 'already exists' in str(payload_error).lower():
+                fmt.add_successful(f'networks.create.stage.{node}', ret)
+                continue
             error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
             payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
             return False, f"{prefix+8}: {messages[prefix+8]}{node}{error_detail}{payload_msg}"
-            return False, f"{prefix+7}: {messages[prefix+7]}{node}{error_detail}{payload_msg}"
         
         fmt.add_successful(f'networks.create.stage.{node}', ret)
         
@@ -181,6 +185,11 @@ def build(
         error_detail = f" - Channel Error: {ret.get('channel_message', 'Unknown error')}"
         return False, f"{prefix+9}: {messages[prefix+9]}{error_detail}"
     if ret["payload_code"] != API_SUCCESS:
+        # If network already exists - treat as success
+        payload_error = ret.get('payload_error', '')
+        if 'already exists' in str(payload_error).lower():
+            fmt.add_successful('networks.create.commit', ret)
+            return True, messages[1000]
         error_detail = f" - Payload Error: {ret.get('payload_error', 'Unknown error')}"
         payload_msg = f" - Message: {ret.get('payload_message', 'No message')}"
         return False, f"{prefix+10}: {messages[prefix+10]}{error_detail}{payload_msg}"
