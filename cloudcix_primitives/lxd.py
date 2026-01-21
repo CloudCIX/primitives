@@ -5,6 +5,7 @@ Primitive for managing an LXD instance.
 from typing import Tuple
 # libs
 from cloudcix.rcc import API_SUCCESS, CHANNEL_SUCCESS, comms_lxd
+from pylxd.exceptions import LXDAPIException
 # local
 from cloudcix_primitives.utils import HostErrorFormatter, LXDCommsWrapper
 
@@ -322,7 +323,14 @@ def quiesce(endpoint_url: str, project: str, instance_name: str, instance_type: 
         instance = ret['payload_message']
         state = instance.state()
         if state.status == 'Running':
-            instance.stop(force=False, wait=True)
+            try:
+                instance.stop(wait=True, timeout=60)
+            except LXDAPIException as e:
+                # If graceful stop fails due to deadline exceeded, force stop
+                if 'deadline exceeded' in str(e):
+                    instance.stop(force=True, wait=True)
+                else:
+                    raise
         elif state.status != 'Stopped':
             return False, f"{prefix+3}: {messages[prefix+3]} {state.status}"
 
@@ -469,7 +477,7 @@ def restart(endpoint_url: str, project: str, instance_name: str, instance_type: 
         instance = ret['payload_message']
         state = instance.state()
         if state.status == 'Stopped':
-            instance.start(force=False, wait=True)
+            instance.start(force=True, wait=True)
         elif state.status != 'Running':
             return False, f"{prefix+3}: {messages[prefix+3]} {state.status}"
 
@@ -541,7 +549,14 @@ def scrub(endpoint_url: str, project: str, instance_name: str, instance_type: st
         instance = ret['payload_message']
         state = instance.state()
         if state.status == 'Running':
-            instance.stop(force=False, wait=True)
+            try:
+                instance.stop(wait=True, timeout=60)
+            except LXDAPIException as e:
+                # If graceful stop fails due to deadline exceeded, force stop
+                if 'deadline exceeded' in str(e):
+                    instance.stop(force=True, wait=True)
+                else:
+                    raise
 
         instance.delete(wait=True)
 
