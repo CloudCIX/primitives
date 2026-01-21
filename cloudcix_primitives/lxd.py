@@ -550,7 +550,7 @@ def scrub(endpoint_url: str, project: str, instance_name: str, instance_type: st
         state = instance.state()
         if state.status == 'Running':
             try:
-                instance.stop(wait=True)
+                instance.stop(wait=True, timeout=60)
             except LXDAPIException as e:
                 # If graceful stop fails due to deadline exceeded, force stop
                 if 'deadline exceeded' in str(e):
