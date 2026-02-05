@@ -21,7 +21,7 @@ def build(
     pool_name: str,
     volume_name: str,
     size: int,
-    volume_type: str,
+    volume_type: str ='filesystem',
     verify_lxd_certs: bool = False,
 ) -> Tuple[bool, str]:
     """
