@@ -21,6 +21,7 @@ def build(
     pool_name: str,
     volume_name: str,
     size: int,
+    volume_type: str ='filesystem',
     verify_lxd_certs: bool = False,
 ) -> Tuple[bool, str]:
     """
@@ -46,6 +47,10 @@ def build(
         size:
             description: Size of the volume in GB.
             type: integer
+            required: true
+        volume_type:
+            description: Content type of the volume. Either 'filesystem' or 'block'.
+            type: string
             required: true
         verify_lxd_certs:
             description: Boolean to verify LXD certs.
@@ -93,7 +98,7 @@ def build(
             },
             "name": volume_name,
             "type": "custom",
-            "content_type": "filesystem"
+            "content_type": volume_type
         }
         
         # STEP 3: Create the volume (in the specified project)
