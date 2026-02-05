@@ -19,11 +19,11 @@ def build(
         project: str,
         instance_name: str,
         volume_name: str,
-        mount_point: str,
         instance_type: str,
         volume_type: str = 'filesystem',
         verify_lxd_certs: bool = True,
         storage_pool: str = "default",
+        mount_point: str = '/mnt/cephfs',
 ) -> Tuple[bool, str]:
     """
     description:
@@ -49,7 +49,7 @@ def build(
         mount_point:
             description: The mount point for the volume inside the instance. Only required for filesystem volumes, ignored for block volumes.
             type: string
-            required: true
+            required: false
         instance_type:
             description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
