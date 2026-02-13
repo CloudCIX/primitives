@@ -23,7 +23,7 @@ def build(
         volume_type: str = 'filesystem',
         verify_lxd_certs: bool = True,
         storage_pool: str = "default",
-        mount_point: str = '/mnt/cephfs',
+        mount_point: str = '/mnt/cephfs/',
 ) -> Tuple[bool, str]:
     """
     description:
