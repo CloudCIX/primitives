@@ -6,13 +6,14 @@ from cloudcix_primitives import rbd_lxd
 
 def usage():
     print("usage:")
-    print("  test_rbd_lxd.py build <endpoint_url> <project> <pool_name> <volume_name> <size_gb> [verify_lxd_certs]")
+    print("  test_rbd_lxd.py build <endpoint_url> <project> <pool_name> <volume_name> <size_gb> [volume_type] [verify_lxd_certs]")
     print("  test_rbd_lxd.py read  <endpoint_url> <project> <pool_name> <volume_name> [verify_lxd_certs]")
     print("  test_rbd_lxd.py scrub <endpoint_url> <project> <pool_name> <volume_name> [verify_lxd_certs]")
     print("  test_rbd_lxd.py update <endpoint_url> <project> <pool_name> <volume_name> <size_gb> [verify_lxd_certs]")
     print()
     print("examples:")
-    print("  test_rbd_lxd.py build https://127.0.0.1:8443 myproject rbd testvol 10 false")
+    print("  test_rbd_lxd.py build https://127.0.0.1:8443 myproject rbd testvol 10 filesystem false")
+    print("  test_rbd_lxd.py build https://127.0.0.1:8443 myproject rbd testvol2 10 block false")
     print("  test_rbd_lxd.py read  https://127.0.0.1:8443 myproject rbd testvol false")
     print("  test_rbd_lxd.py update https://127.0.0.1:8443 myproject rbd testvol 20 false")
     print("  test_rbd_lxd.py scrub https://127.0.0.1:8443 myproject rbd testvol false")
@@ -36,6 +37,7 @@ def main():
     pool_name = "rbd"
     volume_name = "testvol"
     size_gb = 10
+    volume_type = "filesystem"
     verify_lxd_certs = False
 
     # Parse required args
@@ -56,8 +58,17 @@ def main():
             except Exception:
                 print("Invalid size_gb, must be integer")
                 sys.exit(2)
-        if len(sys.argv) > 7:
-            verify_lxd_certs = to_bool(sys.argv[7], False)
+        if cmd == "build":
+            if len(sys.argv) > 7:
+                volume_type = sys.argv[7]
+                if volume_type not in ("filesystem", "block"):
+                    print("Invalid volume_type, must be 'filesystem' or 'block'")
+                    sys.exit(2)
+            if len(sys.argv) > 8:
+                verify_lxd_certs = to_bool(sys.argv[8], False)
+        elif cmd == "update":
+            if len(sys.argv) > 7:
+                verify_lxd_certs = to_bool(sys.argv[7], False)
     else:
         if len(sys.argv) > 6:
             verify_lxd_certs = to_bool(sys.argv[6], False)
@@ -78,6 +89,7 @@ def main():
             pool_name,
             volume_name,
             size_gb,
+            volume_type,
             verify_lxd_certs,
         )
     elif cmd == "read":
