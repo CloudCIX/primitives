@@ -19,10 +19,11 @@ def build(
         project: str,
         instance_name: str,
         volume_name: str,
-        mount_point: str,
         instance_type: str,
+        volume_type: str = 'filesystem',
         verify_lxd_certs: bool = True,
         storage_pool: str = "default",
+        mount_point: str = '/mnt/cephfs/',
 ) -> Tuple[bool, str]:
     """
     description:
@@ -46,13 +47,17 @@ def build(
             type: string
             required: true
         mount_point:
-            description: The mount point for the volume inside the instance.
+            description: The mount point for the volume inside the instance. Only required for filesystem volumes, ignored for block volumes.
             type: string
-            required: true
+            required: false
         instance_type:
             description: The type of LXD instance, either 'vms' or 'containers'.
             type: string
             required: true
+        volume_type:
+            description: Content type of the volume. Either 'filesystem' or 'block'. Block volumes cannot have a path/mount point.
+            type: string
+            required: false
         verify_lxd_certs:
             description: Boolean to verify LXD certs.
             type: boolean
@@ -103,8 +108,11 @@ def build(
             "type": "disk",
             "pool": storage_pool,
             "source": volume_name,
-            "path": mount_point,
         }
+        
+        # Only add path for filesystem volumes, block volumes cannot have a path
+        if volume_type == 'filesystem':
+            device_config["path"] = mount_point
 
         # Add the device to the instance
         instance.devices[volume_name] = device_config
