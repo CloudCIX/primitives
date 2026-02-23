@@ -56,6 +56,7 @@ def update(
     """
     messages = {
         1000: f'Successfully migrated {instance_type} {instance_name} to cluster member {target_cluster_member} on {endpoint_url}',
+        1001: f'{instance_type} {instance_name} is already on {target_cluster_member} on {endpoint_url}',
         3021: f'Failed to connect to {endpoint_url} for instances.get payload',
         3022: f'Failed to run instances.get payload on {endpoint_url}. Payload exited with status ',
         3023: f'PyLXD instance not available or missing client on {endpoint_url}.',
@@ -88,6 +89,9 @@ def update(
     instance = ret.get('payload_message') or ret.get('payload')
     if instance is None or not hasattr(instance, 'client'):
         return False, f"{prefix+3}: " + messages[prefix+3]
+
+    if instance.location == target_cluster_member:
+        return True, f'1001: {messages[1001]}'
 
     # Submit migration using low-level API: POST /1.0/instances/<name>?target=<member>
     try:
