@@ -28,7 +28,7 @@ gateway_network = {
     'vlan': 1002,
     'ips': [{
         'ip': '10.0.0.3',
-        'netwask': '24',
+        'prefix': '24',
         'gateway': '10.0.0.1',
         'dns': '8.8.8.8,8.8.4.4',
     }]
