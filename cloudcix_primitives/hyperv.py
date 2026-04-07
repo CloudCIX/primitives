@@ -92,19 +92,19 @@ def build(
                 ips: 
                     type: object
                     properties:
-                        ip: 
+                        ip:
                             description: An IP address to be configured on the gateway network
                             type: string
                             required: true
-                        netmask: 
-                            description: The netmask of the IP 
+                        prefix:
+                            description: The prefix length of the IP Network
                             type: integer
                             required: true
-                        gateway: 
+                        gateway:
                             description: The Gateway IP address for the network
                             type: string
                             required: true
-                        dns: 
+                        dns:
                             description: A commma seperated string of the DNS nameserver for the gateway network
                             type: string
                             required: true
@@ -121,12 +121,12 @@ def build(
                     ips: 
                         type: object
                         properties:
-                            ip: 
+                            ip:
                                 description: An IP address to be configured on this secondary network
                                 type: string
                                 required: true
-                            netmask: 
-                                description: The netmask of the IP
+                            prefix:
+                                description: The prefix length of the IP Network
                                 type: integer
                                 required: true
             required: false
